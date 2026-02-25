@@ -1,44 +1,26 @@
-// src/data/tiles.ts
-import { SectorId } from '@/lib/types';
-
-export interface TileDef {
-  id: number;
-  type: 'asset' | 'chance' | 'tax' | 'station' | 'special';
-  name: string | Record<SectorId, string>;
-  baseCost?: number;
-  baseMRR?: number;
-}
-
-export const TILES: TileDef[] = [
-  { id: 0, type: 'special', name: 'VIA / FISCAL YEAR' },
-  { 
-    id: 1, 
-    type: 'asset', 
-    name: {
-      saas_b2b: "Sviluppo API Core",
-      cleantech: "Prototipo Hardware",
-      ai_deeptech: "Training LLM Base",
-      marketplace: "UX/UI Piattaforma",
-      manufacturing: "Setup Linea Prod."
-    },
-    baseCost: 5000,
-    baseMRR: 800
-  },
-  { id: 2, type: 'chance', name: 'HACKER NEWS' },
-  { 
-    id: 3, 
-    type: 'asset', 
-    name: {
-      saas_b2b: "Beta Testing",
-      cleantech: "Certificazioni CE",
-      ai_deeptech: "Data Cleaning",
-      marketplace: "Onboarding Vendor",
-      manufacturing: "Test Materiali"
-    },
-    baseCost: 8000,
-    baseMRR: 1200
-  },
-  { id: 4, type: 'tax', name: 'CLOUD & OPS COSTS', baseCost: 2000 },
-  { id: 5, type: 'station', name: 'PRE-SEED ROUND' },
-  // ... continueremo a mappare le restanti 18 man mano
+export const TILES = [
+  { id: 0, name: "Garage MVP", type: "asset" },
+  { id: 1, name: "Beta Launch", type: "asset" },
+  { id: 2, name: "Seed Round", type: "special" },
+  { id: 3, name: "Co-Working Space", type: "asset" },
+  { id: 4, name: "Cloud Credits", type: "tax" },
+  { id: 5, name: "Series A", type: "asset" },
+  { id: 6, name: "Angel Exit", type: "special" },
+  { id: 7, name: "Tech Talent", type: "asset" },
+  { id: 8, name: "Pivot", type: "chance" },
+  { id: 9, name: "Burn Rate", type: "tax" },
+  { id: 10, name: "Growth Hack", type: "asset" },
+  { id: 11, name: "Scaleup", type: "asset" },
+  { id: 12, name: "Networking", type: "special" },
+  { id: 13, name: "Acquisition", type: "asset" },
+  { id: 14, name: "Venture Debt", type: "tax" },
+  { id: 15, name: "Market Leader", type: "asset" },
+  { id: 16, name: "R&D Grant", type: "chance" },
+  { id: 17, name: "Unicorn", type: "asset" },
+  { id: 18, name: "IPO Day", type: "special" },
+  { id: 19, name: "Audit", type: "tax" },
+  { id: 20, name: "Global Expansion", type: "asset" },
+  { id: 21, name: "Tech Debt", type: "chance" },
+  { id: 22, name: "Board Meeting", type: "special" },
+  { id: 23, name: "Exit Strategy", type: "asset" }
 ];
