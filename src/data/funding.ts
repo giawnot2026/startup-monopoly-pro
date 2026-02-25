@@ -1,0 +1,47 @@
+export const FUNDING_OFFERS = [
+  // --- INVESTITORI EQUITY (VC & ANGELS) ---
+  { id: 1, investor: "Pre-Seed Syndicate", type: "EQUITY", description: "Piccolo round per consolidare l'MVP.", equityRange: { min: 5, max: 8 }, multiplierBonus: 0 },
+  { id: 2, investor: "Silicon Valley Scout", type: "EQUITY", description: "Vogliono una crescita esplosiva. Multiplo +3x.", equityRange: { min: 15, max: 25 }, multiplierBonus: 3 },
+  { id: 3, investor: "Family Office", type: "EQUITY", description: "Investitori pazienti, bassa diluizione.", equityRange: { min: 3, max: 7 }, multiplierBonus: -1 },
+  { id: 4, investor: "Vulture Capital", type: "EQUITY", description: "Tanti soldi, ma vogliono prendersi l'azienda.", equityRange: { min: 25, max: 40 }, multiplierBonus: 2 },
+  { id: 5, investor: "Impact Fund", type: "EQUITY", description: "Focus su sostenibilità. Diluizione equa.", equityRange: { min: 8, max: 12 }, multiplierBonus: 0 },
+  { id: 6, investor: "Accelerator Demo Day", type: "EQUITY", description: "Round standard post-accelerazione.", equityRange: { min: 7, max: 10 }, multiplierBonus: 1 },
+  { id: 7, investor: "Strategic CVC", type: "EQUITY", description: "Braccio VC di una multinazionale. Asset strategico.", equityRange: { min: 10, max: 15 }, multiplierBonus: 4 },
+  { id: 8, investor: "Boutique Angel Firm", type: "EQUITY", description: "Investitori esperti del settore.", equityRange: { min: 4, max: 9 }, multiplierBonus: 1 },
+  { id: 9, investor: "Aggressive Hedge Fund", type: "EQUITY", description: "Vogliono l'Exit in 2 anni. Multiplo alto.", equityRange: { min: 20, max: 30 }, multiplierBonus: 5 },
+  { id: 10, investor: "Local Startup Heroes", type: "EQUITY", description: "Imprenditori locali che reinvestono.", equityRange: { min: 5, max: 10 }, multiplierBonus: 0 },
+  { id: 11, investor: "Crypto Whale", type: "EQUITY", description: "Investimento in token o equity rapida.", equityRange: { min: 10, max: 20 }, multiplierBonus: 2 },
+  { id: 12, investor: "DeepTech Fund", type: "EQUITY", description: "Per startup con brevetti forti.", equityRange: { min: 12, max: 18 }, multiplierBonus: 3 },
+  { id: 13, investor: "Nordic Ventures", type: "EQUITY", description: "Efficienza e governance solida.", equityRange: { min: 8, max: 14 }, multiplierBonus: 1 },
+  { id: 14, investor: "Fintech Growth Partners", type: "EQUITY", description: "Specializzati in scalata finanziaria.", equityRange: { min: 15, max: 22 }, multiplierBonus: 2 },
+  { id: 15, investor: "E-commerce Aggregators", type: "EQUITY", description: "Vogliono integrare il tuo prodotto.", equityRange: { min: 18, max: 28 }, multiplierBonus: 1 },
+  { id: 16, investor: "Asian Tech Giant", type: "EQUITY", description: "Espansione asiatica inclusa.", equityRange: { min: 12, max: 20 }, multiplierBonus: 4 },
+  { id: 17, investor: "Cloud Provider VC", type: "EQUITY", description: "Round guidato da AWS/Google/MS.", equityRange: { min: 10, max: 15 }, multiplierBonus: 2 },
+  { id: 18, investor: "Solo GP", type: "EQUITY", description: "Un singolo investitore ultra-veloce.", equityRange: { min: 5, max: 12 }, multiplierBonus: 0 },
+  { id: 19, investor: "Community Equity Crowdfunding", type: "EQUITY", description: "Migliaia di piccoli soci. Gestione complessa.", equityRange: { min: 8, max: 15 }, multiplierBonus: -2 },
+  { id: 20, investor: "Secondary Market Deal", type: "EQUITY", description: "Liquidità immediata per i founder.", equityRange: { min: 10, max: 18 }, multiplierBonus: 1 },
+
+  // --- PRESTITI BANCARI E DEBITO (BANK) ---
+  { id: 21, investor: "Banca Nazionale", type: "BANK", description: "Prestito standard a tasso fisso.", interestRate: 0.05, durationYears: 3 },
+  { id: 22, investor: "Venture Debt Fund", type: "BANK", description: "Debito per chi ha già VC. Caro ma veloce.", interestRate: 0.12, durationYears: 2 },
+  { id: 23, investor: "Microcredito Startup", type: "BANK", description: "Piccola somma per esigenze immediate.", interestRate: 0.03, durationYears: 1 },
+  { id: 24, investor: "Fondo di Garanzia", type: "BANK", description: "Stato garantisce l'80% del prestito.", interestRate: 0.04, durationYears: 4 },
+  { id: 25, investor: "Finanziamento Agevolato Femminile", type: "BANK", description: "Tasso quasi zero per diversity.", interestRate: 0.01, durationYears: 5 },
+  { id: 26, investor: "Prestito Ponte (Bridge)", type: "BANK", description: "Breve durata per arrivare al prossimo round.", interestRate: 0.15, durationYears: 1 },
+  { id: 27, investor: "Leasing Hardware", type: "BANK", description: "Per acquisto server e macchinari.", interestRate: 0.07, durationYears: 3 },
+  { id: 28, investor: "Factoring Crediti", type: "BANK", description: "Anticipo fatture dei grandi clienti.", interestRate: 0.09, durationYears: 1 },
+  { id: 29, investor: "Green Loan", type: "BANK", description: "Per progetti a basso impatto ambientale.", interestRate: 0.03, durationYears: 4 },
+  { id: 30, investor: "Revenue-Based Financing", type: "BANK", description: "Restituisci una % del MRR mensile.", interestRate: 0.10, durationYears: 2 },
+
+  // --- FONDI PERDUTI E SPECIALI (GRANT/ALTRO) ---
+  { id: 31, investor: "Bando Europeo Horizon", type: "GRANT", description: "Fondo perduto per innovazione radicale.", fixedAmount: 50000 },
+  { id: 32, investor: "Smart & Start Grant", type: "GRANT", description: "Copertura costi operativi al 50%.", fixedAmount: 30000 },
+  { id: 33, investor: "Vincita Startup Competition", type: "GRANT", description: "Premio in denaro non diluitivo.", fixedAmount: 15000 },
+  { id: 34, investor: "Voucher Digitalizzazione", type: "GRANT", description: "Per consulenza tech.", fixedAmount: 10000 },
+  { id: 35, investor: "Fondo Perduto R&D", type: "GRANT", description: "Rimborso spese di ricerca.", fixedAmount: 25000 },
+  { id: 36, investor: "Business Angel 'Silent'", type: "EQUITY", description: "Mette i soldi e non interviene.", equityRange: { min: 8, max: 12 }, multiplierBonus: 0 },
+  { id: 37, investor: "University Spin-off Grant", type: "GRANT", description: "Per progetti nati in ambito accademico.", fixedAmount: 20000 },
+  { id: 38, investor: "Corporate Pilot Program", type: "GRANT", description: "Pagano loro lo sviluppo del prototipo.", fixedAmount: 12000 },
+  { id: 39, investor: "Convertible Note", type: "EQUITY", description: "Debito che diventerà equity tra un anno.", equityRange: { min: 10, max: 15 }, multiplierBonus: 2 },
+  { id: 40, investor: "Founder Personal Loan", type: "BANK", description: "Metterci i propri risparmi. Rischioso.", interestRate: 0.00, durationYears: 2 }
+];
