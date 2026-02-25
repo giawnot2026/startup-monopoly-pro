@@ -74,13 +74,12 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       
-      console.log(`[EVENT] Pescata carta: ${event.title}`);
       setModalConfig({ 
         isOpen: true, 
-        type: isOpp ? 'info' : 'danger', 
+        type: isOpp ? 'opportunity' : 'danger_event', // Usiamo i nuovi tipi personalizzati
         title: event.title, 
         description: event.effect, 
-        actionLabel: "Applica Effetto", 
+        actionLabel: isOpp ? "Sfrutta l'occasione" : "Affronta le conseguenze", 
         onAction: () => { 
           applyEvent(event); 
           setModalConfig({ isOpen: false }); 
