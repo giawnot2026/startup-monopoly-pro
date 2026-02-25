@@ -1,113 +1,98 @@
-'use client'
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, DollarSign, Award, X } from 'lucide-react';
 
 interface ActionModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  type: 'success' | 'danger' | 'info' | 'opportunity' | 'danger_event';
   title: string;
   description: string;
-  type: 'success' | 'danger' | 'info' | 'funding';
   impact?: {
-    mrr?: number;
-    costs?: number;
     cash?: number;
+    ebitda?: number;
+    details?: string;
   };
-  actionLabel?: string;
-  onAction?: () => void;
-  canAfford?: boolean;
+  actionLabel: string;
+  secondaryActionLabel?: string;
+  onAction: () => void;
+  onClose?: () => void;
 }
 
-export default function ActionModal({ 
-  isOpen, onClose, title, description, type, impact, actionLabel, onAction, canAfford = true 
+export default function ActionModal({
+  isOpen, type, title, description, impact, actionLabel, secondaryActionLabel, onAction, onClose
 }: ActionModalProps) {
-  
-  const colors = {
-    success: 'border-blue-500 shadow-blue-500/20 text-blue-400',
-    danger: 'border-red-500 shadow-red-500/20 text-red-400',
-    info: 'border-emerald-500 shadow-emerald-500/20 text-emerald-400',
-    funding: 'border-purple-500 shadow-purple-500/20 text-purple-400'
+  if (!isOpen) return null;
+
+  // Configurazione stili e icone in base al tipo
+  const configs = {
+    opportunity: {
+      bg: 'bg-emerald-950/95',
+      border: 'border-emerald-500',
+      text: 'text-emerald-400',
+      icon: '🚀',
+      accent: 'bg-emerald-500',
+      label: 'OPPORTUNITÀ'
+    },
+    danger_event: {
+      bg: 'bg-rose-950/95',
+      border: 'border-rose-500',
+      text: 'text-rose-400',
+      icon: '⚠️',
+      accent: 'bg-rose-500',
+      label: 'IMPREVISTO'
+    },
+    success: { bg: 'bg-slate-900', border: 'border-blue-500', text: 'text-blue-400', icon: '💰', accent: 'bg-blue-500', label: 'INVESTIMENTO' },
+    danger: { bg: 'bg-slate-900', border: 'border-red-500', text: 'text-red-400', icon: '💸', accent: 'bg-red-500', label: 'COSTO' },
+    info: { bg: 'bg-slate-900', border: 'border-amber-500', text: 'text-amber-400', icon: '🏢', accent: 'bg-amber-500', label: 'ROUND' },
   };
 
+  const config = configs[type] || configs.info;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className={`relative w-full max-w-md bg-slate-900 border-2 rounded-3xl p-8 shadow-2xl ${colors[type]}`}
-          >
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-2xl font-black uppercase tracking-tighter mb-1 text-white">{title}</h2>
-                <p className="text-slate-400 text-sm leading-relaxed">{description}</p>
-              </div>
-              <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                <X size={20} className="text-slate-500" />
-              </button>
-            </div>
-
-            {/* Impact Grid */}
-            {impact && (
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                {impact.mrr !== undefined && (
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp size={14} className="text-blue-400" />
-                      <span className="text-[10px] uppercase font-bold text-slate-500">MRR Effect</span>
-                    </div>
-                    <p className={`text-lg font-mono font-bold ${impact.mrr >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                      {impact.mrr >= 0 ? '+' : ''}{impact.mrr}€
-                    </p>
-                  </div>
-                )}
-                {impact.costs !== undefined && (
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingDown size={14} className="text-red-400" />
-                      <span className="text-[10px] uppercase font-bold text-slate-500">Cost Effect</span>
-                    </div>
-                    <p className="text-lg font-mono font-bold text-white">
-                      +{impact.costs}€
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Action Section */}
-            <div className="flex flex-col gap-3">
-              {actionLabel && (
-                <button 
-                  disabled={!canAfford}
-                  onClick={onAction}
-                  className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest transition-all
-                    ${canAfford 
-                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]' 
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  {canAfford ? actionLabel : 'Insufficient Cash'}
-                </button>
-              )}
-              <button 
-                onClick={onClose}
-                className="w-full py-4 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 rounded-2xl font-bold uppercase text-xs transition-all"
-              >
-                Close
-              </button>
-            </div>
-
-            {/* Glow Decorativo */}
-            <div className={`absolute -inset-1 rounded-3xl opacity-20 blur-xl -z-10 ${colors[type].split(' ')[0].replace('border', 'bg')}`} />
-          </motion.div>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+      <div className={`${config.bg} ${config.border} border-2 w-full max-w-md rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden`}>
+        
+        {/* Badge Superiore */}
+        <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-6 py-1 rounded-b-xl`}>
+          <span className="text-[10px] font-black text-black tracking-[0.2em]">{config.label}</span>
         </div>
-      )}
-    </AnimatePresence>
+
+        <div className="text-center mt-4">
+          <div className="text-5xl mb-4">{config.icon}</div>
+          <h2 className={`text-2xl font-black ${config.text} uppercase tracking-tighter mb-4 italic`}>
+            {title}
+          </h2>
+          <p className="text-slate-300 text-sm leading-relaxed mb-6 font-medium">
+            {description}
+          </p>
+
+          {impact && (
+            <div className="bg-black/40 rounded-2xl p-4 mb-6 border border-white/5">
+              {impact.cash && (
+                <div className={`text-xl font-black ${impact.cash > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {impact.cash > 0 ? '+' : ''}€{impact.cash.toLocaleString()}
+                </div>
+              )}
+              {impact.details && <div className="text-xs text-slate-400 mt-1 font-mono">{impact.details}</div>}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={onAction}
+              className={`w-full py-4 ${config.accent} text-black font-black rounded-2xl hover:scale-[1.02] transition-transform uppercase tracking-widest text-xs`}
+            >
+              {actionLabel}
+            </button>
+            {secondaryActionLabel && (
+              <button
+                onClick={onClose}
+                className="w-full py-4 bg-white/5 text-white/50 font-bold rounded-2xl hover:text-white transition-colors uppercase tracking-widest text-[10px]"
+              >
+                {secondaryActionLabel}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
