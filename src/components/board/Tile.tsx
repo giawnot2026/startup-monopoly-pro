@@ -1,40 +1,94 @@
 'use client'
 import React from 'react';
 import { motion } from 'framer-motion';
+// Importiamo le icone necessarie
+import { 
+  Rocket, Users, BarChart3, Presentation, Wallet, BadgeCheck, 
+  Zap, Globe, ShieldAlert, Handshake, TrendingUp, Briefcase, 
+  Factory, Network, Users2, Settings, HeartPulse, Landmark, 
+  LineChart, Building2, Share2, FileCheck, Coins, Skull, 
+  HelpCircle, AlertTriangle 
+} from 'lucide-react';
+
+// Funzione di supporto per assegnare l'icona in base al nome
+const getIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes("start")) return <Rocket size={20} />;
+  if (n.includes("mvp")) return <BadgeCheck size={18} />;
+  if (n.includes("test")) return <BarChart3 size={18} />;
+  if (n.includes("opportunità")) return <HelpCircle size={22} />;
+  if (n.includes("imprevisto")) return <AlertTriangle size={22} />;
+  if (n.includes("pitch")) return <Presentation size={18} />;
+  if (n.includes("prototipo") || n.includes("costi")) return <Wallet size={18} />;
+  if (n.includes("clienti")) return <Users size={18} />;
+  if (n.includes("marketing")) return <Zap size={18} />;
+  if (n.includes("canali")) return <Network size={18} />;
+  if (n.includes("support")) return <HeartPulse size={18} />;
+  if (n.includes("nuovi mercati")) return <Globe size={18} />;
+  if (n.includes("partnership")) return <Handshake size={18} />;
+  if (n.includes("competitor")) return <ShieldAlert size={18} />;
+  if (n.includes("round") || n.includes("series") || n.includes("seed") || n.includes("bridge")) return <Landmark size={20} />;
+  if (n.includes("automazione")) return <Factory size={18} />;
+  if (n.includes("internazionale")) return <Globe size={18} />;
+  if (n.includes("hiring")) return <Users2 size={18} />;
+  if (n.includes("ottimizzazione")) return <Settings size={18} />;
+  if (n.includes("retention")) return <TrendingUp size={18} />;
+  if (n.includes("ipo")) return <LineChart size={18} />;
+  if (n.includes("acquisizione")) return <Building2 size={18} />;
+  if (n.includes("spin-off")) return <Share2 size={18} />;
+  if (n.includes("licenza")) return <FileCheck size={18} />;
+  if (n.includes("investitori")) return <Coins size={18} />;
+  if (n.includes("exit")) return <Skull size={20} />;
+  return <Briefcase size={16} />;
+};
 
 export default function Tile({ id, name, type, style }: any) {
   const isCorner = [0, 7, 14, 21].includes(id);
+  const isOpportunity = name.toLowerCase().includes("opportunità");
+  const isImprevisto = name.toLowerCase().includes("imprevisto");
   const isTax = type === 'tax';
-  const isFunding = type === 'funding';
 
   return (
     <motion.div 
-      style={style} // Applica qui la posizione row/col fissa
-      whileHover={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-      className={`relative p-2 flex flex-col justify-between border border-white/10 transition-colors h-full w-full overflow-hidden
-        ${isCorner ? 'bg-blue-900/20' : 'bg-transparent'}
+      style={style}
+      whileHover={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' }}
+      className={`relative p-2 flex flex-col justify-between border border-white/10 transition-all h-full w-full overflow-hidden group
+        ${isCorner ? 'bg-blue-500/10' : 'bg-transparent'}
+        ${isOpportunity ? 'bg-blue-400/5 border-blue-500/30' : ''}
+        ${isImprevisto || (isTax && !isCorner) ? 'bg-red-400/5 border-red-500/30' : ''}
       `}
     >
-      <div className="flex justify-between items-start">
-        <span className="text-[7px] font-mono text-slate-500 tracking-tighter transition-colors group-hover:text-blue-400">0x{id}</span>
-        <div className={`w-1 h-1 rounded-full ${isCorner ? 'bg-blue-400 shadow-[0_0_8px_#3b82f6]' : 'bg-slate-700'}`} />
+      {/* Parte Superiore: ID e Icona */}
+      <div className="flex justify-between items-start z-10">
+        <span className="text-[7px] font-mono text-slate-500 uppercase tracking-tighter">0x{id}</span>
+        <div className={`transition-all duration-300 
+          ${isOpportunity || isCorner ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' : (isImprevisto || isTax) ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'text-slate-400 group-hover:text-white'}
+        `}>
+          {getIcon(name)}
+        </div>
       </div>
 
-      <div className="mt-auto">
-        <h3 className={`text-[8px] md:text-[9px] font-bold leading-[1.1] uppercase tracking-tighter
+      {/* Parte Inferiore: Nome e Tipo */}
+      <div className="mt-auto z-10">
+        <h3 className={`text-[8px] md:text-[9px] font-bold leading-tight uppercase tracking-tighter mb-0.5
           ${isCorner ? 'text-blue-300' : 'text-slate-100'}
         `}>
           {name}
         </h3>
-        <p className={`text-[6px] font-black uppercase tracking-widest mt-0.5
-          ${isFunding ? 'text-blue-400' : isTax ? 'text-red-500' : 'text-slate-600'}
+        <p className={`text-[5px] font-black uppercase tracking-widest
+          ${isOpportunity || isCorner ? 'text-blue-500' : (isImprevisto || isTax) ? 'text-red-500' : 'text-slate-600'}
         `}>
           {type}
         </p>
       </div>
 
-      {/* Glow laterale per gli angoli */}
-      {isCorner && <div className="absolute inset-0 bg-blue-500/5 animate-pulse pointer-events-none" />}
+      {/* Effetto Glow per caselle speciali e angoli */}
+      {(isCorner || isOpportunity || isImprevisto) && (
+        <div className={`absolute inset-0 opacity-5 pointer-events-none 
+          ${(isImprevisto || isTax) ? 'bg-red-500' : 'bg-blue-500'}
+          animate-pulse
+        `} />
+      )}
     </motion.div>
   );
 }
