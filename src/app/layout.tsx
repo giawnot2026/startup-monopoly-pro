@@ -6,14 +6,10 @@ export const metadata: Metadata = {
   description: 'The grid is your market',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it">
-      <body className="antialiased bg-[#020617]">
+      <body className="antialiased bg-[#020617] text-white">
         {children}
       </body>
     </html>
