@@ -1,6 +1,6 @@
 'use client'
-import React, { useState } from 'react';
-import { useGameLogic, ExtendedPlayer } from '@/hooks/useGameLogic';
+import React, { useState, useEffect } from 'react';
+import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
 import { TILES } from '@/data/tiles';
@@ -17,20 +17,42 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
+  const [diceValue, setDiceValue] = useState<number | null>(null);
 
+  // Funzione per l'animazione del lancio dadi
   const handleDiceRoll = () => {
     if (modalConfig.isOpen || isRolling) return;
+    
     setIsRolling(true);
-    setTimeout(() => {
-      const steps = Math.floor(Math.random() * 6) + 1;
-      const tile = movePlayer(steps);
-      setIsRolling(false);
-      processTile(tile);
-    }, 600);
+    let counter = 0;
+    const maxIterations = 15; // Quante volte cambia il numero prima di fermarsi
+
+    // Effetto "rimescolamento" visivo
+    const shuffleInterval = setInterval(() => {
+      setDiceValue(Math.floor(Math.random() * 6) + 1);
+      counter++;
+      
+      if (counter >= maxIterations) {
+        clearInterval(shuffleInterval);
+        
+        // Risultato reale
+        const steps = Math.floor(Math.random() * 6) + 1;
+        setDiceValue(steps);
+        
+        // Aspettiamo un attimo sul numero finale prima di muovere
+        setTimeout(() => {
+          const tile = movePlayer(steps);
+          setIsRolling(false);
+          processTile(tile);
+          // Opzionale: resettiamo il dado dopo il movimento
+          // setDiceValue(null); 
+        }, 800);
+      }
+    }, 80); // Velocità del rimescolamento (ms)
   };
 
   const processTile = (tile: any) => {
-    // --- LOGICA CASSELLE (Mantenuta uguale) ---
+    // ... (Logica processTile rimane identica a quella precedente)
     if (tile.name.toLowerCase().includes("exit")) {
       const canExit = valuation >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
@@ -81,36 +103,48 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   if (gameWinner) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center text-center">
-        <h1 className="text-6xl font-black text-white mb-4 italic uppercase">Exit Riuscita!</h1>
-        <p className="text-2xl text-blue-400 mb-8">{gameWinner.name} vince la partita.</p>
-        <button onClick={() => window.location.reload()} className="px-10 py-4 bg-blue-600 text-white font-bold rounded-full">Gioca ancora</button>
+      <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center text-center p-4">
+        <h1 className="text-6xl font-black text-white mb-4 italic uppercase tracking-tighter">Exit Riuscita!</h1>
+        <p className="text-2xl text-blue-400 mb-8">{gameWinner.name} ha venduto la startup con successo.</p>
+        <button onClick={() => window.location.reload()} className="px-10 py-4 bg-blue-600 text-white font-bold rounded-full hover:scale-110 transition-transform">Gioca ancora</button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start">
+    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start font-sans">
       
       {/* COLONNA SINISTRA: TABELLONE */}
-      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-950 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl">
+      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-950 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         
-        {/* HUD CENTRALE (Mantenuto per focus giocatore di turno) */}
+        {/* HUD CENTRALE + DADO ANIMATO */}
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[3rem] z-20 p-6 shadow-2xl">
-          <div className="flex items-center gap-2 mb-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+          
+          <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
             <span className="text-white font-black text-[9px] uppercase tracking-widest">{currentPlayer.name}</span>
           </div>
-          <div className="text-center mb-4">
+
+          {/* COMPONENTE DADO VISIVO */}
+          <div className={`w-20 h-20 mb-6 flex items-center justify-center rounded-2xl border-2 transition-all duration-150 ${
+            isRolling ? 'scale-110 border-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.4)] rotate-12 blur-[1px]' : 'border-white/20 rotate-0 blur-0'
+          } bg-slate-800 text-white text-4xl font-black`}>
+            {diceValue || '?'}
+          </div>
+
+          <div className="text-center mb-6">
             <div className="text-3xl font-black text-white tracking-tighter italic">€{valuation.toLocaleString()}</div>
             <span className="text-blue-400 font-mono text-[8px] uppercase tracking-widest opacity-70">Company Valuation</span>
           </div>
+
           <button 
             onClick={handleDiceRoll} 
             disabled={isRolling || modalConfig.isOpen} 
-            className="px-10 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl transition-all uppercase tracking-widest text-xs shadow-lg"
+            className={`px-10 py-3 font-black rounded-xl transition-all uppercase tracking-widest text-xs shadow-lg ${
+              isRolling ? 'bg-slate-800 text-slate-500 scale-95' : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'
+            }`}
           >
-            {isRolling ? "Rolling..." : "Lancia Dadi"}
+            {isRolling ? "In movimento..." : "Lancia Dadi"}
           </button>
         </div>
 
@@ -136,17 +170,17 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
-      {/* COLONNA DESTRA: DASHBOARD DI RIEPILOGO */}
-      <div className="w-full lg:w-[350px] space-y-4">
+      {/* COLONNA DESTRA: DASHBOARD (Mantenuta uguale) */}
+      <div className="w-full lg:w-[350px] space-y-4 overflow-y-auto max-h-screen pb-10">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-xs mb-4 px-2">Market Overview</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
-          const pValuation = (p.mrr - p.monthlyCosts) * 12 * 10 + p.cash; // Calcolo veloce per la dashboard
+          const pValuation = (p.mrr - p.monthlyCosts) * 12 * 10 + p.cash;
 
           return (
             <div 
               key={p.id} 
-              className={`p-4 rounded-2xl border transition-all duration-300 ${
+              className={`p-4 rounded-2xl border transition-all duration-500 ${
                 isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.2)]' : 'bg-slate-900/50 border-white/5 opacity-80'
               } ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}
             >
@@ -159,11 +193,11 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-black/20 p-2 rounded-lg">
+                <div className="bg-black/20 p-2 rounded-lg text-center">
                   <span className="text-slate-500 text-[8px] uppercase font-bold block">Cash</span>
                   <span className="text-white font-mono text-xs font-bold">€{p.cash.toLocaleString()}</span>
                 </div>
-                <div className="bg-black/20 p-2 rounded-lg">
+                <div className="bg-black/20 p-2 rounded-lg text-center">
                   <span className="text-slate-500 text-[8px] uppercase font-bold block">EBITDA (M)</span>
                   <span className={`font-mono text-xs font-bold ${(p.mrr - p.monthlyCosts) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     €{(p.mrr - p.monthlyCosts).toLocaleString()}
