@@ -5,22 +5,15 @@ export interface PlayerAsset {
   level: BadgeLevel;
 }
 
-export interface Debt {
-  id: string;
-  principal: number;
-  remainingQuarters: number;
-  interestRate: number;
-}
-
 export interface PlayerState {
   id: number;
   name: string;
-  color: string; // Es: '#3b82f6' per il blu
+  color: string;
   cash: number;
-  mrr: number;
-  monthlyCosts: number;
-  equity: number;
-  position: number;
-  assets: PlayerAsset[];
-  debts: Debt[];
+  mrr: number;           // Ricavi mensili (somma base + badge)
+  monthlyCosts: number;  // Costi operativi
+  equity: number;        // Parte dal 100%
+  position: number;      // Indice della casella (0-27)
+  assets: PlayerAsset[]; // Elenco badge acquistati
+  totalRaised: number;   // Storico investimenti ricevuti
 }
