@@ -5,9 +5,14 @@ import BoardLayout from '@/components/board/BoardLayout';
 import Tile from '@/components/board/Tile';
 import { TILES } from '@/data/tiles';
 
+// Forza la pagina a essere generata dinamicamente lato client
+export const dynamic = 'force-dynamic';
+
 export default function GamePage() {
   const params = useParams();
-  const id = params?.id;
+  
+  // Gestione di sicurezza per l'ID
+  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : 'loading...';
 
   const getGridPosition = (index: number) => {
     if (index <= 6) return `col-start-${index + 1} row-start-1`;
@@ -20,7 +25,7 @@ export default function GamePage() {
   return (
     <main className="bg-black min-h-screen">
       <BoardLayout>
-        {TILES.map((tile, i) => (
+        {TILES && TILES.map((tile, i) => (
           <Tile 
             key={tile.id}
             id={tile.id}
@@ -31,9 +36,9 @@ export default function GamePage() {
         ))}
       </BoardLayout>
       
-      {/* Label di controllo in basso a sinistra */}
-      <div className="fixed bottom-4 left-4 text-[10px] font-mono text-blue-500/50 uppercase tracking-widest">
-        Session: {id}
+      {/* Label di debug visibile per conferma */}
+      <div className="fixed top-4 right-4 text-[10px] font-mono text-emerald-500 bg-black/80 p-2 border border-emerald-500/30 rounded z-50">
+        STATUS: ONLINE | ROOM: {id}
       </div>
     </main>
   );
