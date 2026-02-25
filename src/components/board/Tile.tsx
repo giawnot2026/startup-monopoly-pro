@@ -6,7 +6,7 @@ import {
   Rocket, Users, BarChart3, Presentation, Wallet, BadgeCheck, 
   Zap, Globe, ShieldAlert, Handshake, TrendingUp, Briefcase, 
   Factory, Network, Users2, Settings, HeartPulse, Landmark, 
-  LineChart, Building2, Share2, FileCheck, Coins, Skull, 
+  LineChart, Building2, Share2, FileCheck, Coins, Trophy, 
   HelpCircle, AlertTriangle 
 } from 'lucide-react';
 
@@ -38,11 +38,11 @@ const getIcon = (name: string) => {
   if (n.includes("spin-off")) return <Share2 size={18} />;
   if (n.includes("licenza")) return <FileCheck size={18} />;
   if (n.includes("investitori")) return <Coins size={18} />;
-  if (n.includes("exit")) return <Skull size={20} />;
+  if (n.includes("exit")) return <Trophy size={20} />; // Cambiato in Trophy per celebrare la vittoria
   return <Briefcase size={16} />;
 };
 
-export default function Tile({ id, name, type, style }: any) {
+export default function Tile({ id, name, type, style, isActive = false }: any) {
   const isCorner = [0, 7, 14, 21].includes(id);
   const isOpportunity = name.toLowerCase().includes("opportunità");
   const isImprevisto = name.toLowerCase().includes("imprevisto");
@@ -53,9 +53,10 @@ export default function Tile({ id, name, type, style }: any) {
       style={style}
       whileHover={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' }}
       className={`relative p-2 flex flex-col justify-between border border-white/10 transition-all h-full w-full overflow-hidden group
-        ${isCorner ? 'bg-blue-500/10' : 'bg-transparent'}
+        ${isCorner ? 'bg-blue-900/20' : 'bg-transparent'}
         ${isOpportunity ? 'bg-blue-400/5 border-blue-500/30' : ''}
         ${isImprevisto || (isTax && !isCorner) ? 'bg-red-400/5 border-red-500/30' : ''}
+        ${isActive ? 'ring-2 ring-inset ring-white/50' : ''}
       `}
     >
       {/* Parte Superiore: ID e Icona */}
@@ -82,11 +83,11 @@ export default function Tile({ id, name, type, style }: any) {
         </p>
       </div>
 
-      {/* Effetto Glow per caselle speciali e angoli */}
-      {(isCorner || isOpportunity || isImprevisto) && (
+      {/* Effetto Glow / Neon: Si attiva solo se la casella è speciale O se un player è atterrato (isActive) */}
+      {(isCorner || isOpportunity || isImprevisto || isActive) && (
         <div className={`absolute inset-0 opacity-5 pointer-events-none 
           ${(isImprevisto || isTax) ? 'bg-red-500' : 'bg-blue-500'}
-          animate-pulse
+          ${isActive ? 'opacity-20 animate-pulse' : 'opacity-5'}
         `} />
       )}
     </motion.div>
