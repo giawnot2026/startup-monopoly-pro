@@ -3,14 +3,19 @@ import { useState, useMemo, useCallback } from 'react';
 import { TILES } from '@/data/tiles';
 import { PlayerState, BadgeLevel } from '@/types/game';
 
-const PLAYER_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
+// Interfaccia per i dati che arrivano dalla Landing Page
+interface InitialPlayer {
+  name: string;
+  color: string;
+}
 
-export const useGameLogic = (numberOfPlayers: number) => {
+export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
+  // Inizializziamo i giocatori usando i nomi e i colori scelti dall'utente
   const [players, setPlayers] = useState<PlayerState[]>(
-    Array.from({ length: numberOfPlayers }).map((_, i) => ({
+    initialPlayers.map((p, i) => ({
       id: i,
-      name: `Founder ${i + 1}`,
-      color: PLAYER_COLORS[i],
+      name: p.name,
+      color: p.color,
       cash: 50000,
       mrr: 0,
       monthlyCosts: 0,
@@ -25,26 +30,26 @@ export const useGameLogic = (numberOfPlayers: number) => {
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const currentPlayer = players[currentPlayerIndex];
 
-  // --- FORMULA VALUATION AGGIORNATA ---
+  // --- FORMULA VALUATION ---
+  // (EBITDA * 12 * 10) + Cash
   const calculateValuation = (p: PlayerState) => {
     const ebitda = p.mrr - p.monthlyCosts;
     const annualEbitda = ebitda * 12;
     
-    // Valore operativo: 10x EBITDA annuale (o 2x Revenue se EBITDA < 0)
     const operationalValue = annualEbitda > 0 
       ? annualEbitda * 10 
       : (p.mrr * 12) * 2;
 
-    // La valutazione finale è il valore operativo + la cassa liquida
     return operationalValue + p.cash;
   };
 
   const ebitda = useMemo(() => currentPlayer.mrr - currentPlayer.monthlyCosts, [currentPlayer]);
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer]);
 
+  // Gestione turni basata sulla lunghezza dell'array dinamico
   const nextTurn = useCallback(() => {
-    setCurrentPlayerIndex((prev) => (prev + 1) % numberOfPlayers);
-  }, [numberOfPlayers]);
+    setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
+  }, [players.length]);
 
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
@@ -81,7 +86,6 @@ export const useGameLogic = (numberOfPlayers: number) => {
           return { ...p, position: nextPos, cash: newCash, mrr: newMrr, monthlyCosts: newCosts };
         }
 
-        // Accredito pedaggio al proprietario
         if (owner && idx === owner.id) {
           return { ...p, cash: p.cash + tollToPay };
         }
@@ -114,7 +118,6 @@ export const useGameLogic = (numberOfPlayers: number) => {
         return {
           ...p,
           cash: p.cash - cost,
-          // L'MRR NON CAMBIA CON I BADGE, aumenta solo la rendita (toll)
           assets: asset 
             ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a)
             : [...p.assets, { tileId, level: nextLevel }]
