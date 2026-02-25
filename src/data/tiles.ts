@@ -18,7 +18,7 @@ export const TILES: Tile[] = [
   { id: 6, name: "Acquisizione Primi Clienti", type: "asset", revenueModifier: 2000, costModifier: 800 },
 
   // ANGOLO 7: SEED ROUND (Iniezione di Cash)
-  { id: 7, name: "Seed Round", type: "funding" },
+  { id: 7, name: "Funding Round", type: "funding" },
 
   // FASE 2: GO-TO-MARKET (Inizio crescita e costi marketing)
   { id: 8, name: "Campagna Marketing", type: "asset", revenueModifier: 4000, costModifier: 2500 },
@@ -29,7 +29,7 @@ export const TILES: Tile[] = [
   { id: 13, name: "Competitor Emergente", type: "tax", revenueModifier: -1000, costModifier: 1000 },
 
   // ANGOLO 14: BRIDGE ROUND
-  { id: 14, name: "Bridge Round", type: "funding" },
+  { id: 14, name: "Funding Round", type: "funding" },
 
   // FASE 3: SCALE-UP (Grandi volumi, grandi costi)
   { id: 15, name: "Opportunità", type: "special" },
@@ -40,7 +40,7 @@ export const TILES: Tile[] = [
   { id: 20, name: "Imprevisto", type: "special" },
 
   // ANGOLO 21: SERIES B
-  { id: 21, name: "Series B", type: "funding" },
+  { id: 21, name: "Funding Round", type: "funding" },
 
   // FASE 4: EXIT (Massimizzazione Valuation)
   { id: 22, name: "Opportunità", type: "special" },
