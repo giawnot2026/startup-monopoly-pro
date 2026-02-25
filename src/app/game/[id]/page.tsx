@@ -1,18 +1,13 @@
 'use client'
-import React from 'react';
-import { useParams } from 'next/navigation';
+import React, { use } from 'react';
 import BoardLayout from '@/components/board/BoardLayout';
 import Tile from '@/components/board/Tile';
 import { TILES } from '@/data/tiles';
 
-// Forza la pagina a essere generata dinamicamente lato client
-export const dynamic = 'force-dynamic';
-
-export default function GamePage() {
-  const params = useParams();
-  
-  // Gestione di sicurezza per l'ID
-  const id = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : 'loading...';
+export default function GamePage({ params }: { params: Promise<{ id: string }> }) {
+  // In Next.js 15+ i params vanno "scartati" con use() o trattati come Promise
+  const resolvedParams = use(params);
+  const id = resolvedParams?.id;
 
   const getGridPosition = (index: number) => {
     if (index <= 6) return `col-start-${index + 1} row-start-1`;
@@ -22,23 +17,25 @@ export default function GamePage() {
     return '';
   };
 
+  // Se i dati non sono ancora pronti, mostriamo un caricamento per evitare il crash
+  if (!TILES) return <div className="bg-black min-h-screen flex items-center justify-center text-white">Caricamento Asset...</div>;
+
   return (
     <main className="bg-black min-h-screen">
       <BoardLayout>
-        {TILES && TILES.map((tile, i) => (
+        {TILES.map((tile, i) => (
           <Tile 
-            key={tile.id}
+            key={tile.id || i}
             id={tile.id}
-            name={tile.name} 
-            type={tile.type}
+            name={tile.name || "Startup"} 
+            type={tile.type || "asset"}
             gridClass={getGridPosition(i)}
           />
         ))}
       </BoardLayout>
       
-      {/* Label di debug visibile per conferma */}
-      <div className="fixed top-4 right-4 text-[10px] font-mono text-emerald-500 bg-black/80 p-2 border border-emerald-500/30 rounded z-50">
-        STATUS: ONLINE | ROOM: {id}
+      <div className="fixed bottom-4 left-4 text-[10px] font-mono text-blue-500/50 uppercase">
+        LOBBY: {id}
       </div>
     </main>
   );
