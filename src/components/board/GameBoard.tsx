@@ -7,11 +7,7 @@ import { TILES } from '@/data/tiles';
 import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 
-interface GameBoardProps {
-  playersCount: number;
-}
-
-export default function GameBoard({ playersCount }: GameBoardProps) {
+export default function GameBoard({ playersCount }: { playersCount: number }) {
   const { 
     players, currentPlayer, ebitda, valuation, 
     movePlayer, upgradeBadge, applyEvent, nextTurn 
@@ -33,9 +29,9 @@ export default function GameBoard({ playersCount }: GameBoardProps) {
   };
 
   const processTile = (tile: any) => {
-    // 1. Controllo Pedaggio
     const owner = players.find(p => p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
     
+    // 1. CASO PEDAGGIO
     if (owner && tile.badges) {
       const ownerAsset = owner.assets.find(a => a.tileId === tile.id);
       const level = ownerAsset!.level as keyof typeof tile.badges;
@@ -44,16 +40,16 @@ export default function GameBoard({ playersCount }: GameBoardProps) {
       setModalConfig({
         isOpen: true,
         type: 'danger',
-        title: "Licenza d'uso",
-        description: `Casella di ${owner.name}. Hai pagato €${toll.toLocaleString()} per l'utilizzo dei loro sistemi.`,
+        title: "Paga Royalties",
+        description: `Sei atterrato su un asset di ${owner.name}. Paghi €${toll.toLocaleString()} di commissioni.`,
         impact: { cash: -toll },
-        actionLabel: "Ricevuto",
+        actionLabel: "Paga",
         onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
       });
       return;
     }
 
-    // 2. Logica Asset Libero / Proprio
+    // 2. CASO ASSET / UPGRADE
     if (tile.type === 'asset' && tile.badges) {
       const currentAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const level = currentAsset ? currentAsset.level : 'none';
@@ -68,20 +64,16 @@ export default function GameBoard({ playersCount }: GameBoardProps) {
         type: 'success',
         title: tile.name,
         description: next 
-          ? `Effetto base applicato. Vuoi potenziare questa casella al livello ${next.l.toUpperCase()}?` 
-          : "Hai già il massimo potenziamento tecnologico su questa casella.",
-        impact: { mrr: tile.revenueModifier },
+          ? `L'attività di base è avviata. Vuoi investire nel Badge ${next.l.toUpperCase()} per riscuotere pedaggi dagli altri?` 
+          : "Massimo livello raggiunto.",
+        impact: { mrr: tile.revenueModifier, costs: tile.costModifier },
         actionLabel: next ? `Acquista ${next.l} (${next.cost}€)` : null,
         canAfford: next ? currentPlayer.cash >= next.cost : false,
-        onAction: () => { 
-          if (next) upgradeBadge(tile.id); 
-          setModalConfig({ isOpen: false }); 
-          nextTurn(); 
-        },
+        onAction: () => { if (next) upgradeBadge(tile.id); setModalConfig({ isOpen: false }); nextTurn(); },
         onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); }
       });
     } 
-    // 3. Special Tiles (Eventi)
+    // 3. SPECIAL (IMPREVISTI/OPPORTUNITÀ)
     else if (tile.type === 'special') {
       const isOpp = tile.name.toLowerCase().includes("opportunità");
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
@@ -93,67 +85,38 @@ export default function GameBoard({ playersCount }: GameBoardProps) {
         title: event.title,
         description: event.effect,
         impact: { mrr: event.revenueModifier, cash: event.cashEffect },
-        actionLabel: "Applica Effetto",
+        actionLabel: "Applica",
         onAction: () => { applyEvent(event); setModalConfig({ isOpen: false }); nextTurn(); }
       });
     }
-    // 4. Funding (Angoli)
-    else if (tile.type === 'funding' && tile.id !== 0) {
-      const offerCash = Math.round(valuation * 0.15);
-      setModalConfig({
-        isOpen: true,
-        type: 'funding',
-        title: "Funding Round",
-        description: `Un VC offre €${offerCash.toLocaleString()} per il 15% di Equity.`,
-        impact: { cash: offerCash },
-        actionLabel: "Accetta Investimento",
-        onAction: () => { /* Logica Equity espandibile */ setModalConfig({ isOpen: false }); nextTurn(); },
-        onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); }
-      });
-    } else {
-      // Casella START o Tax senza Badge
+    // 4. ALTRO
+    else {
       setTimeout(() => nextTurn(), 800);
     }
   };
 
   return (
-    <div className="relative w-full max-w-5xl mx-auto aspect-square bg-slate-950 p-4 border border-blue-500/20 shadow-2xl rounded-[2rem] overflow-hidden">
-      
+    <div className="relative w-full max-w-5xl mx-auto aspect-square bg-slate-950 p-4 border border-blue-500/20 shadow-2xl rounded-[2.5rem]">
       {/* HUD CENTRALE */}
-      <div className="absolute inset-[22%] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[3rem] z-20 p-8 shadow-2xl text-center">
-        <div className="flex items-center gap-3 mb-4 bg-white/5 px-4 py-2 rounded-full border border-white/10">
-          <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
+      <div className="absolute inset-[22%] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[3rem] z-20 p-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: currentPlayer.color }} />
           <span className="text-white font-black tracking-widest uppercase text-[10px]">{currentPlayer.name}</span>
         </div>
-
-        <div className="mb-6">
-          <h2 className="text-blue-400 font-mono text-[9px] tracking-[0.4em] uppercase opacity-70">Valuation</h2>
-          <div className="text-5xl font-black text-white tracking-tighter">€{valuation.toLocaleString()}</div>
+        <div className="text-center mb-8">
+          <h2 className="text-blue-400 font-mono text-[9px] tracking-[0.4em] uppercase opacity-70">Company Valuation</h2>
+          <div className="text-5xl font-black text-white tracking-tighter italic">€{valuation.toLocaleString()}</div>
         </div>
-        
-        <div className="grid grid-cols-2 gap-10 w-full mb-8">
-          <div>
-            <span className="text-slate-500 text-[8px] uppercase font-bold tracking-widest block mb-1">Cash</span>
-            <span className="text-xl font-mono text-green-400 font-bold">€{currentPlayer.cash.toLocaleString()}</span>
-          </div>
-          <div>
-            <span className="text-slate-500 text-[8px] uppercase font-bold tracking-widest block mb-1">EBITDA</span>
-            <span className={`text-xl font-mono font-bold ${ebitda >= 0 ? 'text-blue-400' : 'text-red-500'}`}>
-              €{ebitda.toLocaleString()}
-            </span>
-          </div>
+        <div className="grid grid-cols-2 gap-10 w-full mb-8 text-center">
+          <div><span className="text-slate-500 text-[8px] uppercase font-bold block">Cash</span><span className="text-xl font-mono text-green-400">€{currentPlayer.cash.toLocaleString()}</span></div>
+          <div><span className="text-slate-500 text-[8px] uppercase font-bold block">EBITDA</span><span className={`text-xl font-mono ${ebitda >= 0 ? 'text-blue-400' : 'text-red-500'}`}>€{ebitda.toLocaleString()}</span></div>
         </div>
-
-        <button 
-          onClick={handleDiceRoll}
-          disabled={isRolling || modalConfig.isOpen}
-          className="px-12 py-5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white text-sm font-black rounded-2xl transition-all shadow-[0_0_30px_rgba(37,99,235,0.3)] uppercase tracking-widest"
-        >
+        <button onClick={handleDiceRoll} disabled={isRolling} className="px-12 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all uppercase tracking-widest text-sm shadow-xl">
           {isRolling ? "Rolling..." : "Lancia Dadi"}
         </button>
       </div>
 
-      {/* TABELLONE */}
+      {/* GRID TABELLONE */}
       <div className="grid grid-cols-8 grid-rows-8 gap-1.5 h-full w-full">
         {TILES.map((tile) => {
           let row, col;
@@ -163,7 +126,6 @@ export default function GameBoard({ playersCount }: GameBoardProps) {
           else { col = 1; row = 8 - (tile.id - 21); }
 
           const playersHere = players.filter(p => p.position === tile.id);
-          // Troviamo il proprietario del badge per questa specifica casella
           const tileOwner = players.find(p => p.assets.some(a => a.tileId === tile.id));
           const assetInfo = tileOwner?.assets.find(a => a.tileId === tile.id);
 
@@ -175,23 +137,16 @@ export default function GameBoard({ playersCount }: GameBoardProps) {
                 ownerBadge={assetInfo?.level || 'none'}
                 ownerColor={tileOwner?.color || 'transparent'}
               />
-              {/* Segnaposto Giocatori */}
               <div className="absolute bottom-1 left-1 flex gap-1 z-30">
                 {playersHere.map(p => (
-                  <motion.div 
-                    key={p.id} 
-                    layoutId={`player-${p.id}`}
-                    className="w-3 h-3 rounded-full border-2 border-white shadow-lg" 
-                    style={{ backgroundColor: p.color }} 
-                  />
+                  <div key={p.id} className="w-3 h-3 rounded-full border border-white shadow-md" style={{ backgroundColor: p.color }} />
                 ))}
               </div>
             </div>
           );
         })}
       </div>
-
-      <ActionModal {...modalConfig} onClose={() => { if(modalConfig.onClose) modalConfig.onClose(); else setModalConfig({ ...modalConfig, isOpen: false }); }} />
+      <ActionModal {...modalConfig} onClose={() => setModalConfig({ ...modalConfig, isOpen: false })} />
     </div>
   );
 }
