@@ -41,5 +41,5 @@ export const TILES = [
   { id: 24, name: "Spin-off", type: "asset" },
   { id: 25, name: "Licenza Brevetto", type: "asset" },
   { id: 26, name: "Ritorno Investitori", type: "tax" },
-  { id: 27, name: "Exit Fallita", type: "tax" }
+  { id: 27, name: "Exit", type: "tax" }
 ];
