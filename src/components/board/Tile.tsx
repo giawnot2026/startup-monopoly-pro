@@ -1,16 +1,14 @@
 'use client'
 import React from 'react';
 import { motion } from 'framer-motion';
-// Importiamo le icone necessarie
 import { 
   Rocket, Users, BarChart3, Presentation, Wallet, BadgeCheck, 
   Zap, Globe, ShieldAlert, Handshake, TrendingUp, Briefcase, 
   Factory, Network, Users2, Settings, HeartPulse, Landmark, 
   LineChart, Building2, Share2, FileCheck, Coins, Trophy, 
-  HelpCircle, AlertTriangle 
+  HelpCircle, AlertTriangle, Award
 } from 'lucide-react';
 
-// Funzione di supporto per assegnare l'icona in base al nome
 const getIcon = (name: string) => {
   const n = name.toLowerCase();
   if (n.includes("start")) return <Rocket size={20} />;
@@ -38,11 +36,11 @@ const getIcon = (name: string) => {
   if (n.includes("spin-off")) return <Share2 size={18} />;
   if (n.includes("licenza")) return <FileCheck size={18} />;
   if (n.includes("investitori")) return <Coins size={18} />;
-  if (n.includes("exit")) return <Trophy size={20} />; // Cambiato in Trophy per celebrare la vittoria
+  if (n.includes("exit")) return <Trophy size={20} />;
   return <Briefcase size={16} />;
 };
 
-export default function Tile({ id, name, type, style, isActive = false }: any) {
+export default function Tile({ id, name, type, style, isActive = false, ownerBadge = 'none', ownerColor = '#3b82f6' }: any) {
   const isCorner = [0, 7, 14, 21].includes(id);
   const isOpportunity = name.toLowerCase().includes("opportunità");
   const isImprevisto = name.toLowerCase().includes("imprevisto");
@@ -56,10 +54,27 @@ export default function Tile({ id, name, type, style, isActive = false }: any) {
         ${isCorner ? 'bg-blue-900/20' : 'bg-transparent'}
         ${isOpportunity ? 'bg-blue-400/5 border-blue-500/30' : ''}
         ${isImprevisto || (isTax && !isCorner) ? 'bg-red-400/5 border-red-500/30' : ''}
-        ${isActive ? 'ring-2 ring-inset ring-white/50' : ''}
+        ${isActive ? 'ring-2 ring-inset ring-white/40 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : ''}
       `}
     >
-      {/* Parte Superiore: ID e Icona */}
+      {/* Badge Ownership Indicator */}
+      {ownerBadge !== 'none' && (
+        <div className="absolute top-1 right-1 flex items-center gap-1 z-20">
+          <div 
+            className="w-1.5 h-4 rounded-full" 
+            style={{ backgroundColor: ownerColor, boxShadow: `0 0 8px ${ownerColor}` }} 
+          />
+          <Award 
+            size={12} 
+            className={
+              ownerBadge === 'gold' ? 'text-yellow-400 animate-pulse' : 
+              ownerBadge === 'silver' ? 'text-slate-300' : 
+              'text-amber-700'
+            } 
+          />
+        </div>
+      )}
+
       <div className="flex justify-between items-start z-10">
         <span className="text-[7px] font-mono text-slate-500 uppercase tracking-tighter">0x{id}</span>
         <div className={`transition-all duration-300 
@@ -69,7 +84,6 @@ export default function Tile({ id, name, type, style, isActive = false }: any) {
         </div>
       </div>
 
-      {/* Parte Inferiore: Nome e Tipo */}
       <div className="mt-auto z-10">
         <h3 className={`text-[8px] md:text-[9px] font-bold leading-tight uppercase tracking-tighter mb-0.5
           ${isCorner ? 'text-blue-300' : 'text-slate-100'}
@@ -83,7 +97,6 @@ export default function Tile({ id, name, type, style, isActive = false }: any) {
         </p>
       </div>
 
-      {/* Effetto Glow / Neon: Si attiva solo se la casella è speciale O se un player è atterrato (isActive) */}
       {(isCorner || isOpportunity || isImprevisto || isActive) && (
         <div className={`absolute inset-0 opacity-5 pointer-events-none 
           ${(isImprevisto || isTax) ? 'bg-red-500' : 'bg-blue-500'}
