@@ -1,23 +1,18 @@
 'use client'
-import React from 'react';
-import { useParams } from 'next/navigation';
+import React, { use } from 'react';
 import BoardLayout from '@/components/board/BoardLayout';
 import Tile from '@/components/board/Tile';
 import { TILES } from '@/data/tiles';
 
-export default function GamePage() {
-  const params = useParams();
-  const id = params?.id as string;
+export default function GamePage({ params }: { params: Promise<{ id: string }> }) {
+  // Metodo ufficiale React 19 per gestire parametri asincroni
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
 
-  // Algoritmo di mappatura perimetrale 7x7
   const getGridPosition = (index: number) => {
-    // Top row: 0-6
     if (index <= 6) return `col-start-${index + 1} row-start-1`;
-    // Right column: 7-11
     if (index <= 11) return `col-start-7 row-start-${index - 6 + 1}`;
-    // Bottom row: 12-18
     if (index <= 18) return `col-start-${7 - (index - 12)} row-start-7`;
-    // Left column: 19-23
     if (index <= 23) return `col-start-1 row-start-${7 - (index - 18)}`;
     return '';
   };
@@ -36,12 +31,11 @@ export default function GamePage() {
         ))}
       </BoardLayout>
       
-      {/* HUD di sessione */}
       <div className="fixed bottom-6 left-6 z-50">
-        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
+        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_10px_#3b82f6]" />
           <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
-            Network Status: Stable / Room: {id}
+            Session: {id}
           </span>
         </div>
       </div>
