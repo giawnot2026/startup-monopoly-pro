@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react';
 import { TILES } from '@/data/tiles';
-import { PlayerState, BadgeLevel, PlayerAsset } from '@/types/game';
+import { PlayerState, BadgeLevel } from '@/types/game';
 
 const PLAYER_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
 
@@ -17,7 +17,6 @@ export const useGameLogic = (numberOfPlayers: number) => {
       equity: 100,
       position: 0,
       assets: [],
-      debts: [],
       totalRaised: 0,
       isBankrupt: false
     }))
@@ -26,13 +25,22 @@ export const useGameLogic = (numberOfPlayers: number) => {
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const currentPlayer = players[currentPlayerIndex];
 
-  // Helper Finanziari
-  const getPlayerEbitda = (p: PlayerState) => p.mrr - p.monthlyCosts;
-  const getPlayerValuation = (p: PlayerState) => {
-    const ebitda = getPlayerEbitda(p);
+  // --- FORMULA VALUATION AGGIORNATA ---
+  const calculateValuation = (p: PlayerState) => {
+    const ebitda = p.mrr - p.monthlyCosts;
     const annualEbitda = ebitda * 12;
-    return annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
+    
+    // Valore operativo: 10x EBITDA annuale (o 2x Revenue se EBITDA < 0)
+    const operationalValue = annualEbitda > 0 
+      ? annualEbitda * 10 
+      : (p.mrr * 12) * 2;
+
+    // La valutazione finale è il valore operativo + la cassa liquida
+    return operationalValue + p.cash;
   };
+
+  const ebitda = useMemo(() => currentPlayer.mrr - currentPlayer.monthlyCosts, [currentPlayer]);
+  const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer]);
 
   const nextTurn = useCallback(() => {
     setCurrentPlayerIndex((prev) => (prev + 1) % numberOfPlayers);
@@ -43,12 +51,8 @@ export const useGameLogic = (numberOfPlayers: number) => {
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
-      // 1. Identifichiamo il proprietario (se esiste e non è il giocatore corrente)
-      const owner = prevPlayers.find(p => 
-        p.id !== currentPlayerIndex && 
-        p.assets.some(a => a.tileId === nextPos)
-      );
-      
+      // Controllo pedaggio (Toll)
+      const owner = prevPlayers.find(p => p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
       const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
       let tollToPay = 0;
 
@@ -58,18 +62,17 @@ export const useGameLogic = (numberOfPlayers: number) => {
       }
 
       return prevPlayers.map((p, idx) => {
-        // Logica Giocatore Corrente
         if (idx === currentPlayerIndex) {
           let newCash = p.cash - tollToPay;
           let newMrr = p.mrr;
           let newCosts = p.monthlyCosts;
 
-          // Passaggio dallo START (Trimestrale)
+          // Passaggio dal VIA (Quarterly Review)
           if (nextPos < p.position || nextPos === 0) {
             newCash += (newMrr - newCosts) * 3;
           }
 
-          // EFFETTO BASE AUTOMATICO (Indipendente dai Badge)
+          // Effetto Base della Casella (Sempre applicato)
           if (tile.type === 'asset' || tile.type === 'tax') {
             newMrr += (tile.revenueModifier || 0);
             newCosts += (tile.costModifier || 0);
@@ -78,7 +81,7 @@ export const useGameLogic = (numberOfPlayers: number) => {
           return { ...p, position: nextPos, cash: newCash, mrr: newMrr, monthlyCosts: newCosts };
         }
 
-        // Logica Proprietario (Riceve il pedaggio)
+        // Accredito pedaggio al proprietario
         if (owner && idx === owner.id) {
           return { ...p, cash: p.cash + tollToPay };
         }
@@ -102,27 +105,16 @@ export const useGameLogic = (numberOfPlayers: number) => {
       
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
-      let revBonus = 0;
 
-      if (currentLevel === 'none') {
-        nextLevel = 'bronze';
-        cost = tile.badges.bronze.cost;
-        revBonus = tile.badges.bronze.revenueBonus;
-      } else if (currentLevel === 'bronze') {
-        nextLevel = 'silver';
-        cost = tile.badges.silver.cost;
-        revBonus = tile.badges.silver.revenueBonus - tile.badges.bronze.revenueBonus;
-      } else if (currentLevel === 'silver') {
-        nextLevel = 'gold';
-        cost = tile.badges.gold.cost;
-        revBonus = tile.badges.gold.revenueBonus - tile.badges.silver.revenueBonus;
-      }
+      if (currentLevel === 'none') { nextLevel = 'bronze'; cost = tile.badges.bronze.cost; }
+      else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = tile.badges.silver.cost; }
+      else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = tile.badges.gold.cost; }
 
       if (nextLevel !== 'none' && p.cash >= cost) {
         return {
           ...p,
           cash: p.cash - cost,
-          mrr: p.mrr + revBonus,
+          // L'MRR NON CAMBIA CON I BADGE, aumenta solo la rendita (toll)
           assets: asset 
             ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a)
             : [...p.assets, { tileId, level: nextLevel }]
@@ -148,8 +140,8 @@ export const useGameLogic = (numberOfPlayers: number) => {
     players,
     currentPlayerIndex,
     currentPlayer,
-    ebitda: getPlayerEbitda(currentPlayer),
-    valuation: getPlayerValuation(currentPlayer),
+    ebitda,
+    valuation,
     movePlayer,
     upgradeBadge,
     applyEvent,
