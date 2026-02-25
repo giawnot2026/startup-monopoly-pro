@@ -1,14 +1,11 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react';
 import { TILES } from '@/data/tiles';
-import { OPPORTUNITA } from '@/data/opportunita';
-import { IMPREVISTI } from '@/data/imprevisti';
-import { PlayerState, BadgeLevel } from '@/types/game';
+import { PlayerState, BadgeLevel, PlayerAsset } from '@/types/game';
 
 const PLAYER_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
 
 export const useGameLogic = (numberOfPlayers: number) => {
-  // Inizializzazione array giocatori
   const [players, setPlayers] = useState<PlayerState[]>(
     Array.from({ length: numberOfPlayers }).map((_, i) => ({
       id: i,
@@ -29,80 +26,99 @@ export const useGameLogic = (numberOfPlayers: number) => {
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const currentPlayer = players[currentPlayerIndex];
 
-  // --- CALCOLI FINANZIARI ---
+  // Helper Finanziari
   const getPlayerEbitda = (p: PlayerState) => p.mrr - p.monthlyCosts;
-  
   const getPlayerValuation = (p: PlayerState) => {
     const ebitda = getPlayerEbitda(p);
     const annualEbitda = ebitda * 12;
     return annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
   };
 
-  // --- AZIONI TURNI ---
   const nextTurn = useCallback(() => {
     setCurrentPlayerIndex((prev) => (prev + 1) % numberOfPlayers);
   }, [numberOfPlayers]);
 
-  // --- LOGICA MOVIMENTO ED EFFETTI ---
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
+      // 1. Identifichiamo il proprietario (se esiste e non è il giocatore corrente)
+      const owner = prevPlayers.find(p => 
+        p.id !== currentPlayerIndex && 
+        p.assets.some(a => a.tileId === nextPos)
+      );
+      
+      const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
+      let tollToPay = 0;
+
+      if (owner && ownerAsset && tile.badges) {
+        const level = ownerAsset.level as keyof typeof tile.badges;
+        tollToPay = tile.badges[level].toll;
+      }
+
       return prevPlayers.map((p, idx) => {
-        if (idx !== currentPlayerIndex) return p;
+        // Logica Giocatore Corrente
+        if (idx === currentPlayerIndex) {
+          let newCash = p.cash - tollToPay;
+          let newMrr = p.mrr;
+          let newCosts = p.monthlyCosts;
 
-        let newCash = p.cash;
-        let newMrr = p.mrr;
-        let newCosts = p.monthlyCosts;
+          // Passaggio dallo START (Trimestrale)
+          if (nextPos < p.position || nextPos === 0) {
+            newCash += (newMrr - newCosts) * 3;
+          }
 
-        // Passaggio dallo START (Quarterly Review)
-        if (nextPos < p.position || nextPos === 0) {
-          newCash += (newMrr - newCosts) * 3;
+          // EFFETTO BASE AUTOMATICO (Indipendente dai Badge)
+          if (tile.type === 'asset' || tile.type === 'tax') {
+            newMrr += (tile.revenueModifier || 0);
+            newCosts += (tile.costModifier || 0);
+          }
+
+          return { ...p, position: nextPos, cash: newCash, mrr: newMrr, monthlyCosts: newCosts };
         }
 
-        // Effetto automatico Asset/Tax
-        if (tile.type === 'asset' || tile.type === 'tax') {
-          newMrr += (tile.revenueModifier || 0);
-          newCosts += (tile.costModifier || 0);
+        // Logica Proprietario (Riceve il pedaggio)
+        if (owner && idx === owner.id) {
+          return { ...p, cash: p.cash + tollToPay };
         }
 
-        return { ...p, position: nextPos, cash: newCash, mrr: newMrr, monthlyCosts: newCosts };
+        return p;
       });
     });
 
     return tile;
   }, [currentPlayerIndex, currentPlayer.position]);
 
-  // --- ACQUISTO BADGE ---
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return;
 
-    const asset = currentPlayer.assets.find(a => a.tileId === tileId);
-    const currentLevel = asset ? asset.level : 'none';
-    
-    let nextLevel: BadgeLevel = 'none';
-    let cost = 0;
-    let revBonus = 0;
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIndex) return p;
 
-    if (currentLevel === 'none') {
-      nextLevel = 'bronze';
-      cost = tile.badges.bronze.cost;
-      revBonus = tile.badges.bronze.revenueBonus;
-    } else if (currentLevel === 'bronze') {
-      nextLevel = 'silver';
-      cost = tile.badges.silver.cost;
-      revBonus = tile.badges.silver.revenueBonus - tile.badges.bronze.revenueBonus;
-    } else if (currentLevel === 'silver') {
-      nextLevel = 'gold';
-      cost = tile.badges.gold.cost;
-      revBonus = tile.badges.gold.revenueBonus - tile.badges.silver.revenueBonus;
-    }
+      const asset = p.assets.find(a => a.tileId === tileId);
+      const currentLevel = asset ? asset.level : 'none';
+      
+      let nextLevel: BadgeLevel = 'none';
+      let cost = 0;
+      let revBonus = 0;
 
-    if (nextLevel !== 'none' && currentPlayer.cash >= cost) {
-      setPlayers(prev => prev.map((p, idx) => {
-        if (idx !== currentPlayerIndex) return p;
+      if (currentLevel === 'none') {
+        nextLevel = 'bronze';
+        cost = tile.badges.bronze.cost;
+        revBonus = tile.badges.bronze.revenueBonus;
+      } else if (currentLevel === 'bronze') {
+        nextLevel = 'silver';
+        cost = tile.badges.silver.cost;
+        revBonus = tile.badges.silver.revenueBonus - tile.badges.bronze.revenueBonus;
+      } else if (currentLevel === 'silver') {
+        nextLevel = 'gold';
+        cost = tile.badges.gold.cost;
+        revBonus = tile.badges.gold.revenueBonus - tile.badges.silver.revenueBonus;
+      }
+
+      if (nextLevel !== 'none' && p.cash >= cost) {
         return {
           ...p,
           cash: p.cash - cost,
@@ -111,11 +127,11 @@ export const useGameLogic = (numberOfPlayers: number) => {
             ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a)
             : [...p.assets, { tileId, level: nextLevel }]
         };
-      }));
-    }
-  }, [currentPlayer, currentPlayerIndex]);
+      }
+      return p;
+    }));
+  }, [currentPlayerIndex]);
 
-  // --- APPLICA EVENTI (OPPORTUNITA/IMPREVISTI) ---
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
