@@ -1,9 +1,9 @@
-// src/app/layout.tsx
 import './globals.css'
+import type { Metadata } from 'next'
 
-export const metadata = {
-  title: 'Startup Race',
-  description: 'The Ultimate Founder Simulator',
+export const metadata: Metadata = {
+  title: 'Startup Monopoly',
+  description: 'The grid is your market',
 }
 
 export default function RootLayout({
