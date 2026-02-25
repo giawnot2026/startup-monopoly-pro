@@ -2,7 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Startup Monopoly',
+  title: 'Startup Race | Pro',
   description: 'The grid is your market',
 }
 
@@ -13,7 +13,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
-      <body>{children}</body>
+      <body className="antialiased bg-[#020617]">
+        {children}
+      </body>
     </html>
   )
 }
