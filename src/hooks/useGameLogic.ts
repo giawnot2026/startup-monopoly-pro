@@ -12,12 +12,13 @@ interface Debt {
   amount: number;
   interestRate: number;
   remainingYears: number;
-  annualRate: number; // La rata da pagare ogni giro
+  annualRate: number;
 }
 
-// Estendiamo il PlayerState con i nuovi campi necessari
 export interface ExtendedPlayer extends PlayerState {
   debts: Debt[];
+  laps: number;
+  hasHadFunding: boolean;
 }
 
 export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
@@ -34,14 +35,17 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       assets: [],
       totalRaised: 0,
       isBankrupt: false,
+      hasHadFunding: false,
+      laps: 0,
       debts: []
     }))
   );
 
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const [gameWinner, setGameWinner] = useState<ExtendedPlayer | null>(null);
+
   const currentPlayer = players[currentPlayerIndex];
 
-  // Calcolo della valutazione aziendale
   const calculateValuation = (p: ExtendedPlayer) => {
     const ebitda = p.mrr - p.monthlyCosts;
     const annualEbitda = ebitda * 12;
@@ -52,17 +56,29 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const ebitda = useMemo(() => currentPlayer.mrr - currentPlayer.monthlyCosts, [currentPlayer]);
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer]);
 
+  const checkGameStatus = useCallback((updatedPlayers: ExtendedPlayer[]) => {
+    const activePlayers = updatedPlayers.filter(p => !p.isBankrupt);
+    if (activePlayers.length === 1 && updatedPlayers.length > 1) {
+      setGameWinner(activePlayers[0]);
+    }
+  }, []);
+
   const nextTurn = useCallback(() => {
-    setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
-  }, [players.length]);
+    let nextIndex = (currentPlayerIndex + 1) % players.length;
+    let attempts = 0;
+    while (players[nextIndex].isBankrupt && attempts < players.length) {
+      nextIndex = (nextIndex + 1) % players.length;
+      attempts++;
+    }
+    setCurrentPlayerIndex(nextIndex);
+  }, [players, currentPlayerIndex]);
 
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
-      // Pedaggi (Toll)
-      const owner = prevPlayers.find(p => p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
+      const owner = prevPlayers.find(p => !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
       const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
       let tollToPay = 0;
 
@@ -71,119 +87,104 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         tollToPay = tile.badges[level].toll;
       }
 
-      return prevPlayers.map((p, idx) => {
+      const newState = prevPlayers.map((p, idx) => {
         if (idx === currentPlayerIndex) {
           let updatedCash = p.cash - tollToPay;
           let updatedDebts = [...p.debts];
+          let updatedLaps = p.laps;
 
-          // --- LOGICA PASSAGGIO DAL VIA (PAGAMENTO DEBITI) ---
-          // Ogni giro completo = 1 anno. Paghiamo le rate dei prestiti.
+          // Gestione passaggio dal VIA (Check Debiti)
           if (nextPos < p.position || nextPos === 0) {
-            p.debts.forEach(debt => {
-              updatedCash -= debt.annualRate;
-            });
-
-            // Scaliamo un anno dai debiti e rimuoviamo quelli estinti
+            updatedLaps += 1;
+            p.debts.forEach(debt => { updatedCash -= debt.annualRate; });
             updatedDebts = p.debts
               .map(d => ({ ...d, remainingYears: d.remainingYears - 1 }))
               .filter(d => d.remainingYears > 0);
           }
 
-          // Effetto immediato casella
           const revMod = tile.revenueModifier || 0;
           const costMod = tile.costModifier || 0;
+          const finalCash = updatedCash + revMod - costMod;
+
+          // LOGICA BANCAROTTA: Cash < 0 + Almeno 3 Giri + Almeno un finanziamento/debito ricevuto
+          let isNowBankrupt = p.isBankrupt;
+          if (finalCash < 0 && updatedLaps >= 3 && p.hasHadFunding) {
+            isNowBankrupt = true;
+          }
 
           return { 
             ...p, 
             position: nextPos, 
-            cash: updatedCash + revMod - costMod,
+            cash: finalCash,
             mrr: Math.max(0, p.mrr + revMod),
             monthlyCosts: Math.max(0, p.monthlyCosts + costMod),
-            debts: updatedDebts
+            debts: updatedDebts,
+            laps: updatedLaps,
+            isBankrupt: isNowBankrupt
           };
         }
-
-        // Accredito pedaggio
-        if (owner && idx === owner.id) {
-          return { ...p, cash: p.cash + tollToPay };
-        }
-
+        if (owner && idx === owner.id) return { ...p, cash: p.cash + tollToPay };
         return p;
       });
+
+      checkGameStatus(newState);
+      return newState;
     });
 
     return tile;
-  }, [currentPlayerIndex, currentPlayer.position]);
+  }, [currentPlayerIndex, currentPlayer.position, checkGameStatus]);
 
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
+      
+      let cashBonus = 0;
+      let equityLoss = 0;
+      let newDebt = null;
 
-      // 1. GRANT (Fondo perduto)
       if (offer.type === 'GRANT') {
-        return { ...p, cash: p.cash + offer.fixedAmount };
-      }
-
-      // 2. EQUITY (Diluizione)
-      if (offer.type === 'EQUITY') {
-        const equityToGive = (offer.equityRange.min + offer.equityRange.max) / 2;
-        const currentVal = calculateValuation(p);
-        const cashReceived = (currentVal * equityToGive) / 100;
-        
-        return { 
-          ...p, 
-          cash: p.cash + cashReceived, 
-          equity: Math.max(0, p.equity - equityToGive),
-          totalRaised: p.totalRaised + cashReceived 
+        cashBonus = offer.fixedAmount;
+      } else if (offer.type === 'EQUITY') {
+        equityLoss = (offer.equityRange.min + offer.equityRange.max) / 2;
+        cashBonus = (calculateValuation(p) * equityLoss) / 100;
+      } else if (offer.type === 'BANK') {
+        cashBonus = calculateValuation(p) * 0.15;
+        newDebt = {
+          amount: cashBonus,
+          interestRate: offer.interestRate,
+          remainingYears: offer.durationYears,
+          annualRate: (cashBonus * (1 + offer.interestRate)) / offer.durationYears
         };
       }
 
-      // 3. BANK (Debito)
-      if (offer.type === 'BANK') {
-        // Il prestito è parametrato sulla solidità (Valuation) - es. 15% della valuation
-        const loanAmount = calculateValuation(p) * 0.15;
-        const totalToPay = loanAmount * (1 + offer.interestRate);
-        const annualRate = totalToPay / offer.durationYears;
-
-        return {
-          ...p,
-          cash: p.cash + loanAmount,
-          debts: [...p.debts, {
-            amount: loanAmount,
-            interestRate: offer.interestRate,
-            remainingYears: offer.durationYears,
-            annualRate: annualRate
-          }]
-        };
-      }
-
-      return p;
+      return {
+        ...p,
+        cash: p.cash + cashBonus,
+        equity: Math.max(0, p.equity - equityLoss),
+        hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding,
+        debts: newDebt ? [...p.debts, newDebt] : p.debts,
+        totalRaised: p.totalRaised + cashBonus
+      };
     }));
   }, [currentPlayerIndex]);
 
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return;
-
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-
       const asset = p.assets.find(a => a.tileId === tileId);
       const currentLevel = asset ? asset.level : 'none';
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
-
       if (currentLevel === 'none') { nextLevel = 'bronze'; cost = tile.badges.bronze.cost; }
       else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = tile.badges.silver.cost; }
       else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = tile.badges.gold.cost; }
-
       if (nextLevel !== 'none' && p.cash >= cost) {
         return {
           ...p,
           cash: p.cash - cost,
-          assets: asset 
-            ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a)
-            : [...p.assets, { tileId, level: nextLevel }]
+          assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }]
         };
       }
       return p;
@@ -193,30 +194,27 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-      const revMod = event.revenueModifier || 0;
-      const costMod = event.costModifier || 0;
-      const cashEff = event.cashEffect || 0;
-      const cashPerc = event.cashPercent ? (p.cash * event.cashPercent) : 0;
-
       return {
         ...p,
-        cash: p.cash + cashEff + cashPerc + revMod - costMod,
-        mrr: Math.max(0, p.mrr + revMod),
-        monthlyCosts: Math.max(0, p.monthlyCosts + costMod)
+        cash: p.cash + (event.cashEffect || 0) + (p.cash * (event.cashPercent || 0)),
+        mrr: Math.max(0, p.mrr + (event.revenueModifier || 0)),
+        monthlyCosts: Math.max(0, p.monthlyCosts + (event.costModifier || 0))
       };
     }));
   }, [currentPlayerIndex]);
 
+  const attemptExit = useCallback(() => {
+    const currentVal = calculateValuation(currentPlayer);
+    if (currentPlayer.equity > 0 && currentVal >= 1000000) {
+      setGameWinner(currentPlayer);
+      return true;
+    }
+    return false;
+  }, [currentPlayer]);
+
   return {
-    players,
-    currentPlayerIndex,
-    currentPlayer,
-    ebitda,
-    valuation,
-    movePlayer,
-    applyFunding,
-    upgradeBadge,
-    applyEvent,
-    nextTurn
+    players, currentPlayerIndex, currentPlayer, ebitda, valuation,
+    movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn,
+    gameWinner, attemptExit
   };
 };
