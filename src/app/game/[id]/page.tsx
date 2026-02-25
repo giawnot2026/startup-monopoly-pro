@@ -10,11 +10,16 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Algoritmo per disporre 28 caselle su un perimetro 8x8
   const getGridPosition = (i: number) => {
-    if (i <= 6) return `col-start-${i + 1} row-start-1`;
-    if (i <= 11) return `col-start-7 row-start-${i - 6 + 1}`;
-    if (i <= 18) return `col-start-${7 - (i - 12)} row-start-7`;
-    if (i <= 23) return `col-start-1 row-start-${7 - (i - 18)}`;
+    // Lato Superiore (0-7)
+    if (i <= 7) return `col-start-${i + 1} row-start-1`;
+    // Lato Destro (8-13)
+    if (i <= 13) return `col-start-8 row-start-${(i - 7) + 1}`;
+    // Lato Inferiore (14-21)
+    if (i <= 21) return `col-start-${8 - (i - 14)} row-start-8`;
+    // Lato Sinistro (22-27)
+    if (i <= 27) return `col-start-1 row-start-${8 - (i - 21)}`;
     return '';
   };
 
@@ -24,12 +29,21 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     <main className="bg-[#020617] min-h-screen">
       <BoardLayout>
         {TILES.map((tile, i) => (
-          <Tile key={tile.id} id={tile.id} name={tile.name} type={tile.type} gridClass={getGridPosition(i)} />
+          <Tile 
+            key={tile.id} 
+            id={tile.id} 
+            name={tile.name} 
+            type={tile.type} 
+            gridClass={getGridPosition(i)} 
+          />
         ))}
       </BoardLayout>
-      <div className="fixed top-8 right-8 bg-black/40 backdrop-blur-md border border-white/10 px-4 py-2 rounded-lg">
-        <p className="text-[8px] text-blue-500 font-mono uppercase tracking-[0.3em]">Node_Active</p>
-        <p className="text-xs font-bold text-white uppercase">{resolvedParams.id}</p>
+
+      {/* Overlay Identificativo Sessione */}
+      <div className="fixed bottom-8 left-8 bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full">
+        <p className="text-[9px] font-mono text-blue-500 tracking-widest uppercase">
+          Node_Connection: {resolvedParams.id}
+        </p>
       </div>
     </main>
   );
