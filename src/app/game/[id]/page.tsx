@@ -10,16 +10,19 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Algoritmo per disporre 28 caselle su un perimetro 8x8
   const getGridPosition = (i: number) => {
-    // Lato Superiore (0-7)
+    // Lato Superiore (0-7): row 1, col 1 a 8
     if (i <= 7) return `col-start-${i + 1} row-start-1`;
-    // Lato Destro (8-13)
+    
+    // Lato Destro (8-13): col 8, row 2 a 7
     if (i <= 13) return `col-start-8 row-start-${(i - 7) + 1}`;
-    // Lato Inferiore (14-21)
+    
+    // Lato Inferiore (14-21): row 8, col 8 a 1
     if (i <= 21) return `col-start-${8 - (i - 14)} row-start-8`;
-    // Lato Sinistro (22-27)
+    
+    // Lato Sinistro (22-27): col 1, row 7 a 2
     if (i <= 27) return `col-start-1 row-start-${8 - (i - 21)}`;
+    
     return '';
   };
 
@@ -39,11 +42,8 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         ))}
       </BoardLayout>
 
-      {/* Overlay Identificativo Sessione */}
-      <div className="fixed bottom-8 left-8 bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full">
-        <p className="text-[9px] font-mono text-blue-500 tracking-widest uppercase">
-          Node_Connection: {resolvedParams.id}
-        </p>
+      <div className="fixed bottom-6 right-8 text-[9px] font-mono text-blue-500/50 uppercase tracking-widest">
+        System_Ready // Room_{resolvedParams.id}
       </div>
     </main>
   );
