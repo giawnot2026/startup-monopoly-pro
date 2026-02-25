@@ -8,55 +8,60 @@ interface InitialPlayer {
   color: string;
 }
 
+interface Debt {
+  amount: number;
+  interestRate: number;
+  remainingYears: number;
+  annualRate: number; // La rata da pagare ogni giro
+}
+
+// Estendiamo il PlayerState con i nuovi campi necessari
+export interface ExtendedPlayer extends PlayerState {
+  debts: Debt[];
+}
+
 export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
-  // 1. Stato Iniziale dei Giocatori
-  const [players, setPlayers] = useState<PlayerState[]>(
+  const [players, setPlayers] = useState<ExtendedPlayer[]>(
     initialPlayers.map((p, i) => ({
       id: i,
       name: p.name,
       color: p.color,
-      cash: 50000, // Cassa iniziale
+      cash: 50000,
       mrr: 0,
       monthlyCosts: 0,
       equity: 100,
       position: 0,
       assets: [],
       totalRaised: 0,
-      isBankrupt: false
+      isBankrupt: false,
+      debts: []
     }))
   );
 
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const currentPlayer = players[currentPlayerIndex];
 
-  // 2. Calcoli Derivati (Valuation ed EBITDA)
-  const calculateValuation = (p: PlayerState) => {
-    const currentEbitda = p.mrr - p.monthlyCosts;
-    const annualEbitda = currentEbitda * 12;
-    
-    // Valore basato sulle performance + la cassa liquida
-    const operationalValue = annualEbitda > 0 
-      ? annualEbitda * 10 
-      : (p.mrr * 12) * 2;
-
+  // Calcolo della valutazione aziendale
+  const calculateValuation = (p: ExtendedPlayer) => {
+    const ebitda = p.mrr - p.monthlyCosts;
+    const annualEbitda = ebitda * 12;
+    const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
     return operationalValue + p.cash;
   };
 
   const ebitda = useMemo(() => currentPlayer.mrr - currentPlayer.monthlyCosts, [currentPlayer]);
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer]);
 
-  // 3. Gestione Turni
   const nextTurn = useCallback(() => {
     setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
   }, [players.length]);
 
-  // 4. Movimento e Logica Caselle (Impatto Cash Diretto)
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
-      // Controllo se la casella appartiene a un altro giocatore (Pedaggio)
+      // Pedaggi (Toll)
       const owner = prevPlayers.find(p => p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
       const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
       let tollToPay = 0;
@@ -68,20 +73,37 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
       return prevPlayers.map((p, idx) => {
         if (idx === currentPlayerIndex) {
-          // MODIFICA SEMPLIFICATA: I modificatori della casella colpiscono subito il Cash
+          let updatedCash = p.cash - tollToPay;
+          let updatedDebts = [...p.debts];
+
+          // --- LOGICA PASSAGGIO DAL VIA (PAGAMENTO DEBITI) ---
+          // Ogni giro completo = 1 anno. Paghiamo le rate dei prestiti.
+          if (nextPos < p.position || nextPos === 0) {
+            p.debts.forEach(debt => {
+              updatedCash -= debt.annualRate;
+            });
+
+            // Scaliamo un anno dai debiti e rimuoviamo quelli estinti
+            updatedDebts = p.debts
+              .map(d => ({ ...d, remainingYears: d.remainingYears - 1 }))
+              .filter(d => d.remainingYears > 0);
+          }
+
+          // Effetto immediato casella
           const revMod = tile.revenueModifier || 0;
           const costMod = tile.costModifier || 0;
 
           return { 
             ...p, 
             position: nextPos, 
-            cash: p.cash - tollToPay + revMod - costMod,
+            cash: updatedCash + revMod - costMod,
             mrr: Math.max(0, p.mrr + revMod),
-            monthlyCosts: Math.max(0, p.monthlyCosts + costMod)
+            monthlyCosts: Math.max(0, p.monthlyCosts + costMod),
+            debts: updatedDebts
           };
         }
 
-        // Se sei il proprietario, ricevi il pedaggio
+        // Accredito pedaggio
         if (owner && idx === owner.id) {
           return { ...p, cash: p.cash + tollToPay };
         }
@@ -93,7 +115,52 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     return tile;
   }, [currentPlayerIndex, currentPlayer.position]);
 
-  // 5. Potenziamento Badge (Sottrae Cash)
+  const applyFunding = useCallback((offer: any) => {
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIndex) return p;
+
+      // 1. GRANT (Fondo perduto)
+      if (offer.type === 'GRANT') {
+        return { ...p, cash: p.cash + offer.fixedAmount };
+      }
+
+      // 2. EQUITY (Diluizione)
+      if (offer.type === 'EQUITY') {
+        const equityToGive = (offer.equityRange.min + offer.equityRange.max) / 2;
+        const currentVal = calculateValuation(p);
+        const cashReceived = (currentVal * equityToGive) / 100;
+        
+        return { 
+          ...p, 
+          cash: p.cash + cashReceived, 
+          equity: Math.max(0, p.equity - equityToGive),
+          totalRaised: p.totalRaised + cashReceived 
+        };
+      }
+
+      // 3. BANK (Debito)
+      if (offer.type === 'BANK') {
+        // Il prestito è parametrato sulla solidità (Valuation) - es. 15% della valuation
+        const loanAmount = calculateValuation(p) * 0.15;
+        const totalToPay = loanAmount * (1 + offer.interestRate);
+        const annualRate = totalToPay / offer.durationYears;
+
+        return {
+          ...p,
+          cash: p.cash + loanAmount,
+          debts: [...p.debts, {
+            amount: loanAmount,
+            interestRate: offer.interestRate,
+            remainingYears: offer.durationYears,
+            annualRate: annualRate
+          }]
+        };
+      }
+
+      return p;
+    }));
+  }, [currentPlayerIndex]);
+
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return;
@@ -103,7 +170,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
       const asset = p.assets.find(a => a.tileId === tileId);
       const currentLevel = asset ? asset.level : 'none';
-      
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
 
@@ -124,11 +190,9 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     }));
   }, [currentPlayerIndex]);
 
-  // 6. Applicazione Eventi (Opportunità/Imprevisti)
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-
       const revMod = event.revenueModifier || 0;
       const costMod = event.costModifier || 0;
       const cashEff = event.cashEffect || 0;
@@ -136,7 +200,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
       return {
         ...p,
-        // L'evento impatta la cassa e le statistiche contemporaneamente
         cash: p.cash + cashEff + cashPerc + revMod - costMod,
         mrr: Math.max(0, p.mrr + revMod),
         monthlyCosts: Math.max(0, p.monthlyCosts + costMod)
@@ -151,6 +214,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     ebitda,
     valuation,
     movePlayer,
+    applyFunding,
     upgradeBadge,
     applyEvent,
     nextTurn
