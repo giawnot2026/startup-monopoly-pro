@@ -9,16 +9,18 @@ interface InitialPlayer {
 }
 
 interface Debt {
-  amount: number;
-  interestRate: number;
-  remainingYears: number;
-  annualRate: number;
+  amount: number;         // Capitale ricevuto (da restituire alla fine)
+  interestRate: number;   // Tasso (es. 0.05 per 5%)
+  remainingYears: number; // Giri rimanenti
+  annualInterest: number; // Quota interessi da pagare a ogni VIA
+  initialCash: number;    // Salvataggio per il popup finale
 }
 
 export interface ExtendedPlayer extends PlayerState {
   debts: Debt[];
   laps: number;
   hasHadFunding: boolean;
+  lastLoanRepaidAmount?: number; // Per triggerare il popup "Debito onorato"
 }
 
 export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
@@ -47,8 +49,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const currentPlayer = players[currentPlayerIndex];
 
   const calculateValuation = (p: ExtendedPlayer) => {
-    const ebitda = p.mrr - p.monthlyCosts;
-    const annualEbitda = ebitda * 12;
+    const ebitdaVal = p.mrr - p.monthlyCosts;
+    const annualEbitda = ebitdaVal * 12;
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
     return operationalValue + p.cash;
   };
@@ -64,6 +66,11 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   }, []);
 
   const nextTurn = useCallback(() => {
+    // Puliamo il messaggio del debito prima di cambiare turno
+    setPlayers(prev => prev.map((p, idx) => 
+      idx === currentPlayerIndex ? { ...p, lastLoanRepaidAmount: undefined } : p
+    ));
+
     let nextIndex = (currentPlayerIndex + 1) % players.length;
     let attempts = 0;
     while (players[nextIndex].isBankrupt && attempts < players.length) {
@@ -90,25 +97,40 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       const newState = prevPlayers.map((p, idx) => {
         if (idx === currentPlayerIndex) {
           let updatedCash = p.cash - tollToPay;
-          let updatedDebts = [...p.debts];
           let updatedLaps = p.laps;
-
-          // Gestione passaggio dal VIA (Check Debiti)
-          if (nextPos < p.position || nextPos === 0) {
+          let repaidAmount: number | undefined = undefined;
+          
+          // --- LOGICA PASSAGGIO DAL VIA ---
+          if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
-            p.debts.forEach(debt => { updatedCash -= debt.annualRate; });
-            updatedDebts = p.debts
-              .map(d => ({ ...d, remainingYears: d.remainingYears - 1 }))
-              .filter(d => d.remainingYears > 0);
+            updatedCash += 25000; // Bonus round standard
+
+            // 1. Pagamento interessi e gestione scadenza debiti
+            const processedDebts = p.debts.map(debt => {
+              // Sottrai l'interesse annuale
+              updatedCash -= debt.annualInterest;
+              
+              const newRemaining = debt.remainingYears - 1;
+              
+              // Se il debito scade a questo giro
+              if (newRemaining === 0) {
+                updatedCash -= debt.amount; // Restituzione capitale
+                repaidAmount = debt.amount;
+              }
+              
+              return { ...debt, remainingYears: newRemaining };
+            }).filter(d => d.remainingYears > 0);
+
+            p.debts = processedDebts;
           }
 
           const revMod = tile.revenueModifier || 0;
           const costMod = tile.costModifier || 0;
           const finalCash = updatedCash + revMod - costMod;
 
-          // LOGICA BANCAROTTA: Cash < 0 + Almeno 3 Giri + Almeno un finanziamento/debito ricevuto
+          // Bancarotta
           let isNowBankrupt = p.isBankrupt;
-          if (finalCash < 0 && updatedLaps >= 3 && p.hasHadFunding) {
+          if (finalCash < -50000 && updatedLaps >= 3 && p.hasHadFunding) {
             isNowBankrupt = true;
           }
 
@@ -118,9 +140,9 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             cash: finalCash,
             mrr: Math.max(0, p.mrr + revMod),
             monthlyCosts: Math.max(0, p.monthlyCosts + costMod),
-            debts: updatedDebts,
             laps: updatedLaps,
-            isBankrupt: isNowBankrupt
+            isBankrupt: isNowBankrupt,
+            lastLoanRepaidAmount: repaidAmount
           };
         }
         if (owner && idx === owner.id) return { ...p, cash: p.cash + tollToPay };
@@ -140,20 +162,25 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       
       let cashBonus = 0;
       let equityLoss = 0;
-      let newDebt = null;
+      let newDebt: Debt | null = null;
 
       if (offer.type === 'GRANT') {
         cashBonus = offer.fixedAmount;
       } else if (offer.type === 'EQUITY') {
-        equityLoss = (offer.equityRange.min + offer.equityRange.max) / 2;
+        // Usa la diluizione calcolata o la media del range
+        equityLoss = offer.actualDilution || (offer.equityRange.min + offer.equityRange.max) / 2;
         cashBonus = (calculateValuation(p) * equityLoss) / 100;
       } else if (offer.type === 'BANK') {
-        cashBonus = calculateValuation(p) * 0.15;
+        // Il cash è fisso dall'offerta, durata random 2-5 anni
+        cashBonus = offer.fixedAmount;
+        const duration = offer.durationYears || (Math.floor(Math.random() * 4) + 2);
+        
         newDebt = {
           amount: cashBonus,
           interestRate: offer.interestRate,
-          remainingYears: offer.durationYears,
-          annualRate: (cashBonus * (1 + offer.interestRate)) / offer.durationYears
+          remainingYears: duration,
+          annualInterest: cashBonus * offer.interestRate, // Interesse semplice annuo
+          initialCash: cashBonus
         };
       }
 
@@ -167,6 +194,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       };
     }));
   }, [currentPlayerIndex]);
+
+  // ... restanti funzioni (upgradeBadge, applyEvent, attemptExit) rimangono invariate
 
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
