@@ -48,14 +48,14 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const currentPlayer = players[currentPlayerIndex];
 
-  const calculateValuation = (p: ExtendedPlayer) => {
-    const ebitdaVal = p.mrr - p.monthlyCosts;
+  const calculateValuation = useCallback((p: ExtendedPlayer) => {
+    const ebitdaVal = (p.mrr || 0) - (p.monthlyCosts || 0);
     const annualEbitda = ebitdaVal * 12;
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
     return Math.max(100000, operationalValue + p.cash);
-  };
+  }, []);
 
-  const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer]);
+  const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer, calculateValuation]);
 
   const checkGameStatus = useCallback((updatedPlayers: ExtendedPlayer[]) => {
     const activePlayers = updatedPlayers.filter(p => !p.isBankrupt);
@@ -88,7 +88,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
       if (owner && ownerAsset && tile.badges) {
         const level = ownerAsset.level as keyof typeof tile.badges;
-        tollToPay = tile.badges[level].toll;
+        tollToPay = tile.badges[level]?.toll || 0;
       }
 
       const newState = prevPlayers.map((p, idx) => {
@@ -97,6 +97,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedLaps = p.laps;
           let repaidAmount: number | undefined = undefined;
           
+          // Gestione Passaggio dal Via
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
@@ -152,11 +153,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       }
       return { ...p, cash: p.cash + cashBonus, equity: Math.max(0, p.equity - equityLoss), hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding };
     }));
-  }, [currentPlayerIndex]);
+  }, [currentPlayerIndex, calculateValuation]);
 
-  /**
-   * Gestione potenziamento Badge: segue la progressione Bronzo -> Argento -> Oro
-   */
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return false;
@@ -172,7 +170,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       let cost = 0;
       let revBonus = 0;
 
-      // Logica di progressione lineare
       if (currentLevel === 'none') { 
         nextLevel = 'bronze'; 
         cost = tile.badges.bronze.cost;
@@ -192,7 +189,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         return {
           ...p,
           cash: p.cash - cost,
-          mrr: p.mrr + revBonus, // Aggiunge il bonus MRR del nuovo livello
+          mrr: p.mrr + revBonus,
           assets: asset 
             ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) 
             : [...p.assets, { tileId, level: nextLevel }]
@@ -206,7 +203,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-      return { ...p, cash: p.cash + (event.cashEffect || 0) + (p.cash * (event.cashPercent || 0)), mrr: Math.max(0, p.mrr + (event.revenueModifier || 0)), monthlyCosts: Math.max(0, p.monthlyCosts + (event.costModifier || 0)) };
+      return { 
+        ...p, 
+        cash: p.cash + (event.cashEffect || 0) + (p.cash * (event.cashPercent || 0)), 
+        mrr: Math.max(0, p.mrr + (event.revenueModifier || 0)), 
+        monthlyCosts: Math.max(0, p.monthlyCosts + (event.costModifier || 0)) 
+      };
     }));
   }, [currentPlayerIndex]);
 
@@ -216,7 +218,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       return true;
     }
     return false;
-  }, [currentPlayer]);
+  }, [currentPlayer, calculateValuation]);
 
   return { players, currentPlayer, valuation, movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, calculateValuation };
 };
