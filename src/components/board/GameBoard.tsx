@@ -19,7 +19,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  // Helper per chiudere il modale e passare il turno in sicurezza
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     nextTurn();
@@ -48,19 +47,19 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     if (!tile) { nextTurn(); return; }
     const tileName = tile.name.toLowerCase();
 
-    // 1. GESTIONE START (ID 0)
+    // 1. START (ID 0)
     if (tile.id === 0) {
       setModalConfig({
         isOpen: true, type: 'success', title: "Nuovo Anno Fiscale",
         description: "Passaggio dal via confermato. Cash iniettato e gestione interessi completata.",
-        impact: { details: "+€25.000 Cash | Pagamento Debiti" },
+        impact: { details: "+€25.000 Cash | Pagamento Interessi Debiti" },
         actionLabel: "Procedi",
         onAction: handleCloseModal
       });
       return;
     }
 
-    // 2. GESTIONE EXIT
+    // 2. EXIT
     if (tileName.includes("exit")) {
       const canExit = valuation >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
@@ -69,14 +68,14 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         title: "Tentativo di EXIT",
         description: canExit ? "La tua startup è pronta per il mercato. Vendi ora?" : "Valutazione insufficiente per una Exit (Min €1M).",
         impact: { details: `Valutazione attuale: €${valuation.toLocaleString()}` },
-        actionLabel: canExit ? "Vendi e Vinci" : "Continua a costruire",
+        actionLabel: canExit ? "Vendi e Vinci" : "Continua a lavorare",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
         onClose: handleCloseModal
       });
       return;
     }
 
-    // 3. GESTIONE SPECIAL (Imprevisti/Opportunità)
+    // 3. SPECIAL (Imprevisti/Opportunità)
     if (tile.type === 'special') {
       const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
@@ -89,7 +88,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // 4. GESTIONE FUNDING
+    // 4. FUNDING
     if (tile.type === 'funding') {
       const availableOffers = FUNDING_OFFERS.filter(o => currentPlayer.laps > 0 || o.type !== 'EQUITY');
       const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
@@ -113,54 +112,70 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // 5. GESTIONE ASSET (Logica richiesta Bronzo/Argento/Oro)
+    // 5. ASSET (INVESTMENT HUB)
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
+
+      // Impatto immediato della casella (quello che succede appena ci atterri)
+      const impactDetails = `Bonus MRR Base: +€${(tile.revenueModifier || 0).toLocaleString()} | Costi: €${(tile.costModifier || 0).toLocaleString()}`;
 
       if (owner) {
         const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
         const toll = tile.badges[level]?.toll || 0;
         setModalConfig({ 
           isOpen: true, type: 'danger', title: "Pedaggio Mercato", 
-          description: `Sei su un asset di ${owner.name}`, impact: { details: `Paga: €${toll.toLocaleString()}` }, 
+          description: `Sei atterrato su un asset di ${owner.name}`, 
+          impact: { details: `Paga royalties: €${toll.toLocaleString()}` }, 
           actionLabel: "Paga", onAction: handleCloseModal 
         });
       } else {
-        // Configurazione progressione
-        const levels = [
-          { id: 'bronze', label: '🥉 BRONZO', ...tile.badges.bronze },
-          { id: 'silver', label: '🥈 ARGENTO', ...tile.badges.silver },
-          { id: 'gold', label: '🥇 ORO', ...tile.badges.gold },
+        // Mappatura per le card grafiche del nuovo ActionModal
+        const levelsData = [
+          { id: 'bronze', label: 'Bronzo', icon: '🥉', data: tile.badges.bronze },
+          { id: 'silver', label: 'Argento', icon: '🥈', data: tile.badges.silver },
+          { id: 'gold', label: 'Oro', icon: '🥇', data: tile.badges.gold },
         ];
 
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
-        const canAffordNext = nextLevelIndex < 3 && currentPlayer.cash >= levels[nextLevelIndex].cost;
 
-        // Costruiamo la lista testuale "illuminata" per il modale
-        const statusList = levels.map((l, i) => {
-          const isOwned = (currentLevel === 'none' ? false : 
-                          currentLevel === 'bronze' ? i <= 0 : 
-                          currentLevel === 'silver' ? i <= 1 : true);
-          const isNext = i === nextLevelIndex;
-          const statusPrefix = isOwned ? "✅" : (isNext && canAffordNext ? "✨" : "❌");
-          const affordability = currentPlayer.cash >= l.cost ? "Disponibile" : "Insufficiente";
+        const assetLevels = levelsData.map((l, i) => {
+          let status: 'owned' | 'available' | 'locked' = 'locked';
           
-          return `${statusPrefix} ${l.label}: €${l.cost.toLocaleString()} (${isOwned ? 'Posseduto' : affordability})`;
-        }).join('\n');
+          // Se è già posseduto
+          if ((currentLevel === 'bronze' && i === 0) || 
+              (currentLevel === 'silver' && i <= 1) || 
+              (currentLevel === 'gold')) {
+            status = 'owned';
+          } 
+          // Se è il prossimo acquistabile
+          else if (i === nextLevelIndex) {
+            status = currentPlayer.cash >= l.data.cost ? 'available' : 'locked';
+          }
+
+          return { 
+            id: l.id, 
+            label: l.label, 
+            icon: l.icon, 
+            cost: l.data.cost, 
+            revenueBonus: l.data.revenueBonus, 
+            status 
+          };
+        });
+
+        const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= levelsData[nextLevelIndex].data.cost;
 
         setModalConfig({
           isOpen: true,
           type: 'success',
           title: tile.name,
-          description: nextLevelIndex > 2 ? "Massimo livello raggiunto!" : "Vuoi investire nel potenziamento?",
-          impact: { 
-            details: statusList + `\n\nBonus prossimo livello: +€${nextLevelIndex < 3 ? levels[nextLevelIndex].revenueBonus.toLocaleString() : 0} MRR` 
-          },
-          actionLabel: canAffordNext ? `Investi in ${levels[nextLevelIndex].id}` : "Chiudi",
-          secondaryActionLabel: canAffordNext ? "Rifiuta" : undefined,
-          onAction: () => { if (canAffordNext) upgradeBadge(tile.id); handleCloseModal(); },
+          description: "Potenzia la tua startup acquisendo asset strategici per scalare il mercato.",
+          impact: { details: impactDetails },
+          assetLevels,
+          actionLabel: canAfford ? `Investi in ${levelsData[nextLevelIndex].label}` : "Fine Turno",
+          secondaryActionLabel: canAfford ? "Rifiuta" : undefined,
+          onAction: () => { if (canAfford) upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
       }
@@ -172,14 +187,13 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       const isPositive = (tile.revenueModifier || 0) > (tile.costModifier || 0);
       setModalConfig({
         isOpen: true, type: isPositive ? 'opportunity' : 'danger', title: tile.name,
-        description: "Variazione dei parametri operativi rilevata.",
+        description: "L'ambiente di mercato influenza i tuoi numeri operativi.",
         impact: { details: `MRR: ${tile.revenueModifier >= 0 ? '+' : ''}${tile.revenueModifier} | Costi: ${tile.costModifier >= 0 ? '+' : ''}${tile.costModifier}` },
         actionLabel: "Continua", onAction: handleCloseModal
       });
       return;
     }
 
-    // 7. FALLBACK
     nextTurn();
   };
 
@@ -202,7 +216,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           </button>
         </div>
 
-        {/* Mappa del Tabellone */}
+        {/* Tabellone */}
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full">
           {TILES.map((tile) => {
             let row, col;
@@ -224,7 +238,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
-      {/* Pannello Laterale Giocatori */}
+      {/* Pannello Laterale */}
       <div className="w-full lg:w-[350px] space-y-3">
         <h3 className="text-blue-400 font-black tracking-[0.2em] uppercase text-[10px] mb-2 px-2 italic opacity-80">Market Participants</h3>
         {players.map((p) => {
