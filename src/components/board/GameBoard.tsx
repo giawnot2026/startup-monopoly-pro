@@ -19,27 +19,13 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (currentPlayer.lastLoanRepaidAmount && !isRolling && !modalConfig.isOpen) {
-      setModalConfig({
-        isOpen: true,
-        type: 'success',
-        title: "Debito Onorato!",
-        description: `La tua azienda ha estinto con successo il debito bancario. Ottimo lavoro di gestione finanziaria!`,
-        impact: { details: `Capitale restituito: €${currentPlayer.lastLoanRepaidAmount.toLocaleString()}` },
-        actionLabel: "Chiudi",
-        onAction: () => setModalConfig({ isOpen: false })
-      });
-    }
-  }, [currentPlayer.lastLoanRepaidAmount, isRolling, modalConfig.isOpen]);
-
   const handleDiceRoll = () => {
     if (modalConfig.isOpen || isRolling) return;
     setIsRolling(true);
     let counter = 0;
     const shuffleInterval = setInterval(() => {
       setDiceValue(Math.floor(Math.random() * 6) + 1);
-      if (++counter >= 15) {
+      if (++counter >= 12) {
         clearInterval(shuffleInterval);
         const steps = Math.floor(Math.random() * 6) + 1;
         setDiceValue(steps);
@@ -47,116 +33,118 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           const tile = movePlayer(steps);
           setIsRolling(false);
           processTile(tile);
-        }, 800);
+        }, 600);
       }
-    }, 80);
+    }, 60);
   };
 
   const processTile = (tile: any) => {
     const tileName = tile.name.toLowerCase();
-    
-    // 1. EXIT
+
+    // 1. EXIT (Casella ID 27 o nome "Exit")
     if (tileName.includes("exit")) {
       const canExit = valuation >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
         isOpen: true,
         type: canExit ? 'success' : 'danger',
         title: "Tentativo di EXIT",
-        description: canExit ? "Congratulazioni! Hai i numeri per vendere." : "Requisiti insufficienti (Valuation > 1M e Equity > 0).",
-        actionLabel: canExit ? "Vendi ora" : "Continua",
+        description: canExit ? "La tua startup è pronta per il mercato. Vendi ora?" : "Valutazione insufficiente per una Exit (Min €1M).",
+        impact: { details: `Valutazione attuale: €${valuation.toLocaleString()}` },
+        actionLabel: canExit ? "Vendi e Vinci" : "Torna a lavorare",
         onAction: () => { if(canExit) attemptExit(); setModalConfig({ isOpen: false }); nextTurn(); },
         onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); }
       });
       return;
     }
 
-    // 2. EVENTI (Opportunità / Imprevisti)
-    if (tileName.includes("imprevisti") || tileName.includes("opportunità") || tileName.includes("?")) {
-      const isOpp = !tileName.includes("imprevisti");
+    // 2. SPECIAL (Imprevisti e Opportunità)
+    if (tile.type === 'special' || tileName.includes("imprevisto") || tileName.includes("opportunità")) {
+      const isOpp = tileName.includes("opportunità") || tile.id === 3 || tile.id === 15 || tile.id === 22;
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       setModalConfig({ 
         isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
-        title: event.title, description: event.effect, actionLabel: "Ricevuto", 
+        title: event.title, description: event.effect, actionLabel: "Ok", 
         onAction: () => { applyEvent(event); setModalConfig({ isOpen: false }); nextTurn(); } 
       });
       return;
     }
 
-    // 3. FUNDING
-    const isFunding = tileName.includes("pitch") || tileName.includes("funding") || [8, 24].includes(tile.id);
-    if (isFunding) {
+    // 3. FUNDING (Caselle 0, 7, 14, 21 e simili)
+    if (tile.type === 'funding' || tileName.includes("funding") || tileName.includes("start")) {
+      if (tile.id === 0) { // Speciale per lo START
+         setModalConfig({
+           isOpen: true, type: 'success', title: "Nuovo Anno Fiscale",
+           description: "Hai passato il via. Ricevi finanziamenti governativi e gestisci i debiti.",
+           impact: { details: "+€25.000 Cash | Pagamento Interessi Debiti" },
+           actionLabel: "Avanti",
+           onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
+         });
+         return;
+      }
+      
       const availableOffers = FUNDING_OFFERS.filter(o => currentPlayer.laps > 0 || o.type !== 'EQUITY');
       const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
       let details = "";
-
       if (offer.type === 'EQUITY') {
-        const baseDil = (offer.equityRange.min + offer.equityRange.max) / 2;
-        const finalDil = Math.max(15, baseDil);
-        const cash = (valuation * finalDil) / 100;
-        offer.actualDilution = finalDil;
-        details = `Ricevi: +€${cash.toLocaleString()} | Cedi: ${finalDil.toFixed(1)}% Equity (Min 15%)`;
+        const dil = Math.max(15, (offer.equityRange.min + offer.equityRange.max) / 2);
+        details = `Ricevi: +€${((valuation * dil) / 100).toLocaleString()} | Cedi: ${dil.toFixed(0)}% Equity`;
+        offer.actualDilution = dil;
       } else if (offer.type === 'BANK') {
-        offer.durationYears = Math.floor(Math.random() * 4) + 2;
-        details = `Ricevi: +€${offer.fixedAmount.toLocaleString()} | Interessi: €${(offer.fixedAmount * offer.interestRate).toLocaleString()}/giro | Durata: ${offer.durationYears} anni`;
+        offer.durationYears = Math.floor(Math.random() * 3) + 2;
+        details = `Prestito: €${offer.fixedAmount.toLocaleString()} | Interessi: €${(offer.fixedAmount * offer.interestRate).toLocaleString()}/giro`;
       } else {
-        details = `Grant: +€${offer.fixedAmount.toLocaleString()}`;
+        details = `Grant: €${offer.fixedAmount.toLocaleString()}`;
       }
 
       setModalConfig({
-        isOpen: true, type: 'info', title: `Offerta: ${offer.investor}`,
-        description: offer.description, impact: { details },
-        actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
+        isOpen: true, type: 'info', title: offer.investor, description: offer.description,
+        impact: { details }, actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
         onAction: () => { applyFunding(offer); setModalConfig({ isOpen: false }); nextTurn(); },
         onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); }
       });
       return;
     }
 
-    // 4. ASSET / UPGRADE
-    const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
-    if (owner && tile.badges) {
-      const toll = tile.badges[owner.assets.find(a => a.tileId === tile.id)?.level || 'none']?.toll || 0;
-      if (toll > 0) {
+    // 4. ASSET (Acquisto/Upgrade)
+    if (tile.type === 'asset') {
+      const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
+      if (owner) {
+        const toll = tile.badges[owner.assets.find(a => a.tileId === tile.id)?.level || 'none']?.toll || 0;
         setModalConfig({ 
-          isOpen: true, type: 'danger', title: "Paga Royalties", 
-          description: `Sei su un asset di ${owner.name}`, impact: { cash: -toll }, 
+          isOpen: true, type: 'danger', title: "Pagamento Royalties", 
+          description: `Sei su un asset di ${owner.name}`, impact: { details: `Paga: €${toll.toLocaleString()}` }, 
           actionLabel: "Paga", onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); } 
         });
-        return;
+      } else {
+        setModalConfig({ 
+          isOpen: true, type: 'success', title: tile.name, description: "Vuoi investire in questo asset?",
+          impact: { details: `Costo: €${tile.badges.bronze.cost.toLocaleString()} | Bonus MRR: +€${tile.badges.bronze.revenueBonus.toLocaleString()}` },
+          actionLabel: "Investi", onAction: () => { upgradeBadge(tile.id); setModalConfig({ isOpen: false }); nextTurn(); }, 
+          onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); } 
+        });
       }
-    }
-
-    if (tile.type === 'asset' && tile.badges) {
-      setModalConfig({ 
-        isOpen: true, type: 'success', title: tile.name, description: "Vuoi potenziare questo asset?",
-        actionLabel: "Investi", onAction: () => { upgradeBadge(tile.id); setModalConfig({ isOpen: false }); nextTurn(); }, 
-        onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); } 
-      });
       return;
     }
 
-    // 5. IMPATTO ECONOMICO TILE (Mostra Popup per costi/ricavi se presenti)
-    if (tile.revenueModifier !== 0 || tile.costModifier !== 0) {
+    // 5. TAX / MODIFICATORI DIRETTI (Caselle come ID 5, 13, 17)
+    if (tile.type === 'tax' || tile.revenueModifier !== 0 || tile.costModifier !== 0) {
       const isPositive = (tile.revenueModifier || 0) > (tile.costModifier || 0);
       setModalConfig({
-        isOpen: true,
-        type: isPositive ? 'opportunity' : 'danger',
-        title: tile.name,
-        description: `L'atterraggio in questa zona ha un impatto immediato sulle tue operazioni.`,
-        impact: {
-          details: `${tile.revenueModifier ? `MRR: ${tile.revenueModifier > 0 ? '+' : ''}€${tile.revenueModifier.toLocaleString()}` : ''} ${tile.costModifier ? ` | Costi: ${tile.costModifier > 0 ? '+' : ''}€${tile.costModifier.toLocaleString()}` : ''}`
-        },
-        actionLabel: "Continua",
-        onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
+        isOpen: true, type: isPositive ? 'opportunity' : 'danger', title: tile.name,
+        description: "L'ambiente di mercato influenza i tuoi numeri.",
+        impact: { details: `MRR: ${tile.revenueModifier >= 0 ? '+' : ''}${tile.revenueModifier} | Costi: ${tile.costModifier >= 0 ? '+' : ''}${tile.costModifier}` },
+        actionLabel: "Continua", onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
       });
       return;
     }
 
-    // DEFAULT: PASSAGGIO TURNO AUTOMATICO (per le caselle "vuote" o neutre)
-    setTimeout(() => nextTurn(), 800);
+    // 6. FALLBACK DI SICUREZZA (Se arriviamo qui, la casella è neutra)
+    console.log("Casella neutra rilevata, cambio turno forzato.");
+    nextTurn();
   };
 
+  // ... Render (Invariato, usa la dashboard a 3 colonne dell'ultimo step)
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
