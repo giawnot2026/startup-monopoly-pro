@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
@@ -18,6 +18,22 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
+
+  // --- MONITORAGGIO DEBITO ONORATO ---
+  // Quando un giocatore passa dal via e restituisce l'ultima rata del capitale
+  useEffect(() => {
+    if (currentPlayer.lastLoanRepaidAmount && !isRolling && !modalConfig.isOpen) {
+      setModalConfig({
+        isOpen: true,
+        type: 'success',
+        title: "Debito Onorato!",
+        description: `La tua azienda ha estinto con successo il debito bancario. Ottimo lavoro di gestione finanziaria!`,
+        impact: { details: `Capitale restituito: €${currentPlayer.lastLoanRepaidAmount.toLocaleString()}` },
+        actionLabel: "Close",
+        onAction: () => setModalConfig({ isOpen: false })
+      });
+    }
+  }, [currentPlayer.lastLoanRepaidAmount, isRolling, modalConfig.isOpen]);
 
   const handleDiceRoll = () => {
     if (modalConfig.isOpen || isRolling) return;
@@ -45,7 +61,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   };
 
   const processTile = (tile: any) => {
-    console.log(`[GAME] Atterrato su: ${tile.name} (ID: ${tile.id})`);
     const tileName = tile.name.toLowerCase();
     
     // 1. GESTIONE EXIT
@@ -68,15 +83,14 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     // 2. GESTIONE EVENTI (IMPREVISTI / OPPORTUNITÀ)
-    // Usiamo check per nome o ID specifico per evitare conflitti
     if (tileName.includes("imprevisti") || tileName.includes("opportunità") || tileName.includes("?")) {
-      const isOpp = tileName.includes("opportunità") || tileName.includes("?");
+      const isOpp = !tileName.includes("imprevisti");
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       
       setModalConfig({ 
         isOpen: true, 
-        type: isOpp ? 'opportunity' : 'danger_event', // Usiamo i nuovi tipi personalizzati
+        type: isOpp ? 'opportunity' : 'danger_event', 
         title: event.title, 
         description: event.effect, 
         actionLabel: isOpp ? "Sfrutta l'occasione" : "Affronta le conseguenze", 
@@ -89,22 +103,36 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // 3. GESTIONE FUNDING (PITCH DECK / ROUND)
+    // 3. GESTIONE FUNDING (PITCH DECK / ROUND) - LOGICA AVANZATA
     const hasFundingName = tileName.includes("pitch") || tileName.includes("funding") || tileName.includes("round") || tileName.includes("invest");
-    const isFundingCorner = [8, 24].includes(tile.id); // Solo angoli dedicati
+    const isFundingCorner = [8, 24].includes(tile.id);
 
     if (hasFundingName || isFundingCorner) {
-      const offer = FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)];
+      const offer = { ...FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)] };
+      let impactDetails = "";
+
+      if (offer.type === 'EQUITY') {
+        const dilution = (offer.equityRange.min + offer.equityRange.max) / 2;
+        const cashValue = (valuation * dilution) / 100;
+        offer.actualDilution = dilution; // Passiamo la diluizione precisa
+        impactDetails = `Ricevi: +€${cashValue.toLocaleString()} | Cedi: ${dilution.toFixed(1)}% Equity`;
+      } 
+      else if (offer.type === 'BANK') {
+        const duration = Math.floor(Math.random() * 4) + 2; // Random 2-5 anni
+        const yearlyInterest = offer.fixedAmount * offer.interestRate;
+        offer.durationYears = duration; // Passiamo la durata calcolata
+        impactDetails = `Ricevi: +€${offer.fixedAmount.toLocaleString()} | Interessi: €${yearlyInterest.toLocaleString()}/giro | Durata: ${duration} anni`;
+      } 
+      else {
+        impactDetails = `Fondo Perduto: +€${offer.fixedAmount.toLocaleString()}`;
+      }
+
       setModalConfig({
         isOpen: true,
         type: 'info',
         title: `Offerta: ${offer.investor}`,
         description: offer.description,
-        impact: { 
-          details: offer.type === 'EQUITY' 
-            ? `Diluizione: ~${(offer.equityRange.min + offer.equityRange.max)/2}%` 
-            : `Debito/Fondo: €${offer.fixedAmount || 'Variabile'}` 
-        },
+        impact: { details: impactDetails },
         actionLabel: "Accetta",
         secondaryActionLabel: "Rifiuta",
         onAction: () => { 
@@ -147,7 +175,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     } 
 
     // 6. DEFAULT: PASSAGGIO TURNO AUTOMATICO
-    console.log("[GAME] Nessuna azione necessaria, cambio turno.");
     setTimeout(() => nextTurn(), 800);
   };
 
@@ -255,9 +282,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
                   <span className="text-white font-mono font-bold italic">€{p.cash.toLocaleString()}</span>
                 </div>
                 <div className="bg-black/30 p-2 rounded-lg">
-                  <span className="text-slate-500 block text-[7px] uppercase font-bold mb-1">EBITDA (M)</span>
-                  <span className={`font-mono font-bold ${(p.mrr - p.monthlyCosts) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    €{(p.mrr - p.monthlyCosts).toLocaleString()}
+                  <span className="text-slate-500 block text-[7px] uppercase font-bold mb-1">Debts</span>
+                  <span className="text-rose-400 font-mono font-bold">
+                    {p.debts.length > 0 ? `${p.debts.length} Active` : 'None'}
                   </span>
                 </div>
               </div>
