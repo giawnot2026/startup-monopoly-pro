@@ -48,7 +48,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const currentPlayer = players[currentPlayerIndex];
 
-  // Funzione di calcolo valutazione esportabile
   const calculateValuation = (p: ExtendedPlayer) => {
     const ebitdaVal = p.mrr - p.monthlyCosts;
     const annualEbitda = ebitdaVal * 12;
@@ -56,7 +55,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     return Math.max(100000, operationalValue + p.cash);
   };
 
-  const ebitda = useMemo(() => currentPlayer.mrr - currentPlayer.monthlyCosts, [currentPlayer]);
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer]);
 
   const checkGameStatus = useCallback((updatedPlayers: ExtendedPlayer[]) => {
@@ -70,7 +68,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     setPlayers(prev => prev.map((p, idx) => 
       idx === currentPlayerIndex ? { ...p, lastLoanRepaidAmount: undefined } : p
     ));
-
     let nextIndex = (currentPlayerIndex + 1) % players.length;
     let attempts = 0;
     while (players[nextIndex].isBankrupt && attempts < players.length) {
@@ -100,10 +97,10 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedLaps = p.laps;
           let repaidAmount: number | undefined = undefined;
           
+          // Passaggio dal via
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
-
             const processedDebts = p.debts.map(debt => {
               updatedCash -= debt.annualInterest;
               const newRemaining = debt.remainingYears - 1;
@@ -113,75 +110,49 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
               }
               return { ...debt, remainingYears: newRemaining };
             }).filter(d => d.remainingYears > 0);
-
             p.debts = processedDebts;
           }
 
+          // Applichiamo i modificatori della casella (sia Asset che Tax)
           const revMod = tile.revenueModifier || 0;
           const costMod = tile.costModifier || 0;
-          const finalCash = updatedCash + revMod - costMod;
-
-          let isNowBankrupt = p.isBankrupt;
-          if (finalCash < -50000 && updatedLaps >= 3 && p.hasHadFunding) {
-            isNowBankrupt = true;
-          }
 
           return { 
             ...p, 
             position: nextPos, 
-            cash: finalCash,
+            cash: updatedCash,
             mrr: Math.max(0, p.mrr + revMod),
             monthlyCosts: Math.max(0, p.monthlyCosts + costMod),
             laps: updatedLaps,
-            isBankrupt: isNowBankrupt,
+            isBankrupt: (updatedCash < -50000 && updatedLaps >= 3),
             lastLoanRepaidAmount: repaidAmount
           };
         }
         if (owner && idx === owner.id) return { ...p, cash: p.cash + tollToPay };
         return p;
       });
-
       checkGameStatus(newState);
       return newState;
     });
-
     return tile;
   }, [currentPlayerIndex, currentPlayer.position, checkGameStatus]);
 
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-      
       let cashBonus = 0;
       let equityLoss = 0;
-      let newDebt: Debt | null = null;
-
-      if (offer.type === 'GRANT') {
-        cashBonus = offer.fixedAmount;
-      } else if (offer.type === 'EQUITY') {
-        // Forza minimo 15% di equity
+      if (offer.type === 'GRANT') cashBonus = offer.fixedAmount;
+      else if (offer.type === 'EQUITY') {
         equityLoss = Math.max(15, offer.actualDilution || 15);
         cashBonus = (calculateValuation(p) * equityLoss) / 100;
       } else if (offer.type === 'BANK') {
         cashBonus = offer.fixedAmount;
         const duration = offer.durationYears || 3;
-        newDebt = {
-          amount: cashBonus,
-          interestRate: offer.interestRate,
-          remainingYears: duration,
-          annualInterest: cashBonus * offer.interestRate,
-          initialCash: cashBonus
-        };
+        const newDebt = { amount: cashBonus, interestRate: offer.interestRate, remainingYears: duration, annualInterest: cashBonus * offer.interestRate, initialCash: cashBonus };
+        return { ...p, cash: p.cash + cashBonus, debts: [...p.debts, newDebt], hasHadFunding: true };
       }
-
-      return {
-        ...p,
-        cash: p.cash + cashBonus,
-        equity: Math.max(0, p.equity - equityLoss),
-        hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding,
-        debts: newDebt ? [...p.debts, newDebt] : p.debts,
-        totalRaised: p.totalRaised + cashBonus
-      };
+      return { ...p, cash: p.cash + cashBonus, equity: Math.max(0, p.equity - equityLoss), hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding };
     }));
   }, [currentPlayerIndex]);
 
@@ -198,11 +169,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = tile.badges.silver.cost; }
       else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = tile.badges.gold.cost; }
       if (nextLevel !== 'none' && p.cash >= cost) {
-        return {
-          ...p,
-          cash: p.cash - cost,
-          assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }]
-        };
+        return { ...p, cash: p.cash - cost, assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }] };
       }
       return p;
     }));
@@ -211,27 +178,17 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-      return {
-        ...p,
-        cash: p.cash + (event.cashEffect || 0) + (p.cash * (event.cashPercent || 0)),
-        mrr: Math.max(0, p.mrr + (event.revenueModifier || 0)),
-        monthlyCosts: Math.max(0, p.monthlyCosts + (event.costModifier || 0))
-      };
+      return { ...p, cash: p.cash + (event.cashEffect || 0) + (p.cash * (event.cashPercent || 0)), mrr: Math.max(0, p.mrr + (event.revenueModifier || 0)), monthlyCosts: Math.max(0, p.monthlyCosts + (event.costModifier || 0)) };
     }));
   }, [currentPlayerIndex]);
 
   const attemptExit = useCallback(() => {
-    const currentVal = calculateValuation(currentPlayer);
-    if (currentPlayer.equity > 0 && currentVal >= 1000000) {
+    if (currentPlayer.equity > 0 && calculateValuation(currentPlayer) >= 1000000) {
       setGameWinner(currentPlayer);
       return true;
     }
     return false;
   }, [currentPlayer]);
 
-  return {
-    players, currentPlayerIndex, currentPlayer, ebitda, valuation,
-    movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn,
-    gameWinner, attemptExit, calculateValuation
-  };
+  return { players, currentPlayer, valuation, movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, calculateValuation };
 };
