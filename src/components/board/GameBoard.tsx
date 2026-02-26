@@ -70,30 +70,29 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // 2. EVENTI
+    // 2. EVENTI (Opportunità / Imprevisti)
     if (tileName.includes("imprevisti") || tileName.includes("opportunità") || tileName.includes("?")) {
       const isOpp = !tileName.includes("imprevisti");
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       setModalConfig({ 
         isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
-        title: event.title, description: event.effect, actionLabel: "Ok", 
+        title: event.title, description: event.effect, actionLabel: "Ricevuto", 
         onAction: () => { applyEvent(event); setModalConfig({ isOpen: false }); nextTurn(); } 
       });
       return;
     }
 
-    // 3. FUNDING (Logica Primo Giro e Min 15% Equity)
+    // 3. FUNDING
     const isFunding = tileName.includes("pitch") || tileName.includes("funding") || [8, 24].includes(tile.id);
     if (isFunding) {
-      // Filtro: No Equity se laps == 0
       const availableOffers = FUNDING_OFFERS.filter(o => currentPlayer.laps > 0 || o.type !== 'EQUITY');
       const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
       let details = "";
 
       if (offer.type === 'EQUITY') {
         const baseDil = (offer.equityRange.min + offer.equityRange.max) / 2;
-        const finalDil = Math.max(15, baseDil); // Minimo 15%
+        const finalDil = Math.max(15, baseDil);
         const cash = (valuation * finalDil) / 100;
         offer.actualDilution = finalDil;
         details = `Ricevi: +€${cash.toLocaleString()} | Cedi: ${finalDil.toFixed(1)}% Equity (Min 15%)`;
@@ -135,8 +134,26 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); } 
       });
       return;
-    } 
+    }
 
+    // 5. IMPATTO ECONOMICO TILE (Mostra Popup per costi/ricavi se presenti)
+    if (tile.revenueModifier !== 0 || tile.costModifier !== 0) {
+      const isPositive = (tile.revenueModifier || 0) > (tile.costModifier || 0);
+      setModalConfig({
+        isOpen: true,
+        type: isPositive ? 'opportunity' : 'danger',
+        title: tile.name,
+        description: `L'atterraggio in questa zona ha un impatto immediato sulle tue operazioni.`,
+        impact: {
+          details: `${tile.revenueModifier ? `MRR: ${tile.revenueModifier > 0 ? '+' : ''}€${tile.revenueModifier.toLocaleString()}` : ''} ${tile.costModifier ? ` | Costi: ${tile.costModifier > 0 ? '+' : ''}€${tile.costModifier.toLocaleString()}` : ''}`
+        },
+        actionLabel: "Continua",
+        onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
+      });
+      return;
+    }
+
+    // DEFAULT: PASSAGGIO TURNO AUTOMATICO (per le caselle "vuote" o neutre)
     setTimeout(() => nextTurn(), 800);
   };
 
