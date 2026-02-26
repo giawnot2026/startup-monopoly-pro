@@ -97,7 +97,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedLaps = p.laps;
           let repaidAmount: number | undefined = undefined;
           
-          // Passaggio dal via
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
@@ -113,7 +112,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             p.debts = processedDebts;
           }
 
-          // Applichiamo i modificatori della casella (sia Asset che Tax)
           const revMod = tile.revenueModifier || 0;
           const costMod = tile.costModifier || 0;
 
@@ -156,23 +154,53 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     }));
   }, [currentPlayerIndex]);
 
+  /**
+   * Gestione potenziamento Badge: segue la progressione Bronzo -> Argento -> Oro
+   */
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
-    if (!tile.badges) return;
+    if (!tile.badges) return false;
+
+    let success = false;
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
+
       const asset = p.assets.find(a => a.tileId === tileId);
       const currentLevel = asset ? asset.level : 'none';
+      
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
-      if (currentLevel === 'none') { nextLevel = 'bronze'; cost = tile.badges.bronze.cost; }
-      else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = tile.badges.silver.cost; }
-      else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = tile.badges.gold.cost; }
+      let revBonus = 0;
+
+      // Logica di progressione lineare
+      if (currentLevel === 'none') { 
+        nextLevel = 'bronze'; 
+        cost = tile.badges.bronze.cost;
+        revBonus = tile.badges.bronze.revenueBonus;
+      } else if (currentLevel === 'bronze') { 
+        nextLevel = 'silver'; 
+        cost = tile.badges.silver.cost;
+        revBonus = tile.badges.silver.revenueBonus;
+      } else if (currentLevel === 'silver') { 
+        nextLevel = 'gold'; 
+        cost = tile.badges.gold.cost;
+        revBonus = tile.badges.gold.revenueBonus;
+      }
+
       if (nextLevel !== 'none' && p.cash >= cost) {
-        return { ...p, cash: p.cash - cost, assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }] };
+        success = true;
+        return {
+          ...p,
+          cash: p.cash - cost,
+          mrr: p.mrr + revBonus, // Aggiunge il bonus MRR del nuovo livello
+          assets: asset 
+            ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) 
+            : [...p.assets, { tileId, level: nextLevel }]
+        };
       }
       return p;
     }));
+    return success;
   }, [currentPlayerIndex]);
 
   const applyEvent = useCallback((event: any) => {
