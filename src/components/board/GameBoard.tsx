@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
@@ -18,6 +18,12 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
+
+  // Helper per chiudere il modale e passare il turno in sicurezza
+  const handleCloseModal = useCallback(() => {
+    setModalConfig({ isOpen: false });
+    nextTurn();
+  }, [nextTurn]);
 
   const handleDiceRoll = () => {
     if (modalConfig.isOpen || isRolling) return;
@@ -39,9 +45,22 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   };
 
   const processTile = (tile: any) => {
+    if (!tile) { nextTurn(); return; }
     const tileName = tile.name.toLowerCase();
 
-    // 1. EXIT (Casella ID 27 o nome "Exit")
+    // 1. GESTIONE START (ID 0)
+    if (tile.id === 0) {
+      setModalConfig({
+        isOpen: true, type: 'success', title: "Nuovo Anno Fiscale",
+        description: "Passaggio dal via confermato. Cash iniettato e gestione interessi completata.",
+        impact: { details: "+€25.000 Cash | Pagamento Debiti" },
+        actionLabel: "Procedi",
+        onAction: handleCloseModal
+      });
+      return;
+    }
+
+    // 2. GESTIONE EXIT
     if (tileName.includes("exit")) {
       const canExit = valuation >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
@@ -50,39 +69,28 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         title: "Tentativo di EXIT",
         description: canExit ? "La tua startup è pronta per il mercato. Vendi ora?" : "Valutazione insufficiente per una Exit (Min €1M).",
         impact: { details: `Valutazione attuale: €${valuation.toLocaleString()}` },
-        actionLabel: canExit ? "Vendi e Vinci" : "Torna a lavorare",
-        onAction: () => { if(canExit) attemptExit(); setModalConfig({ isOpen: false }); nextTurn(); },
-        onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); }
+        actionLabel: canExit ? "Vendi e Vinci" : "Continua a costruire",
+        onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
+        onClose: handleCloseModal
       });
       return;
     }
 
-    // 2. SPECIAL (Imprevisti e Opportunità)
-    if (tile.type === 'special' || tileName.includes("imprevisto") || tileName.includes("opportunità")) {
-      const isOpp = tileName.includes("opportunità") || tile.id === 3 || tile.id === 15 || tile.id === 22;
+    // 3. GESTIONE SPECIAL (Imprevisti/Opportunità)
+    if (tile.type === 'special') {
+      const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       setModalConfig({ 
         isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
-        title: event.title, description: event.effect, actionLabel: "Ok", 
-        onAction: () => { applyEvent(event); setModalConfig({ isOpen: false }); nextTurn(); } 
+        title: event.title, description: event.effect, actionLabel: "Ricevuto", 
+        onAction: () => { applyEvent(event); handleCloseModal(); } 
       });
       return;
     }
 
-    // 3. FUNDING (Caselle 0, 7, 14, 21 e simili)
-    if (tile.type === 'funding' || tileName.includes("funding") || tileName.includes("start")) {
-      if (tile.id === 0) { // Speciale per lo START
-         setModalConfig({
-           isOpen: true, type: 'success', title: "Nuovo Anno Fiscale",
-           description: "Hai passato il via. Ricevi finanziamenti governativi e gestisci i debiti.",
-           impact: { details: "+€25.000 Cash | Pagamento Interessi Debiti" },
-           actionLabel: "Avanti",
-           onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
-         });
-         return;
-      }
-      
+    // 4. GESTIONE FUNDING
+    if (tile.type === 'funding') {
       const availableOffers = FUNDING_OFFERS.filter(o => currentPlayer.laps > 0 || o.type !== 'EQUITY');
       const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
       let details = "";
@@ -91,7 +99,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         details = `Ricevi: +€${((valuation * dil) / 100).toLocaleString()} | Cedi: ${dil.toFixed(0)}% Equity`;
         offer.actualDilution = dil;
       } else if (offer.type === 'BANK') {
-        offer.durationYears = Math.floor(Math.random() * 3) + 2;
         details = `Prestito: €${offer.fixedAmount.toLocaleString()} | Interessi: €${(offer.fixedAmount * offer.interestRate).toLocaleString()}/giro`;
       } else {
         details = `Grant: €${offer.fixedAmount.toLocaleString()}`;
@@ -100,54 +107,86 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       setModalConfig({
         isOpen: true, type: 'info', title: offer.investor, description: offer.description,
         impact: { details }, actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
-        onAction: () => { applyFunding(offer); setModalConfig({ isOpen: false }); nextTurn(); },
-        onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); }
+        onAction: () => { applyFunding(offer); handleCloseModal(); },
+        onClose: handleCloseModal
       });
       return;
     }
 
-    // 4. ASSET (Acquisto/Upgrade)
+    // 5. GESTIONE ASSET (Logica richiesta Bronzo/Argento/Oro)
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
+      const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
+      const currentLevel = myAsset ? myAsset.level : 'none';
+
       if (owner) {
-        const toll = tile.badges[owner.assets.find(a => a.tileId === tile.id)?.level || 'none']?.toll || 0;
+        const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
+        const toll = tile.badges[level]?.toll || 0;
         setModalConfig({ 
-          isOpen: true, type: 'danger', title: "Pagamento Royalties", 
+          isOpen: true, type: 'danger', title: "Pedaggio Mercato", 
           description: `Sei su un asset di ${owner.name}`, impact: { details: `Paga: €${toll.toLocaleString()}` }, 
-          actionLabel: "Paga", onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); } 
+          actionLabel: "Paga", onAction: handleCloseModal 
         });
       } else {
-        setModalConfig({ 
-          isOpen: true, type: 'success', title: tile.name, description: "Vuoi investire in questo asset?",
-          impact: { details: `Costo: €${tile.badges.bronze.cost.toLocaleString()} | Bonus MRR: +€${tile.badges.bronze.revenueBonus.toLocaleString()}` },
-          actionLabel: "Investi", onAction: () => { upgradeBadge(tile.id); setModalConfig({ isOpen: false }); nextTurn(); }, 
-          onClose: () => { setModalConfig({ isOpen: false }); nextTurn(); } 
+        // Configurazione progressione
+        const levels = [
+          { id: 'bronze', label: '🥉 BRONZO', ...tile.badges.bronze },
+          { id: 'silver', label: '🥈 ARGENTO', ...tile.badges.silver },
+          { id: 'gold', label: '🥇 ORO', ...tile.badges.gold },
+        ];
+
+        const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
+        const canAffordNext = nextLevelIndex < 3 && currentPlayer.cash >= levels[nextLevelIndex].cost;
+
+        // Costruiamo la lista testuale "illuminata" per il modale
+        const statusList = levels.map((l, i) => {
+          const isOwned = (currentLevel === 'none' ? false : 
+                          currentLevel === 'bronze' ? i <= 0 : 
+                          currentLevel === 'silver' ? i <= 1 : true);
+          const isNext = i === nextLevelIndex;
+          const statusPrefix = isOwned ? "✅" : (isNext && canAffordNext ? "✨" : "❌");
+          const affordability = currentPlayer.cash >= l.cost ? "Disponibile" : "Insufficiente";
+          
+          return `${statusPrefix} ${l.label}: €${l.cost.toLocaleString()} (${isOwned ? 'Posseduto' : affordability})`;
+        }).join('\n');
+
+        setModalConfig({
+          isOpen: true,
+          type: 'success',
+          title: tile.name,
+          description: nextLevelIndex > 2 ? "Massimo livello raggiunto!" : "Vuoi investire nel potenziamento?",
+          impact: { 
+            details: statusList + `\n\nBonus prossimo livello: +€${nextLevelIndex < 3 ? levels[nextLevelIndex].revenueBonus.toLocaleString() : 0} MRR` 
+          },
+          actionLabel: canAffordNext ? `Investi in ${levels[nextLevelIndex].id}` : "Chiudi",
+          secondaryActionLabel: canAffordNext ? "Rifiuta" : undefined,
+          onAction: () => { if (canAffordNext) upgradeBadge(tile.id); handleCloseModal(); },
+          onClose: handleCloseModal
         });
       }
       return;
     }
 
-    // 5. TAX / MODIFICATORI DIRETTI (Caselle come ID 5, 13, 17)
+    // 6. TAX / MODIFICATORI DIRETTI
     if (tile.type === 'tax' || tile.revenueModifier !== 0 || tile.costModifier !== 0) {
       const isPositive = (tile.revenueModifier || 0) > (tile.costModifier || 0);
       setModalConfig({
         isOpen: true, type: isPositive ? 'opportunity' : 'danger', title: tile.name,
-        description: "L'ambiente di mercato influenza i tuoi numeri.",
+        description: "Variazione dei parametri operativi rilevata.",
         impact: { details: `MRR: ${tile.revenueModifier >= 0 ? '+' : ''}${tile.revenueModifier} | Costi: ${tile.costModifier >= 0 ? '+' : ''}${tile.costModifier}` },
-        actionLabel: "Continua", onAction: () => { setModalConfig({ isOpen: false }); nextTurn(); }
+        actionLabel: "Continua", onAction: handleCloseModal
       });
       return;
     }
 
-    // 6. FALLBACK DI SICUREZZA (Se arriviamo qui, la casella è neutra)
-    console.log("Casella neutra rilevata, cambio turno forzato.");
+    // 7. FALLBACK
     nextTurn();
   };
 
-  // ... Render (Invariato, usa la dashboard a 3 colonne dell'ultimo step)
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        {/* UI Centrale Dadi */}
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 shadow-2xl text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
@@ -163,6 +202,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           </button>
         </div>
 
+        {/* Mappa del Tabellone */}
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full">
           {TILES.map((tile) => {
             let row, col;
@@ -184,8 +224,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
+      {/* Pannello Laterale Giocatori */}
       <div className="w-full lg:w-[350px] space-y-3">
-        <h3 className="text-blue-400 font-black tracking-[0.2em] uppercase text-[10px] mb-2 px-2 italic opacity-80">Market Overview</h3>
+        <h3 className="text-blue-400 font-black tracking-[0.2em] uppercase text-[10px] mb-2 px-2 italic opacity-80">Market Participants</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
           const currentEbitda = p.mrr - p.monthlyCosts;
@@ -221,7 +262,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           );
         })}
       </div>
-      <ActionModal {...modalConfig} onClose={() => { if (modalConfig.onClose) modalConfig.onClose(); setModalConfig({ ...modalConfig, isOpen: false }); }} />
+      <ActionModal {...modalConfig} />
     </div>
   );
 }
