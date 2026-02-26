@@ -9,18 +9,18 @@ interface InitialPlayer {
 }
 
 interface Debt {
-  amount: number;         // Capitale ricevuto (da restituire alla fine)
-  interestRate: number;   // Tasso (es. 0.05 per 5%)
-  remainingYears: number; // Giri rimanenti
-  annualInterest: number; // Quota interessi da pagare a ogni VIA
-  initialCash: number;    // Salvataggio per il popup finale
+  amount: number;
+  interestRate: number;
+  remainingYears: number;
+  annualInterest: number;
+  initialCash: number;
 }
 
 export interface ExtendedPlayer extends PlayerState {
   debts: Debt[];
   laps: number;
   hasHadFunding: boolean;
-  lastLoanRepaidAmount?: number; // Per triggerare il popup "Debito onorato"
+  lastLoanRepaidAmount?: number;
 }
 
 export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
@@ -48,11 +48,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const currentPlayer = players[currentPlayerIndex];
 
+  // Funzione di calcolo valutazione esportabile
   const calculateValuation = (p: ExtendedPlayer) => {
     const ebitdaVal = p.mrr - p.monthlyCosts;
     const annualEbitda = ebitdaVal * 12;
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
-    return operationalValue + p.cash;
+    return Math.max(100000, operationalValue + p.cash);
   };
 
   const ebitda = useMemo(() => currentPlayer.mrr - currentPlayer.monthlyCosts, [currentPlayer]);
@@ -66,7 +67,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   }, []);
 
   const nextTurn = useCallback(() => {
-    // Puliamo il messaggio del debito prima di cambiare turno
     setPlayers(prev => prev.map((p, idx) => 
       idx === currentPlayerIndex ? { ...p, lastLoanRepaidAmount: undefined } : p
     ));
@@ -100,24 +100,17 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedLaps = p.laps;
           let repaidAmount: number | undefined = undefined;
           
-          // --- LOGICA PASSAGGIO DAL VIA ---
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
-            updatedCash += 25000; // Bonus round standard
+            updatedCash += 25000;
 
-            // 1. Pagamento interessi e gestione scadenza debiti
             const processedDebts = p.debts.map(debt => {
-              // Sottrai l'interesse annuale
               updatedCash -= debt.annualInterest;
-              
               const newRemaining = debt.remainingYears - 1;
-              
-              // Se il debito scade a questo giro
               if (newRemaining === 0) {
-                updatedCash -= debt.amount; // Restituzione capitale
+                updatedCash -= debt.amount;
                 repaidAmount = debt.amount;
               }
-              
               return { ...debt, remainingYears: newRemaining };
             }).filter(d => d.remainingYears > 0);
 
@@ -128,7 +121,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           const costMod = tile.costModifier || 0;
           const finalCash = updatedCash + revMod - costMod;
 
-          // Bancarotta
           let isNowBankrupt = p.isBankrupt;
           if (finalCash < -50000 && updatedLaps >= 3 && p.hasHadFunding) {
             isNowBankrupt = true;
@@ -167,19 +159,17 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       if (offer.type === 'GRANT') {
         cashBonus = offer.fixedAmount;
       } else if (offer.type === 'EQUITY') {
-        // Usa la diluizione calcolata o la media del range
-        equityLoss = offer.actualDilution || (offer.equityRange.min + offer.equityRange.max) / 2;
+        // Forza minimo 15% di equity
+        equityLoss = Math.max(15, offer.actualDilution || 15);
         cashBonus = (calculateValuation(p) * equityLoss) / 100;
       } else if (offer.type === 'BANK') {
-        // Il cash è fisso dall'offerta, durata random 2-5 anni
         cashBonus = offer.fixedAmount;
-        const duration = offer.durationYears || (Math.floor(Math.random() * 4) + 2);
-        
+        const duration = offer.durationYears || 3;
         newDebt = {
           amount: cashBonus,
           interestRate: offer.interestRate,
           remainingYears: duration,
-          annualInterest: cashBonus * offer.interestRate, // Interesse semplice annuo
+          annualInterest: cashBonus * offer.interestRate,
           initialCash: cashBonus
         };
       }
@@ -194,8 +184,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       };
     }));
   }, [currentPlayerIndex]);
-
-  // ... restanti funzioni (upgradeBadge, applyEvent, attemptExit) rimangono invariate
 
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
@@ -244,6 +232,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   return {
     players, currentPlayerIndex, currentPlayer, ebitda, valuation,
     movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn,
-    gameWinner, attemptExit
+    gameWinner, attemptExit, calculateValuation
   };
 };
