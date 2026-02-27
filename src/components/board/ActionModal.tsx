@@ -65,11 +65,10 @@ export default function ActionModal({
 
   const config = configs[type] || configs.info;
 
-  const renderBadges = badges ? [
-    { id: 'bronze', label: 'BRONZO', cost: badges.bronze.cost, owned: badges.bronze.owned },
-    { id: 'silver', label: 'ARGENTO', cost: badges.silver.cost, owned: badges.silver.owned },
-    { id: 'gold', label: 'ORO', cost: badges.gold.cost, owned: badges.gold.owned },
-  ] : [];
+  // --- LOGICA DI CONTROLLO CASH ---
+  let finalActionLabel = actionLabel;
+  let canAfford = true;
+  const userCash = Number(currentPlayerCash);
 
   const nextToBuy = badges ? (
     badges.currentLevel === 'none' ? 'bronze' : 
@@ -77,20 +76,36 @@ export default function ActionModal({
     badges.currentLevel === 'silver' ? 'gold' : null
   ) : null;
 
-  // FIX: Calcolo dinamico label e stato disabilitato
-  let finalActionLabel = actionLabel;
-  let canAfford = true;
-
   if (badges && nextToBuy) {
-    const nextCost = badges[nextToBuy as keyof typeof badges].cost;
-    canAfford = Number(currentPlayerCash) >= Number(nextCost);
-    if (!canAfford) finalActionLabel = "Fondi Insufficienti";
+    const nextCost = Number(badges[nextToBuy as keyof typeof badges].cost);
+    // FIX: Il confronto ora è puramente numerico per evitare l'errore 100k vs 10k
+    canAfford = userCash >= nextCost;
+    
+    if (!canAfford) {
+      finalActionLabel = "Fondi Insufficienti - Chiudi";
+    }
   }
+
+  // Gestisce il click: se non ha soldi, il tasto chiude la modale invece di comprare
+  const handleMainAction = () => {
+    if (badges && nextToBuy && !canAfford) {
+      if (onClose) onClose();
+    } else {
+      onAction();
+    }
+  };
+
+  const renderBadgesList = badges ? [
+    { id: 'bronze', label: 'BRONZO', cost: badges.bronze.cost, owned: badges.bronze.owned },
+    { id: 'silver', label: 'ARGENTO', cost: badges.silver.cost, owned: badges.silver.owned },
+    { id: 'gold', label: 'ORO', cost: badges.gold.cost, owned: badges.gold.owned },
+  ] : [];
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/80">
       <div className={`${config.bg} ${config.border} border-2 w-full max-w-xl rounded-[2.5rem] p-8 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
         
+        {/* Badge Etichetta Superiore */}
         <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2 rounded-b-2xl shadow-lg z-10`}>
           <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">{config.label}</span>
         </div>
@@ -123,10 +138,11 @@ export default function ActionModal({
             </div>
           )}
 
+          {/* Sezione Badges con stili originali */}
           {badges && (
             <div className="mb-8">
               <div className="grid grid-cols-3 gap-4 mb-6">
-                {renderBadges.map((b) => {
+                {renderBadgesList.map((b) => {
                   const isAvailable = b.id === nextToBuy;
                   const isActive = b.owned || isAvailable;
                   return (
@@ -145,7 +161,7 @@ export default function ActionModal({
                       </div>
                       <span className="text-[10px] font-black text-white mb-1 uppercase tracking-widest">{b.label}</span>
                       <div className={`text-[11px] font-mono font-black ${isAvailable ? 'text-blue-400' : 'text-slate-500'}`}>
-                        €{b.cost.toLocaleString()}
+                        €{Number(b.cost).toLocaleString()}
                       </div>
                     </div>
                   );
@@ -164,9 +180,8 @@ export default function ActionModal({
 
           <div className="flex flex-col gap-4 mt-4">
             <button
-              onClick={onAction}
-              disabled={!canAfford && nextToBuy !== null}
-              className={`w-full py-5 ${(!canAfford && nextToBuy !== null) ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl shadow-blue-900/20`}
+              onClick={handleMainAction}
+              className={`w-full py-5 ${(!canAfford && nextToBuy) ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}
             >
               {finalActionLabel}
             </button>
