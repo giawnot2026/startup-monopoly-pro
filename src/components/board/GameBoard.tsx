@@ -187,9 +187,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 7:
       case 14:
       case 21:
-        const isStartupValuable = valuation > 120000;
+        const isStartupValuable = (calculateValuation(currentPlayer) || 0) > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => {
-          if (o.type === 'EQUITY') return isStartupValuable && currentPlayer.laps > 0;
+          if (o.type === 'EQUITY') return isStartupValuable && (currentPlayer.laps || 0) > 0;
           return true;
         });
 
@@ -199,7 +199,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
         if (offer.type === 'EQUITY') {
           const dil = 15; 
-          const cashAmount = (valuation * dil) / 100;
+          const cashAmount = ((calculateValuation(currentPlayer) || 0) * dil) / 100;
           details = `Ricevi: +€${cashAmount.toLocaleString()} | Cedi: ${dil}% Equity`;
           offer.actualDilution = dil;
         } else if (offer.type === 'BANK') {
@@ -234,7 +234,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 shadow-2xl text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-            <span className="text-white font-black text-[9px] uppercase tracking-widest">{currentPlayer.name}</span>
+            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">{currentPlayer.name}</span>
           </div>
           <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-150 ${isRolling ? 'scale-110 border-blue-500 shadow-[0_0_25px_rgba(37,99,235,0.4)] rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
@@ -274,8 +274,10 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           const currentEbitda = (p.mrr || 0) - (p.monthlyCosts || 0);
           const pVal = calculateValuation(p) || 0;
           
-          // Calcolo totale debito
-          const totalDebt = p.debts?.reduce((acc: number, d: any) => acc + (d.amount || 0), 0) || 0;
+          // FIX: Somma i debiti controllando sia la proprietà 'amount' che 'fixedAmount'
+          const totalDebt = p.debts?.reduce((acc: number, d: any) => {
+            return acc + (d.amount || d.fixedAmount || 0);
+          }, 0) || 0;
 
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-xl' : 'bg-slate-900/50 border-white/5 opacity-80'} ${p.isBankrupt ? 'grayscale opacity-50 contrast-50' : ''}`}>
@@ -284,7 +286,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                   <span className="text-white font-bold text-xs uppercase tracking-tight">{p.name}</span>
                 </div>
-                <span className="text-[10px] font-black text-blue-400">{p.equity.toFixed(0)}% EQ</span>
+                <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(0) || 100}% EQ</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
@@ -295,7 +297,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
                   <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
-                {/* Visualizzazione Debito Totale */}
+                {/* Visualizzazione Debito con Fix per visualizzare 0 o importo */}
                 <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debts</span>
                   <span className={`font-black ${totalDebt > 0 ? 'text-rose-400' : 'text-amber-400'}`}>
