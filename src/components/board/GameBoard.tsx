@@ -85,7 +85,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
       if (owner) {
         const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
-        const toll = tile.badges?.[level]?.toll || 0;
+        const toll = Number(tile.badges?.[level]?.toll) || 0;
         setModalConfig({ 
           isOpen: true, type: 'danger', title: "Tassa di Mercato", 
           description: `Sei atterrato su un asset di ${owner.name}`, 
@@ -93,7 +93,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           actionLabel: "Paga", onAction: handleCloseModal 
         });
       } else {
-        // Logica per i 3 badge illuminati
         const badgesInfo = {
           currentLevel: currentLevel,
           bronze: { ...tile.badges.bronze, owned: ['bronze', 'silver', 'gold'].includes(currentLevel) },
@@ -102,13 +101,16 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         };
 
         const levelsData = [
-          { id: 'bronze', label: 'Bronzo', cost: tile.badges.bronze.cost },
-          { id: 'silver', label: 'Argento', cost: tile.badges.silver.cost },
-          { id: 'gold', label: 'Oro', cost: tile.badges.gold.cost },
+          { id: 'bronze', label: 'Bronzo', cost: Number(tile.badges.bronze.cost) },
+          { id: 'silver', label: 'Argento', cost: Number(tile.badges.silver.cost) },
+          { id: 'gold', label: 'Oro', cost: Number(tile.badges.gold.cost) },
         ];
 
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
-        const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= (levelsData[nextLevelIndex]?.cost || 0);
+        
+        // FIX: Controllo cash forzato a numero per evitare errori di tipo
+        const nextCost = nextLevelIndex < 3 ? levelsData[nextLevelIndex].cost : 0;
+        const canAfford = nextLevelIndex < 3 && Number(currentPlayer.cash) >= nextCost;
 
         setModalConfig({
           isOpen: true, 
@@ -117,7 +119,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           description: "Migliora questo asset per aumentare il tuo MRR.",
           insight: tile.insight, 
           badgeCta: tile.badgeCta,
-          badges: badgesInfo, // Passiamo l'oggetto completo
+          badges: badgesInfo,
           actionLabel: canAfford ? `Acquista ${levelsData[nextLevelIndex].label}` : (nextLevelIndex > 2 ? "Massimo Livello" : "Fondi Insufficienti"),
           onAction: () => { if (canAfford) upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
@@ -160,7 +162,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           details = `Ricevi: €${cash.toLocaleString()} | Cedi: 15% Equity`;
           offer.actualDilution = 15;
         } else if (offer.type === 'BANK') {
-          details = `Prestito: €${(offer.fixedAmount || 50000).toLocaleString()} | Tasso: ${(offer.interestRate * 100)}% | Durata: ${offer.durationYears} giri`;
+          details = `Prestito: €${(Number(offer.fixedAmount) || 50000).toLocaleString()} | Tasso: ${(Number(offer.interestRate) * 100)}% | Durata: ${offer.durationYears} giri`;
         }
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
@@ -184,7 +186,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
-          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(valuation || 0).toLocaleString()}</div>
+          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Valuation</span>
           <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className="px-10 py-3 font-black rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono">
             {isRolling ? "Lancio..." : "Lancia Dadi"}
@@ -216,7 +218,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
-          const currentEbitda = (p.mrr || 0) - (p.monthlyCosts || 0);
+          const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
 
@@ -232,7 +234,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
-                  <span className="text-white font-black">€{p.cash.toLocaleString()}</span>
+                  <span className="text-white font-black">€{Number(p.cash).toLocaleString()}</span>
                 </div>
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
