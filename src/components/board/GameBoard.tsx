@@ -54,7 +54,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
     const tileName = tile.name?.toLowerCase() || "";
 
-    // GESTIONE EXIT
     if (tile.id === 27) {
       const canExit = (valuation || 0) >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
@@ -71,7 +70,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // GESTIONE OPPORTUNITÀ / IMPREVISTI
     if (tile.type === 'special') {
       const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
@@ -88,7 +86,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // GESTIONE ASSET (CON BADGE E INSIGHT)
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
@@ -144,8 +141,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           type: 'success', 
           title: tile.name,
           description: "Potenzia la tua startup acquisando o migliorando questo asset.",
-          insight: tile.insight, // COLLEGA IL NUOVO CAMPO
-          badgeCta: tile.badgeCta, // COLLEGA IL NUOVO CAMPO
+          insight: tile.insight,
+          badgeCta: tile.badgeCta,
           impact: { details: impactDetails },
           assetLevels,
           actionLabel: canAfford ? `Sì, acquista ${levelsData[nextLevelIndex].label}` : "Passa Turno",
@@ -157,7 +154,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // GESTIONE TASSE / COSTI FISSI
     if (tile.type === 'tax') {
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
@@ -220,7 +216,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           type: 'info', 
           title: `Round: ${offer.investor}`, 
           description: offer.description,
-          insight: offer.insight, // COLLEGA L'INSIGHT DEL FUNDING
+          insight: offer.insight, 
           impact: { details }, 
           actionLabel: "Accetta Investimento", 
           secondaryActionLabel: "Rifiuta",
@@ -240,17 +236,17 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
             <span className="text-white font-black text-[9px] uppercase tracking-widest">{currentPlayer.name}</span>
           </div>
-          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-150 ${isRolling ? 'scale-110 border-blue-500 shadow-[0_0_25px_rgba(37,99,235,0.4)] rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black`}>
+          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-150 ${isRolling ? 'scale-110 border-blue-500 shadow-[0_0_25px_rgba(37,99,235,0.4)] rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
-          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter">€{(valuation || 0).toLocaleString()}</div>
+          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(valuation || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
-          <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className={`px-10 py-3 font-black rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-lg ${isRolling ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'}`}>
+          <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className={`px-10 py-3 font-black rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-lg font-mono ${isRolling ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'}`}>
             {isRolling ? "Lancio..." : "Lancia Dadi"}
           </button>
         </div>
 
-        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full">
+        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
             if (tile.id <= 7) { row = 1; col = tile.id + 1; }
@@ -271,12 +267,16 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
-      <div className="w-full lg:w-[350px] space-y-3">
+      <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-[0.2em] uppercase text-[10px] mb-2 px-2 italic opacity-80">Market Participants</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
           const currentEbitda = (p.mrr || 0) - (p.monthlyCosts || 0);
           const pVal = calculateValuation(p) || 0;
+          
+          // Calcolo totale debito
+          const totalDebt = p.debts?.reduce((acc: number, d: any) => acc + (d.amount || 0), 0) || 0;
+
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-xl' : 'bg-slate-900/50 border-white/5 opacity-80'} ${p.isBankrupt ? 'grayscale opacity-50 contrast-50' : ''}`}>
               <div className="flex items-center justify-between mb-2">
@@ -284,24 +284,27 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                   <span className="text-white font-bold text-xs uppercase tracking-tight">{p.name}</span>
                 </div>
-                <span className="text-[10px] font-mono text-blue-400 font-bold">{p.equity.toFixed(0)}% EQ</span>
+                <span className="text-[10px] font-black text-blue-400">{p.equity.toFixed(0)}% EQ</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                <div className="bg-black/30 p-2 rounded-lg text-center">
-                  <span className="text-slate-500 block text-[6px] uppercase font-bold mb-1">Cash</span>
-                  <span className="text-white font-mono font-bold">€{(p.cash || 0).toLocaleString()}</span>
+                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
+                  <span className="text-white font-black">€{(p.cash || 0).toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center">
-                  <span className="text-slate-500 block text-[6px] uppercase font-bold mb-1">EBITDA</span>
-                  <span className={`font-mono font-bold ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
+                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
+                  <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center">
-                  <span className="text-slate-500 block text-[6px] uppercase font-bold mb-1">Debts</span>
-                  <span className="text-amber-400 font-mono font-bold">{p.debts?.length > 0 ? `${p.debts.length} Act.` : 'None'}</span>
+                {/* Visualizzazione Debito Totale */}
+                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debts</span>
+                  <span className={`font-black ${totalDebt > 0 ? 'text-rose-400' : 'text-amber-400'}`}>
+                    {totalDebt > 0 ? `€${totalDebt.toLocaleString()}` : 'NONE'}
+                  </span>
                 </div>
               </div>
               <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
-                <span className="text-slate-500 uppercase font-bold text-[7px]">Net Valuation</span>
+                <span className="text-slate-500 uppercase font-black text-[7px]">Net Valuation</span>
                 <span className="text-blue-400 font-black text-xs italic">€{pVal.toLocaleString()}</span>
               </div>
             </div>
