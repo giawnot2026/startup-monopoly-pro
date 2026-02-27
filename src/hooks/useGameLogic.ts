@@ -201,7 +201,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         revBonus = Number(tile.badges.gold.revenueBonus); 
       }
 
-      // IL FIX: Assicuriamoci che p.cash sia trattato come numero
+      // FIX: Controllo cash forzato a numero
       if (nextLevel !== 'none' && Number(p.cash) >= cost) {
         success = true;
         return {
