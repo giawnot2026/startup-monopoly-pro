@@ -18,13 +18,13 @@ interface ActionModalProps {
     silver: { cost: number; owned: boolean };
     gold: { cost: number; owned: boolean };
   };
+  currentPlayerCash?: number;
   actionLabel: string;
   secondaryActionLabel?: string;
   onAction: () => void;
   onClose?: () => void;
 }
 
-// Helper per le icone geometriche nel Modal
 const BadgeShape = ({ level, active }: { level: string, active: boolean }) => {
   const color = active ? '#3b82f6' : '#475569';
   const glow = active ? `drop-shadow(0 0 8px ${color}cc)` : 'none';
@@ -51,7 +51,7 @@ const BadgeShape = ({ level, active }: { level: string, active: boolean }) => {
 };
 
 export default function ActionModal({
-  isOpen, type, title, description, insight, badgeCta, impact, badges, actionLabel, secondaryActionLabel, onAction, onClose
+  isOpen, type, title, description, insight, badgeCta, impact, badges, currentPlayerCash = 0, actionLabel, secondaryActionLabel, onAction, onClose
 }: ActionModalProps) {
   if (!isOpen) return null;
 
@@ -76,6 +76,16 @@ export default function ActionModal({
     badges.currentLevel === 'bronze' ? 'silver' : 
     badges.currentLevel === 'silver' ? 'gold' : null
   ) : null;
+
+  // FIX: Calcolo dinamico label e stato disabilitato
+  let finalActionLabel = actionLabel;
+  let canAfford = true;
+
+  if (badges && nextToBuy) {
+    const nextCost = badges[nextToBuy as keyof typeof badges].cost;
+    canAfford = Number(currentPlayerCash) >= Number(nextCost);
+    if (!canAfford) finalActionLabel = "Fondi Insufficienti";
+  }
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/80">
@@ -155,9 +165,10 @@ export default function ActionModal({
           <div className="flex flex-col gap-4 mt-4">
             <button
               onClick={onAction}
-              className={`w-full py-5 ${config.accent} text-white font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl shadow-blue-900/20`}
+              disabled={!canAfford && nextToBuy !== null}
+              className={`w-full py-5 ${(!canAfford && nextToBuy !== null) ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl shadow-blue-900/20`}
             >
-              {actionLabel}
+              {finalActionLabel}
             </button>
             
             {secondaryActionLabel && (
