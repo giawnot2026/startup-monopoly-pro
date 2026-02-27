@@ -46,7 +46,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   const processTile = (tile: any) => {
     if (!tile) { nextTurn(); return; }
     
-    // --- GESTIONE ANGOLI ---
     const corners = [0, 7, 14, 21];
     if (corners.includes(tile.id)) {
       handleCornerTile(tile);
@@ -55,9 +54,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
     const tileName = tile.name?.toLowerCase() || "";
 
-    // EXIT (Casella 27)
     if (tile.id === 27) {
-      const canExit = valuation >= 1000000 && currentPlayer.equity > 0;
+      const canExit = (valuation || 0) >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
         isOpen: true,
         type: canExit ? 'success' : 'danger',
@@ -71,7 +69,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // SPECIAL
     if (tile.type === 'special') {
       const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
@@ -84,7 +81,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // ASSET
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
@@ -138,7 +134,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // TAX / MODIFIERS
     if (tile.type === 'tax') {
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
@@ -167,18 +162,35 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 7:
       case 14:
       case 21:
-        const availableOffers = FUNDING_OFFERS.filter(o => currentPlayer.laps > 0 || o.type !== 'EQUITY');
+        // Filtriamo le offerte: se la startup vale poco, niente equity (evitiamo NaN)
+        const isStartupValuable = valuation > 120000;
+        const availableOffers = FUNDING_OFFERS.filter(o => {
+          if (o.type === 'EQUITY') return isStartupValuable && currentPlayer.laps > 0;
+          return true;
+        });
+
         const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
         let details = "";
+
         if (offer.type === 'EQUITY') {
-          const dil = Math.max(15, (offer.equityRange.min + offer.equityRange.max) / 2);
-          details = `Ricevi: +€${((valuation * dil) / 100).toLocaleString()} | Cedi: ${dil.toFixed(0)}% Equity`;
+          const dil = 15; // Diluizione fissa o range mediato
+          const cashAmount = (valuation * dil) / 100;
+          details = `Ricevi: +€${cashAmount.toLocaleString()} | Cedi: ${dil}% Equity`;
           offer.actualDilution = dil;
         } else if (offer.type === 'BANK') {
-          details = `Prestito: €${(offer.fixedAmount || 0).toLocaleString()} | Interessi: €${((offer.fixedAmount || 0) * (offer.interestRate || 0)).toLocaleString()}/giro`;
+          // Forza parametri minimi: 50k debito, 5-10% interesse
+          const minDebt = 50000;
+          const randomInt = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
+          offer.fixedAmount = minDebt;
+          offer.interestRate = randomInt / 100;
+          
+          details = `Prestito: €${minDebt.toLocaleString()} | Interessi: ${randomInt}% (€${(minDebt * offer.interestRate).toLocaleString()}/giro)`;
         } else {
-          details = `Grant: €${(offer.fixedAmount || 0).toLocaleString()}`;
+          // GRANT
+          const amount = offer.fixedAmount || 25000;
+          details = `Grant: €${amount.toLocaleString()}`;
         }
+
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, description: offer.description,
           impact: { details }, actionLabel: "Accetta Investimento", secondaryActionLabel: "Rifiuta",
@@ -193,7 +205,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         
-        {/* UI CENTRALE */}
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 shadow-2xl text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
@@ -209,7 +220,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           </button>
         </div>
 
-        {/* TABELLONE */}
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full">
           {TILES.map((tile) => {
             let row, col;
@@ -231,7 +241,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
-      {/* PANNELLO LATERALE */}
       <div className="w-full lg:w-[350px] space-y-3">
         <h3 className="text-blue-400 font-black tracking-[0.2em] uppercase text-[10px] mb-2 px-2 italic opacity-80">Market Participants</h3>
         {players.map((p) => {
