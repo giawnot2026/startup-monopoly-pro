@@ -42,7 +42,6 @@ export default function ActionModal({
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/70">
-      {/* Container leggermente rimpicciolito: max-w-xl */}
       <div className={`${config.bg} ${config.border} border-2 w-full max-w-xl rounded-[2.5rem] p-8 shadow-[0_0_60px_rgba(0,0,0,0.5)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
         
         <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-6 py-1.5 rounded-b-xl shadow-lg`}>
@@ -54,7 +53,6 @@ export default function ActionModal({
             {title}
           </h2>
           
-          {/* Insight Educativo */}
           {insight && (
             <div className="mb-6 bg-white/5 rounded-xl p-5 border-l-4 border-white/20">
               <p className="text-slate-100 text-sm md:text-base leading-relaxed italic text-left font-medium">
@@ -63,12 +61,10 @@ export default function ActionModal({
             </div>
           )}
 
-          {/* Descrizione */}
           <p className="text-slate-300 text-sm md:text-base leading-snug mb-6 px-2 font-normal opacity-90">
             {description}
           </p>
 
-          {/* Impatto Finanziario */}
           {impact && (
             <div className="bg-black/40 rounded-[1.5rem] p-4 mb-6 border border-white/10">
                <p className="text-[9px] uppercase text-slate-500 font-black mb-2 tracking-[0.2em] italic opacity-70 text-center">
@@ -80,7 +76,6 @@ export default function ActionModal({
             </div>
           )}
 
-          {/* Asset Levels */}
           {assetLevels && (
             <div className="mb-8">
               <div className="grid grid-cols-3 gap-4 mb-5">
@@ -98,17 +93,10 @@ export default function ActionModal({
                     <div className={`text-[10px] font-mono font-black ${level.status === 'available' ? 'text-blue-400' : 'text-slate-400'}`}>
                       €{(Number(level.cost) || 0).toLocaleString()}
                     </div>
-                    
-                    {level.status === 'owned' && (
-                      <div className="absolute -top-2 -right-2 bg-emerald-500 text-black rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black border-2 border-slate-900 shadow-lg">
-                        ✓
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
 
-              {/* CTA Badge */}
               {badgeCta && (
                 <div className="bg-blue-600/15 py-2 px-6 rounded-full inline-block border border-blue-500/20 animate-pulse">
                   <p className="text-blue-300 text-[10px] font-black uppercase tracking-[0.15em]">
@@ -120,16 +108,19 @@ export default function ActionModal({
           )}
 
           <div className="flex flex-col gap-3">
+            {/* Tasto Primario */}
             <button
               onClick={onAction}
               className={`w-full py-5 ${config.accent} text-black font-black rounded-[1.5rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.2em] text-sm shadow-xl`}
             >
               {actionLabel}
             </button>
+            
+            {/* Tasto Secondario: Migliorato proporzionalmente */}
             {secondaryActionLabel && (
               <button
                 onClick={onClose}
-                className="w-full py-3 bg-white/5 text-white/30 font-bold rounded-xl hover:text-white transition-all uppercase tracking-widest text-[9px]"
+                className="w-full py-4 bg-white/5 text-white/50 font-black rounded-[1.2rem] hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.15em] text-sm"
               >
                 {secondaryActionLabel}
               </button>
