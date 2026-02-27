@@ -52,15 +52,10 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const mrr = p.mrr || 0;
     const costs = p.monthlyCosts || 0;
     const cash = p.cash || 0;
-
     const ebitdaVal = mrr - costs;
     const annualEbitda = ebitdaVal * 12;
-    
-    // Moltiplicatore 10x su EBITDA positivo o 2x su fatturato se negativo
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (mrr * 12) * 2;
-    
     const total = operationalValue + cash;
-    // Protezione NaN e Floor a 100k
     return !isNaN(total) && total > 100000 ? total : 100000;
   }, []);
 
@@ -105,11 +100,13 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedCash = p.cash - tollToPay;
           let updatedLaps = p.laps;
           let repaidAmount: number | undefined = undefined;
+          let updatedDebts = [...p.debts];
           
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
-            const processedDebts = p.debts.map(debt => {
+            
+            const processedDebts = updatedDebts.map(debt => {
               updatedCash -= debt.annualInterest;
               const newRemaining = debt.remainingYears - 1;
               if (newRemaining === 0) {
@@ -118,7 +115,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
               }
               return { ...debt, remainingYears: newRemaining };
             }).filter(d => d.remainingYears > 0);
-            p.debts = processedDebts;
+            
+            updatedDebts = processedDebts;
           }
 
           const revMod = tile.revenueModifier || 0;
@@ -131,6 +129,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             mrr: Math.max(0, p.mrr + revMod),
             monthlyCosts: Math.max(0, p.monthlyCosts + costMod),
             laps: updatedLaps,
+            debts: updatedDebts, // Fix: Aggiornamento immutabile dei debiti
             isBankrupt: (updatedCash < -50000 && updatedLaps >= 3),
             lastLoanRepaidAmount: repaidAmount
           };
@@ -151,22 +150,29 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       let equityLoss = 0;
       const currentVal = calculateValuation(p);
 
-      if (offer.type === 'GRANT') cashBonus = offer.fixedAmount;
-      else if (offer.type === 'EQUITY') {
+      if (offer.type === 'GRANT') {
+        cashBonus = offer.fixedAmount;
+      } else if (offer.type === 'EQUITY') {
         equityLoss = offer.actualDilution || 15;
         cashBonus = (currentVal * equityLoss) / 100;
       } else if (offer.type === 'BANK') {
-        cashBonus = offer.fixedAmount;
+        cashBonus = offer.fixedAmount || 50000;
         const duration = offer.durationYears || 3;
-        const newDebt = { 
+        const newDebt: Debt = { 
           amount: cashBonus, 
-          interestRate: offer.interestRate, 
+          interestRate: offer.interestRate || 0.08, 
           remainingYears: duration, 
-          annualInterest: cashBonus * offer.interestRate, 
+          annualInterest: cashBonus * (offer.interestRate || 0.08), 
           initialCash: cashBonus 
         };
-        return { ...p, cash: p.cash + cashBonus, debts: [...p.debts, newDebt], hasHadFunding: true };
+        return { 
+          ...p, 
+          cash: p.cash + cashBonus, 
+          debts: [...p.debts, newDebt], 
+          hasHadFunding: true 
+        };
       }
+      
       return { 
         ...p, 
         cash: p.cash + cashBonus, 
@@ -179,41 +185,24 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return false;
-
     let success = false;
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-
       const asset = p.assets.find(a => a.tileId === tileId);
       const currentLevel = asset ? asset.level : 'none';
-      
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
       let revBonus = 0;
-
-      if (currentLevel === 'none') { 
-        nextLevel = 'bronze'; 
-        cost = tile.badges.bronze.cost;
-        revBonus = tile.badges.bronze.revenueBonus;
-      } else if (currentLevel === 'bronze') { 
-        nextLevel = 'silver'; 
-        cost = tile.badges.silver.cost;
-        revBonus = tile.badges.silver.revenueBonus;
-      } else if (currentLevel === 'silver') { 
-        nextLevel = 'gold'; 
-        cost = tile.badges.gold.cost;
-        revBonus = tile.badges.gold.revenueBonus;
-      }
-
+      if (currentLevel === 'none') { nextLevel = 'bronze'; cost = tile.badges.bronze.cost; revBonus = tile.badges.bronze.revenueBonus; }
+      else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = tile.badges.silver.cost; revBonus = tile.badges.silver.revenueBonus; }
+      else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = tile.badges.gold.cost; revBonus = tile.badges.gold.revenueBonus; }
       if (nextLevel !== 'none' && p.cash >= cost) {
         success = true;
         return {
           ...p,
           cash: p.cash - cost,
           mrr: p.mrr + revBonus,
-          assets: asset 
-            ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) 
-            : [...p.assets, { tileId, level: nextLevel }]
+          assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }]
         };
       }
       return p;
