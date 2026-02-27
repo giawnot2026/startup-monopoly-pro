@@ -54,6 +54,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
     const tileName = tile.name?.toLowerCase() || "";
 
+    // GESTIONE EXIT
     if (tile.id === 27) {
       const canExit = (valuation || 0) >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
@@ -61,6 +62,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         type: canExit ? 'success' : 'danger',
         title: "Tavolo delle Trattative Exit",
         description: canExit ? "La tua startup ha raggiunto la massa critica. Vuoi vendere?" : "Valutazione troppo bassa per una Exit (Min €1M).",
+        insight: tile.insight || "L'Exit è il momento in cui i founder e gli investitori monetizzano il valore creato.",
         impact: { details: `Valutazione attuale: €${(valuation || 0).toLocaleString()}` },
         actionLabel: canExit ? "Vendi e Vinci" : "Rifiuta e continua",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
@@ -69,18 +71,24 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
+    // GESTIONE OPPORTUNITÀ / IMPREVISTI
     if (tile.type === 'special') {
       const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       setModalConfig({ 
-        isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
-        title: event.title, description: event.effect, actionLabel: "Ok", 
+        isOpen: true, 
+        type: isOpp ? 'opportunity' : 'danger_event', 
+        title: event.title, 
+        description: event.effect,
+        insight: event.insight || (isOpp ? "Le opportunità accelerano la crescita se colte al momento giusto." : "Gli imprevisti testano la resilienza finanziaria del team."),
+        actionLabel: "Ok", 
         onAction: () => { applyEvent(event); handleCloseModal(); } 
       });
       return;
     }
 
+    // GESTIONE ASSET (CON BADGE E INSIGHT)
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
@@ -92,18 +100,22 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
       if (owner) {
         const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
-        const toll = tile.badges[level]?.toll || 0;
+        const toll = tile.badges?.[level]?.toll || 0;
         setModalConfig({ 
-          isOpen: true, type: 'danger', title: "Tassa di Mercato", 
+          isOpen: true, 
+          type: 'danger', 
+          title: "Tassa di Mercato", 
           description: `Sei atterrato su un asset di ${owner.name}`, 
+          insight: "Pagare royalties ai competitor è un costo operativo che deriva dalla mancanza di proprietà intellettuale in quell'area.",
           impact: { details: `Paga royalties: €${toll.toLocaleString()}` }, 
-          actionLabel: "Paga", onAction: handleCloseModal 
+          actionLabel: "Paga", 
+          onAction: handleCloseModal 
         });
       } else {
         const levelsData = [
-          { id: 'bronze', label: 'Bronzo', icon: '🥉', data: tile.badges.bronze },
-          { id: 'silver', label: 'Argento', icon: '🥈', data: tile.badges.silver },
-          { id: 'gold', label: 'Oro', icon: '🥇', data: tile.badges.gold },
+          { id: 'bronze', label: 'Bronzo', icon: '🥉', data: tile.badges?.bronze },
+          { id: 'silver', label: 'Argento', icon: '🥈', data: tile.badges?.silver },
+          { id: 'gold', label: 'Oro', icon: '🥇', data: tile.badges?.gold },
         ];
 
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
@@ -113,16 +125,27 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           if ((currentLevel === 'bronze' && i === 0) || (currentLevel === 'silver' && i <= 1) || (currentLevel === 'gold')) {
             status = 'owned';
           } else if (i === nextLevelIndex) {
-            status = currentPlayer.cash >= l.data.cost ? 'available' : 'locked';
+            status = currentPlayer.cash >= (l.data?.cost || 0) ? 'available' : 'locked';
           }
-          return { id: l.id, label: l.label, icon: l.icon, cost: l.data.cost, revenueBonus: l.data.revenueBonus, status };
+          return { 
+            id: l.id, 
+            label: l.label, 
+            icon: l.icon, 
+            cost: Number(l.data?.cost) || 0, 
+            revenueBonus: Number(l.data?.revenueBonus) || 0, 
+            status 
+          };
         });
 
-        const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= levelsData[nextLevelIndex].data.cost;
+        const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= (levelsData[nextLevelIndex]?.data?.cost || 0);
 
         setModalConfig({
-          isOpen: true, type: 'success', title: tile.name,
-          description: "Potenzia la tua startup acquistando o migliorando questo asset.",
+          isOpen: true, 
+          type: 'success', 
+          title: tile.name,
+          description: "Potenzia la tua startup acquisando o migliorando questo asset.",
+          insight: tile.insight, // COLLEGA IL NUOVO CAMPO
+          badgeCta: tile.badgeCta, // COLLEGA IL NUOVO CAMPO
           impact: { details: impactDetails },
           assetLevels,
           actionLabel: canAfford ? `Sì, acquista ${levelsData[nextLevelIndex].label}` : "Passa Turno",
@@ -134,14 +157,19 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
+    // GESTIONE TASSE / COSTI FISSI
     if (tile.type === 'tax') {
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
       setModalConfig({
-        isOpen: true, type: 'danger', title: tile.name,
+        isOpen: true, 
+        type: 'danger', 
+        title: tile.name,
         description: "Variazione dei flussi di cassa operativi.",
+        insight: tile.insight || "I costi imprevisti e le tasse mettono alla prova la tua 'runway' (riserva di cassa).",
         impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
-        actionLabel: "Ricevuto", onAction: handleCloseModal
+        actionLabel: "Ricevuto", 
+        onAction: handleCloseModal
       });
       return;
     }
@@ -155,6 +183,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         setModalConfig({
           isOpen: true, type: 'info', title: "Inizio Anno Fiscale",
           description: "Hai completato un giro di mercato. Il budget operativo è stato ricaricato.",
+          insight: "La chiusura dell'anno fiscale è il momento per analizzare il bilancio e pianificare i nuovi investimenti.",
           impact: { details: "+€25.000 Cash | Pagamento Interessi Debiti" },
           actionLabel: "Continua", onAction: handleCloseModal
         });
@@ -162,38 +191,39 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 7:
       case 14:
       case 21:
-        // Filtriamo le offerte: se la startup vale poco, niente equity (evitiamo NaN)
         const isStartupValuable = valuation > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => {
           if (o.type === 'EQUITY') return isStartupValuable && currentPlayer.laps > 0;
           return true;
         });
 
-        const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
+        const rawOffer = availableOffers[Math.floor(Math.random() * availableOffers.length)];
+        const offer = { ...rawOffer };
         let details = "";
 
         if (offer.type === 'EQUITY') {
-          const dil = 15; // Diluizione fissa o range mediato
+          const dil = 15; 
           const cashAmount = (valuation * dil) / 100;
           details = `Ricevi: +€${cashAmount.toLocaleString()} | Cedi: ${dil}% Equity`;
           offer.actualDilution = dil;
         } else if (offer.type === 'BANK') {
-          // Forza parametri minimi: 50k debito, 5-10% interesse
-          const minDebt = 50000;
-          const randomInt = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
-          offer.fixedAmount = minDebt;
-          offer.interestRate = randomInt / 100;
-          
-          details = `Prestito: €${minDebt.toLocaleString()} | Interessi: ${randomInt}% (€${(minDebt * offer.interestRate).toLocaleString()}/giro)`;
+          const minDebt = offer.fixedAmount || 50000;
+          const intRate = offer.interestRate || 0.08;
+          details = `Prestito: €${minDebt.toLocaleString()} | Interessi: ${(intRate * 100).toFixed(0)}% (€${(minDebt * intRate).toLocaleString()}/giro)`;
         } else {
-          // GRANT
           const amount = offer.fixedAmount || 25000;
           details = `Grant: €${amount.toLocaleString()}`;
         }
 
         setModalConfig({
-          isOpen: true, type: 'info', title: `Round: ${offer.investor}`, description: offer.description,
-          impact: { details }, actionLabel: "Accetta Investimento", secondaryActionLabel: "Rifiuta",
+          isOpen: true, 
+          type: 'info', 
+          title: `Round: ${offer.investor}`, 
+          description: offer.description,
+          insight: offer.insight, // COLLEGA L'INSIGHT DEL FUNDING
+          impact: { details }, 
+          actionLabel: "Accetta Investimento", 
+          secondaryActionLabel: "Rifiuta",
           onAction: () => { applyFunding(offer); handleCloseModal(); },
           onClose: handleCloseModal
         });
