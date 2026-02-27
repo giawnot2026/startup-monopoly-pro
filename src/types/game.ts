@@ -7,9 +7,9 @@ export interface PlayerAsset {
 
 export interface Debt {
   id: string;
-  principal: number;
-  remainingQuarters: number;
-  interestRate: number;
+  principal: number; // Capitale residuo
+  remainingYears: number;
+  interestRate: number; // Esempio: 0.08 per 8%
 }
 
 export interface PlayerState {
@@ -25,4 +25,5 @@ export interface PlayerState {
   debts: Debt[];
   totalRaised: number;
   isBankrupt: boolean;
+  laps: number;
 }
