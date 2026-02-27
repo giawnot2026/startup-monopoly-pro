@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
@@ -93,25 +93,14 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           actionLabel: "Paga", onAction: handleCloseModal 
         });
       } else {
-        const badgesInfo = {
-          currentLevel: currentLevel,
-          bronze: { ...tile.badges.bronze, owned: ['bronze', 'silver', 'gold'].includes(currentLevel) },
-          silver: { ...tile.badges.silver, owned: ['silver', 'gold'].includes(currentLevel) },
-          gold: { ...tile.badges.gold, owned: currentLevel === 'gold' }
-        };
-
         const levelsData = [
           { id: 'bronze', label: 'Bronzo', cost: Number(tile.badges.bronze.cost) },
           { id: 'silver', label: 'Argento', cost: Number(tile.badges.silver.cost) },
-          { id: 'gold', label: 'Oro', cost: Number(tile.badges.gold.cost) },
+          { id: 'gold', label: 'Oro', cost: Number(tile.badges.gold.gold) || Number(tile.badges.gold.cost) },
         ];
 
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
         
-        // FIX: Controllo cash forzato a numero per evitare errori di tipo
-        const nextCost = nextLevelIndex < 3 ? levelsData[nextLevelIndex].cost : 0;
-        const canAfford = nextLevelIndex < 3 && Number(currentPlayer.cash) >= nextCost;
-
         setModalConfig({
           isOpen: true, 
           type: 'success', 
@@ -119,9 +108,14 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           description: "Migliora questo asset per aumentare il tuo MRR.",
           insight: tile.insight, 
           badgeCta: tile.badgeCta,
-          badges: badgesInfo,
-          actionLabel: canAfford ? `Acquista ${levelsData[nextLevelIndex].label}` : (nextLevelIndex > 2 ? "Massimo Livello" : "Fondi Insufficienti"),
-          onAction: () => { if (canAfford) upgradeBadge(tile.id); handleCloseModal(); },
+          // Passiamo i dati grezzi per ricalcolare canAfford nella modale stessa o qui
+          tileData: tile,
+          currentLevel: currentLevel,
+          onAction: (costToPay: number) => {
+            if (upgradeBadge(tile.id)) {
+              handleCloseModal();
+            }
+          },
           onClose: handleCloseModal
         });
       }
@@ -255,7 +249,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           );
         })}
       </div>
-      <ActionModal {...modalConfig} />
+      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
     </div>
   );
 }
