@@ -31,75 +31,76 @@ export default function ActionModal({
   if (!isOpen) return null;
 
   const configs = {
-    opportunity: { bg: 'bg-emerald-950/98', border: 'border-emerald-500', text: 'text-emerald-400', icon: '🚀', accent: 'bg-emerald-500', label: 'OPPORTUNITÀ' },
-    danger_event: { bg: 'bg-rose-950/98', border: 'border-rose-500', text: 'text-rose-400', icon: '⚠️', accent: 'bg-rose-500', label: 'IMPREVISTO' },
-    success: { bg: 'bg-slate-900/98', border: 'border-blue-500', text: 'text-blue-400', icon: '🏢', accent: 'bg-blue-500', label: 'INVESTIMENTO' },
-    danger: { bg: 'bg-slate-900/98', border: 'border-red-500', text: 'text-red-400', icon: '💸', accent: 'bg-red-500', label: 'ATTENZIONE' },
-    info: { bg: 'bg-slate-900/98', border: 'border-amber-500', text: 'text-amber-400', icon: '💰', accent: 'bg-amber-500', label: 'STRATEGIA' },
+    opportunity: { bg: 'bg-emerald-950/98', border: 'border-emerald-500', text: 'text-emerald-400', accent: 'bg-emerald-500', label: 'OPPORTUNITÀ' },
+    danger_event: { bg: 'bg-rose-950/98', border: 'border-rose-500', text: 'text-rose-400', accent: 'bg-rose-500', label: 'IMPREVISTO' },
+    success: { bg: 'bg-slate-900/98', border: 'border-blue-500', text: 'text-blue-400', accent: 'bg-blue-500', label: 'INVESTIMENTO' },
+    danger: { bg: 'bg-slate-900/98', border: 'border-red-500', text: 'text-red-400', accent: 'bg-red-500', label: 'ATTENZIONE' },
+    info: { bg: 'bg-slate-900/98', border: 'border-amber-500', text: 'text-amber-400', accent: 'bg-amber-500', label: 'STRATEGIA' },
   };
 
   const config = configs[type] || configs.info;
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 backdrop-blur-xl bg-black/70">
-      <div className={`${config.bg} ${config.border} border-2 w-full max-w-2xl rounded-[3rem] p-10 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/70">
+      {/* Container leggermente rimpicciolito: max-w-xl */}
+      <div className={`${config.bg} ${config.border} border-2 w-full max-w-xl rounded-[2.5rem] p-8 shadow-[0_0_60px_rgba(0,0,0,0.5)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
         
-        <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2 rounded-b-2xl shadow-lg`}>
-          <span className="text-xs font-black text-black tracking-[0.3em] uppercase">{config.label}</span>
+        <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-6 py-1.5 rounded-b-xl shadow-lg`}>
+          <span className="text-[10px] font-black text-black tracking-[0.25em] uppercase">{config.label}</span>
         </div>
 
-        <div className="text-center mt-6">
-          <h2 className={`text-4xl font-black ${config.text} uppercase tracking-tighter mb-6 italic leading-none`}>
+        <div className="text-center mt-4">
+          <h2 className={`text-3xl font-black ${config.text} uppercase tracking-tighter mb-5 italic leading-tight`}>
             {title}
           </h2>
           
-          {/* Insight Educativo: Testo INGRANDITO */}
+          {/* Insight Educativo */}
           {insight && (
-            <div className="mb-8 bg-white/5 rounded-2xl p-6 border-l-4 border-white/20 shadow-inner">
-              <p className="text-slate-100 text-base md:text-lg leading-relaxed italic text-left font-medium">
+            <div className="mb-6 bg-white/5 rounded-xl p-5 border-l-4 border-white/20">
+              <p className="text-slate-100 text-sm md:text-base leading-relaxed italic text-left font-medium">
                 “{insight}”
               </p>
             </div>
           )}
 
-          {/* Descrizione: Testo INGRANDITO */}
-          <p className="text-slate-300 text-base md:text-lg leading-snug mb-8 px-4 font-normal opacity-90">
+          {/* Descrizione */}
+          <p className="text-slate-300 text-sm md:text-base leading-snug mb-6 px-2 font-normal opacity-90">
             {description}
           </p>
 
-          {/* Impatto Finanziario: Numeri INGRANDITI */}
+          {/* Impatto Finanziario */}
           {impact && (
-            <div className="bg-black/40 rounded-[2rem] p-6 mb-8 border border-white/10 shadow-xl">
-               <p className="text-xs uppercase text-slate-500 font-black mb-3 tracking-[0.2em] italic opacity-80">
-                 Analisi Impatto Startup
+            <div className="bg-black/40 rounded-[1.5rem] p-4 mb-6 border border-white/10">
+               <p className="text-[9px] uppercase text-slate-500 font-black mb-2 tracking-[0.2em] italic opacity-70 text-center">
+                 Startup Impact Analysis
                </p>
-               <div className="text-lg md:text-xl font-mono text-white font-bold tracking-tight">
-                 {impact.details || 'Calcolo metriche in corso...'}
+               <div className="text-base md:text-lg font-mono text-white font-bold tracking-tight text-center">
+                 {impact.details || 'Calculating...'}
                </div>
             </div>
           )}
 
-          {/* Sezione Asset / Badge: Layout Spazioso */}
+          {/* Asset Levels */}
           {assetLevels && (
-            <div className="mb-10">
-              <div className="grid grid-cols-3 gap-6 mb-8">
+            <div className="mb-8">
+              <div className="grid grid-cols-3 gap-4 mb-5">
                 {assetLevels.map((level) => (
                   <div 
                     key={level.id} 
-                    className={`relative p-6 rounded-[2.5rem] border-2 flex flex-col items-center transition-all duration-300 ${
+                    className={`relative p-4 rounded-[2rem] border-2 flex flex-col items-center transition-all duration-300 ${
                       level.status === 'owned' ? 'bg-emerald-500/10 border-emerald-500' :
-                      level.status === 'available' ? 'bg-blue-600/25 border-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.4)] scale-105 z-10' :
+                      level.status === 'available' ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.3)] scale-105 z-10' :
                       'bg-slate-800/40 border-white/5 opacity-40 grayscale'
                     }`}
                   >
-                    <span className="text-4xl mb-3">{level.icon}</span>
-                    <span className="text-xs font-black text-white mb-2 uppercase tracking-widest">{level.label}</span>
-                    <div className={`text-sm font-mono font-black ${level.status === 'available' ? 'text-blue-400' : 'text-slate-400'}`}>
+                    <span className="text-3xl mb-2">{level.icon}</span>
+                    <span className="text-[9px] font-black text-white mb-1 uppercase tracking-widest text-center">{level.label}</span>
+                    <div className={`text-[10px] font-mono font-black ${level.status === 'available' ? 'text-blue-400' : 'text-slate-400'}`}>
                       €{(Number(level.cost) || 0).toLocaleString()}
                     </div>
                     
                     {level.status === 'owned' && (
-                      <div className="absolute -top-3 -right-3 bg-emerald-500 text-black rounded-full w-8 h-8 flex items-center justify-center text-sm font-black shadow-lg border-2 border-slate-900">
+                      <div className="absolute -top-2 -right-2 bg-emerald-500 text-black rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-black border-2 border-slate-900 shadow-lg">
                         ✓
                       </div>
                     )}
@@ -107,10 +108,10 @@ export default function ActionModal({
                 ))}
               </div>
 
-              {/* Call to Action Badge: Più visibile */}
+              {/* CTA Badge */}
               {badgeCta && (
-                <div className="bg-blue-600/20 py-3 px-8 rounded-full inline-block border border-blue-500/30 shadow-lg animate-pulse">
-                  <p className="text-blue-300 text-xs font-black uppercase tracking-[0.2em]">
+                <div className="bg-blue-600/15 py-2 px-6 rounded-full inline-block border border-blue-500/20 animate-pulse">
+                  <p className="text-blue-300 text-[10px] font-black uppercase tracking-[0.15em]">
                     🎯 {badgeCta}
                   </p>
                 </div>
@@ -118,17 +119,17 @@ export default function ActionModal({
             </div>
           )}
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <button
               onClick={onAction}
-              className={`w-full py-6 ${config.accent} text-black font-black rounded-[2rem] hover:scale-[1.03] active:scale-95 transition-all uppercase tracking-[0.25em] text-base shadow-2xl`}
+              className={`w-full py-5 ${config.accent} text-black font-black rounded-[1.5rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.2em] text-sm shadow-xl`}
             >
               {actionLabel}
             </button>
             {secondaryActionLabel && (
               <button
                 onClick={onClose}
-                className="w-full py-4 bg-white/5 text-white/40 font-bold rounded-2xl hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em] text-xs"
+                className="w-full py-3 bg-white/5 text-white/30 font-bold rounded-xl hover:text-white transition-all uppercase tracking-widest text-[9px]"
               >
                 {secondaryActionLabel}
               </button>
