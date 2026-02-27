@@ -1,13 +1,22 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react';
 import { TILES } from '@/data/tiles';
-import { PlayerState, Debt, BadgeLevel } from '@/types/game';
+import { PlayerState, BadgeLevel } from '@/types/game';
 
 interface InitialPlayer { name: string; color: string; }
+interface Debt {
+  amount: number;
+  interestRate: number;
+  remainingYears: number;
+  annualInterest: number;
+  capitalInstallment: number;
+}
 
 export interface ExtendedPlayer extends PlayerState {
-  hasHadFunding: boolean;
+  debts: Debt[];
   laps: number;
+  hasHadFunding: boolean;
+  lastLoanRepaidAmount?: number;
 }
 
 export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
@@ -23,135 +32,123 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const [gameWinner, setGameWinner] = useState<ExtendedPlayer | null>(null);
   const currentPlayer = players[currentPlayerIndex];
 
-  // --- LOGICA FINANZIARIA CORE ---
-  const calculateFinancials = useCallback((p: ExtendedPlayer) => {
+  const calculateValuation = useCallback((p: ExtendedPlayer) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
     const cash = Number(p.cash) || 0;
-
-    // Interessi mensili: (Capitale * Tasso) / 12
-    const monthlyInterests = (p.debts || []).reduce((acc, d) => {
-      return acc + ((Number(d.principal) * Number(d.interestRate)) / 12);
-    }, 0);
-
-    const monthlyEbitda = mrr - costs - monthlyInterests;
+    const monthlyEbitda = mrr - costs;
     const annualEbitda = monthlyEbitda * 12;
-    
-    // Valutazione = (EBITDA Annuale * 10) + Cash. (Multiplo 10x)
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : 0;
-    const valuation = operationalValue + cash;
-
-    return { monthlyEbitda, valuation, monthlyInterests, annualEbitda };
+    const total = operationalValue + cash;
+    return !isNaN(total) ? total : 0;
   }, []);
 
-  const { valuation, monthlyEbitda } = useMemo(() => 
-    calculateFinancials(currentPlayer), [currentPlayer, calculateFinancials]
-  );
+  const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer, calculateValuation]);
 
-  // --- MOVIMENTO E PASSAGGIO DAL VIA ---
+  const checkGameStatus = useCallback((updatedPlayers: ExtendedPlayer[]) => {
+    const activePlayers = updatedPlayers.filter(p => !p.isBankrupt);
+    if (activePlayers.length === 1 && updatedPlayers.length > 1) {
+      setGameWinner(activePlayers[0]);
+    }
+  }, []);
+
+  const nextTurn = useCallback(() => {
+    setPlayers(prev => prev.map((p, idx) => 
+      idx === currentPlayerIndex ? { ...p, lastLoanRepaidAmount: undefined } : p
+    ));
+    let nextIndex = (currentPlayerIndex + 1) % players.length;
+    let attempts = 0;
+    while (players[nextIndex].isBankrupt && attempts < players.length) {
+      nextIndex = (nextIndex + 1) % players.length;
+      attempts++;
+    }
+    setCurrentPlayerIndex(nextIndex);
+  }, [players, currentPlayerIndex]);
+
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
-      return prevPlayers.map((p, idx) => {
-        if (idx !== currentPlayerIndex) return p;
+      const owner = prevPlayers.find(p => !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
+      const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
+      let tollToPay = 0;
 
-        let updatedCash = Number(p.cash);
-        let updatedLaps = p.laps;
-        let updatedDebts = [...p.debts];
+      if (owner && ownerAsset && tile.badges) {
+        const level = ownerAsset.level as keyof typeof tile.badges;
+        tollToPay = Number(tile.badges[level]?.toll) || 0;
+      }
 
-        // Gestione Passaggio dal VIA (Bonus e Ammortamento Debiti)
-        if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
-          updatedLaps += 1;
-          updatedCash += 25000; // Bonus giro
+      const newState = prevPlayers.map((p, idx) => {
+        if (idx === currentPlayerIndex) {
+          let updatedCash = Number(p.cash) - tollToPay;
+          let updatedLaps = p.laps;
+          let totalRepaidThisTurn = 0;
+          let updatedDebts = [...p.debts];
+          
+          if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
+            updatedLaps += 1;
+            updatedCash += 25000;
+            updatedDebts = updatedDebts.map(debt => {
+              const payment = Number(debt.capitalInstallment) + Number(debt.annualInterest);
+              updatedCash -= payment;
+              totalRepaidThisTurn += payment;
+              return { 
+                ...debt, 
+                amount: Math.max(0, Number(debt.amount) - Number(debt.capitalInstallment)),
+                remainingYears: debt.remainingYears - 1 
+              };
+            }).filter(d => d.remainingYears > 0 && d.amount > 0);
+          }
 
-          updatedDebts = updatedDebts.map(debt => {
-            const annualInterest = debt.principal * debt.interestRate;
-            const capitalInstallment = debt.principal / debt.remainingYears;
-            
-            // La rata (Capitale + Interessi) esce dal Cash
-            updatedCash -= (capitalInstallment + annualInterest);
-
-            return {
-              ...debt,
-              principal: Math.max(0, debt.principal - capitalInstallment),
-              remainingYears: debt.remainingYears - 1
-            };
-          }).filter(d => d.remainingYears > 0 && d.principal > 0);
+          return { 
+            ...p, 
+            position: nextPos, cash: updatedCash,
+            mrr: Math.max(0, Number(p.mrr) + (Number(tile.revenueModifier) || 0)),
+            monthlyCosts: Math.max(0, Number(p.monthlyCosts) + (Number(tile.costModifier) || 0)),
+            laps: updatedLaps, debts: updatedDebts,
+            isBankrupt: (updatedCash < -50000 && updatedLaps >= 3),
+            lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
+          };
         }
-
-        return {
-          ...p,
-          position: nextPos,
-          cash: updatedCash,
-          laps: updatedLaps,
-          debts: updatedDebts,
-          // Modificatori diretti della casella (se presenti)
-          mrr: Math.max(0, p.mrr + (Number(tile.revenueModifier) || 0)),
-          monthlyCosts: Math.max(0, p.monthlyCosts + (Number(tile.costModifier) || 0)),
-          isBankrupt: updatedCash < -50000 && updatedLaps >= 3
-        };
+        if (owner && idx === owner.id) return { ...p, cash: Number(p.cash) + tollToPay };
+        return p;
       });
+      checkGameStatus(newState);
+      return newState;
     });
     return tile;
-  }, [currentPlayerIndex, currentPlayer.position]);
+  }, [currentPlayerIndex, currentPlayer.position, checkGameStatus]);
 
-  // --- APPLICAZIONE EVENTI (OPPORTUNITÀ/IMPREVISTI) ---
-  const applyEvent = useCallback((event: any) => {
-    setPlayers(prev => prev.map((p, idx) => {
-      if (idx !== currentPlayerIndex && !event.global) return p;
-      
-      return {
-        ...p,
-        cash: p.cash + (Number(event.cashEffect) || 0),
-        mrr: Math.max(0, p.mrr + (Number(event.revenueModifier) || 0)),
-        monthlyCosts: Math.max(0, p.monthlyCosts + (Number(event.costModifier) || 0))
-      };
-    }));
-  }, [currentPlayerIndex]);
-
-  // --- FUNDING (INVESTIMENTI/DEBITI/GRANT) ---
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-
-      if (offer.type === 'BANK') {
-        const amount = Number(offer.fixedAmount);
-        const newDebt: Debt = {
-          id: `loan-${Date.now()}`,
-          principal: amount,
-          interestRate: offer.interestRate || 0.08,
-          remainingYears: offer.durationYears || 3
-        };
-        return { ...p, cash: p.cash + amount, debts: [...p.debts, newDebt], hasHadFunding: true };
-      }
-
-      if (offer.type === 'EQUITY') {
-        const { valuation: currentVal } = calculateFinancials(p);
-        const dilution = Number(offer.actualDilution) || 15;
-        const cashInjected = (currentVal * dilution) / 100;
-        return { 
-          ...p, 
-          cash: p.cash + cashInjected, 
-          equity: Math.max(0, p.equity - dilution), 
-          hasHadFunding: true 
-        };
-      }
+      let cashBonus = 0;
+      let equityLoss = 0;
+      const currentVal = calculateValuation(p);
 
       if (offer.type === 'GRANT') {
-        return { ...p, cash: p.cash + (Number(offer.fixedAmount) || 25000), hasHadFunding: true };
+        cashBonus = Number(offer.fixedAmount) || 25000;
+      } else if (offer.type === 'EQUITY') {
+        equityLoss = Number(offer.actualDilution) || 15;
+        cashBonus = (currentVal * equityLoss) / 100;
+      } else if (offer.type === 'BANK') {
+        const loanAmount = Number(offer.fixedAmount) || 50000;
+        const newDebt: Debt = { 
+          amount: loanAmount, interestRate: offer.interestRate || 0.08, remainingYears: offer.durationYears || 3, 
+          annualInterest: loanAmount * (offer.interestRate || 0.08),
+          capitalInstallment: loanAmount / (offer.durationYears || 3)
+        };
+        return { ...p, cash: Number(p.cash) + loanAmount, debts: [...p.debts, newDebt], hasHadFunding: true };
       }
-      return p;
+      return { ...p, cash: Number(p.cash) + cashBonus, equity: Math.max(0, p.equity - equityLoss), hasHadFunding: true };
     }));
-  }, [currentPlayerIndex, calculateFinancials]);
+  }, [currentPlayerIndex, calculateValuation]);
 
-  // --- UPGRADE ASSET (BADGES) ---
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return false;
     let success = false;
-
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
       const asset = p.assets.find(a => a.tileId === tileId);
@@ -166,12 +163,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       if (nextLevel !== 'none' && p.cash >= cost) {
         success = true;
         return {
-          ...p,
-          cash: p.cash - cost,
-          mrr: p.mrr + revBonus,
-          assets: asset 
-            ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) 
-            : [...p.assets, { tileId, level: nextLevel }]
+          ...p, cash: p.cash - cost, mrr: p.mrr + revBonus,
+          assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }]
         };
       }
       return p;
@@ -179,22 +172,41 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     return success;
   }, [currentPlayerIndex]);
 
-  const nextTurn = useCallback(() => {
-    setCurrentPlayerIndex(prev => (prev + 1) % players.length);
-  }, [players.length]);
+  const applyEvent = useCallback((event: any) => {
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIndex && !event.global) return p;
+      
+      let cashEff = 0;
+      let revMod = 0;
+      let costMod = 0;
+
+      if (event.isBinary) {
+        // OPPORTUNITÀ (Macro): Solo effetto CASH con logica 50/50
+        const success = Math.random() > 0.5;
+        const outcome = success ? event.upside : event.downside;
+        cashEff = Number(outcome.cashEffect) || 0;
+      } else {
+        // IMPREVISTI (Micro): Solo effetto MRR e COSTI
+        revMod = Number(event.revenueModifier) || 0;
+        costMod = Number(event.costModifier) || 0;
+      }
+
+      return { 
+        ...p, 
+        cash: Number(p.cash) + cashEff + (Number(p.cash) * (event.cashPercent || 0)), 
+        mrr: Math.max(0, Number(p.mrr) + revMod), 
+        monthlyCosts: Math.max(0, Number(p.monthlyCosts) + costMod) 
+      };
+    }));
+  }, [currentPlayerIndex]);
 
   const attemptExit = useCallback(() => {
-    const { valuation: currentVal } = calculateFinancials(currentPlayer);
-    if (currentVal >= 1000000) {
+    if (currentPlayer.equity > 0 && calculateValuation(currentPlayer) >= 1000000) {
       setGameWinner(currentPlayer);
       return true;
     }
     return false;
-  }, [currentPlayer, calculateFinancials]);
+  }, [currentPlayer, calculateValuation]);
 
-  return { 
-    players, currentPlayer, valuation, monthlyEbitda, 
-    movePlayer, applyFunding, upgradeBadge, applyEvent, 
-    nextTurn, gameWinner, attemptExit, calculateFinancials 
-  };
+  return { players, currentPlayer, valuation, movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, calculateValuation };
 };
