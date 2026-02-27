@@ -12,7 +12,6 @@ interface ActionModalProps {
     cash?: number;
     details?: string;
   };
-  // Sincronizzato con l'oggetto inviato da GameBoard
   badges?: {
     currentLevel: string;
     bronze: { cost: number; owned: boolean };
@@ -24,6 +23,32 @@ interface ActionModalProps {
   onAction: () => void;
   onClose?: () => void;
 }
+
+// Helper per le icone geometriche nel Modal
+const BadgeShape = ({ level, active }: { level: string, active: boolean }) => {
+  const color = active ? '#3b82f6' : '#475569';
+  const glow = active ? `drop-shadow(0 0 8px ${color}cc)` : 'none';
+
+  if (level === 'bronze') {
+    return (
+      <svg width="32" height="32" viewBox="0 0 24 24" style={{ filter: glow }}>
+        <path d="M12 2L2 20H22L12 2Z" fill={color} />
+      </svg>
+    );
+  }
+  if (level === 'silver') {
+    return (
+      <svg width="32" height="32" viewBox="0 0 24 24" style={{ filter: glow }}>
+        <rect x="3" y="3" width="18" height="18" rx="2" fill={color} />
+      </svg>
+    );
+  }
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" style={{ filter: glow }}>
+      <circle cx="12" cy="12" r="10" fill={color} />
+    </svg>
+  );
+};
 
 export default function ActionModal({
   isOpen, type, title, description, insight, badgeCta, impact, badges, actionLabel, secondaryActionLabel, onAction, onClose
@@ -40,14 +65,12 @@ export default function ActionModal({
 
   const config = configs[type] || configs.info;
 
-  // Trasformiamo l'oggetto badges in un array per il rendering ciclico
   const renderBadges = badges ? [
-    { id: 'bronze', label: 'BRONZO', cost: badges.bronze.cost, owned: badges.bronze.owned, icon: '🥉' },
-    { id: 'silver', label: 'ARGENTO', cost: badges.silver.cost, owned: badges.silver.owned, icon: '🥈' },
-    { id: 'gold', label: 'ORO', cost: badges.gold.cost, owned: badges.gold.owned, icon: '🥇' },
+    { id: 'bronze', label: 'BRONZO', cost: badges.bronze.cost, owned: badges.bronze.owned },
+    { id: 'silver', label: 'ARGENTO', cost: badges.silver.cost, owned: badges.silver.owned },
+    { id: 'gold', label: 'ORO', cost: badges.gold.cost, owned: badges.gold.owned },
   ] : [];
 
-  // Identifichiamo qual è il prossimo badge da acquistare per illuminarlo
   const nextToBuy = badges ? (
     badges.currentLevel === 'none' ? 'bronze' : 
     badges.currentLevel === 'bronze' ? 'silver' : 
@@ -58,7 +81,6 @@ export default function ActionModal({
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/80">
       <div className={`${config.bg} ${config.border} border-2 w-full max-w-xl rounded-[2.5rem] p-8 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
         
-        {/* Badge Etichetta Superiore */}
         <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2 rounded-b-2xl shadow-lg z-10`}>
           <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">{config.label}</span>
         </div>
@@ -91,16 +113,16 @@ export default function ActionModal({
             </div>
           )}
 
-          {/* Rendering dei 3 Badge Grafici */}
           {badges && (
             <div className="mb-8">
               <div className="grid grid-cols-3 gap-4 mb-6">
                 {renderBadges.map((b) => {
                   const isAvailable = b.id === nextToBuy;
+                  const isActive = b.owned || isAvailable;
                   return (
                     <div 
                       key={b.id} 
-                      className={`relative p-5 rounded-[2.2rem] border-2 flex flex-col items-center transition-all duration-500 ${
+                      className={`relative p-5 rounded-[2.2rem] border-2 flex flex-col items-center justify-center transition-all duration-500 ${
                         b.owned 
                           ? 'bg-blue-600/10 border-blue-500/50 opacity-100 shadow-[0_0_15px_rgba(59,130,246,0.2)]' 
                           : isAvailable 
@@ -108,7 +130,9 @@ export default function ActionModal({
                             : 'bg-slate-900/40 border-white/5 opacity-20 grayscale'
                       }`}
                     >
-                      <span className="text-3xl mb-3 filter drop-shadow-md">{b.icon}</span>
+                      <div className="mb-4">
+                        <BadgeShape level={b.id} active={isActive} />
+                      </div>
                       <span className="text-[10px] font-black text-white mb-1 uppercase tracking-widest">{b.label}</span>
                       <div className={`text-[11px] font-mono font-black ${isAvailable ? 'text-blue-400' : 'text-slate-500'}`}>
                         €{b.cost.toLocaleString()}
