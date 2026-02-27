@@ -69,10 +69,18 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
+      
+      // FIX: Popolamento dinamico dell'impact per gli eventi speciali
+      const impactDetails = [];
+      if (event.cashEffect) impactDetails.push(`${event.cashEffect > 0 ? '+' : ''}€${event.cashEffect.toLocaleString()} Cash`);
+      if (event.revenueModifier) impactDetails.push(`${event.revenueModifier > 0 ? '+' : ''}€${event.revenueModifier.toLocaleString()} MRR`);
+      if (event.costModifier) impactDetails.push(`${event.costModifier > 0 ? '+' : ''}€${event.costModifier.toLocaleString()} Costi`);
+
       setModalConfig({ 
         isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
         title: event.title, description: event.effect,
         insight: event.insight || "Le opportunità accelerano la crescita.",
+        impact: { details: impactDetails.join(' | ') || "Variazione assetto societario" },
         actionLabel: "Ok", onAction: () => { applyEvent(event); handleCloseModal(); } 
       });
       return;
@@ -107,7 +115,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         ];
 
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
-        
+        const nextLevelLabel = levelsData[nextLevelIndex]?.label || '';
+        const nextLevelRevenue = nextLevelIndex < 3 ? tile.badges[levelsData[nextLevelIndex].id].revenueBonus : 0;
+
         setModalConfig({
           isOpen: true, 
           type: 'success', 
@@ -116,7 +126,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           insight: tile.insight, 
           badgeCta: tile.badgeCta,
           badges: badgesInfo,
-          actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${levelsData[nextLevelIndex]?.label || ''}`,
+          impact: { details: nextLevelIndex < 3 ? `Prossimo MRR Bonus: +€${nextLevelRevenue.toLocaleString()}` : "Livello Massimo Raggiunto" },
+          actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
           onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
@@ -125,9 +136,11 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     if (tile.type === 'tax') {
+      const revMod = tile.revenueModifier || 0;
+      const costMod = tile.costModifier || 0;
       setModalConfig({
         isOpen: true, type: 'danger', title: tile.name, description: "Variazione flussi di cassa.",
-        impact: { details: `MRR: ${tile.revenueModifier?.toLocaleString()} | Costi: ${tile.costModifier?.toLocaleString()}` },
+        impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
         actionLabel: "Ok", onAction: handleCloseModal
       });
       return;
@@ -152,14 +165,19 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         const isValuable = currentVal > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => o.type === 'EQUITY' ? (isValuable && currentPlayer.laps > 0) : true);
         const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
+        
         let details = "";
         if (offer.type === 'EQUITY') {
           const cash = (currentVal * 15) / 100;
-          details = `Ricevi: €${cash.toLocaleString()} | Cedi: 15% Equity`;
+          details = `Iniezione Cash: €${cash.toLocaleString()} | Cessione: 15% Equity`;
           offer.actualDilution = 15;
         } else if (offer.type === 'BANK') {
-          details = `Prestito: €${(Number(offer.fixedAmount) || 50000).toLocaleString()} | Tasso: ${(Number(offer.interestRate) * 100)}% | Durata: ${offer.durationYears} giri`;
+          details = `Erogazione: €${(Number(offer.fixedAmount) || 50000).toLocaleString()} | Tasso: ${(Number(offer.interestRate) * 100)}%`;
+        } else if (offer.type === 'GRANT') {
+          // FIX: Dettagli per bandi tipo Smart & Start
+          details = `Capitale a fondo perduto: +€${(Number(offer.fixedAmount) || 25000).toLocaleString()}`;
         }
+        
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
           description: offer.description, insight: offer.insight, impact: { details },
@@ -173,6 +191,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
+      {/* Board Layout */}
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
@@ -210,6 +229,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
+      {/* Dashboard Sidebar */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono text-white">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
@@ -251,6 +271,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           );
         })}
       </div>
+      
+      {/* Modal - Con passaggio Cash aggiornato per i fix precedenti */}
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
     </div>
   );
