@@ -9,11 +9,11 @@ interface InitialPlayer {
 }
 
 interface Debt {
-  amount: number;             // Capitale residuo
-  interestRate: number;       // Tasso (es. 0.08)
-  remainingYears: number;     // Giri mancanti
-  annualInterest: number;     // Quota interessi calcolata sul capitale iniziale
-  capitalInstallment: number; // Quota capitale costante (ammortamento lineare)
+  amount: number;
+  interestRate: number;
+  remainingYears: number;
+  annualInterest: number;
+  capitalInstallment: number;
 }
 
 export interface ExtendedPlayer extends PlayerState {
@@ -102,17 +102,14 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let totalRepaidThisTurn = 0;
           let updatedDebts = [...p.debts];
           
-          // LOGICA PASSAGGIO DAL VIA
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
-            updatedCash += 25000; // Bonus Cash
+            updatedCash += 25000;
             
             updatedDebts = updatedDebts.map(debt => {
-              // Pagamento quota capitale + interessi
               const payment = debt.capitalInstallment + debt.annualInterest;
               updatedCash -= payment;
               totalRepaidThisTurn += payment;
-
               return { 
                 ...debt, 
                 amount: Math.max(0, debt.amount - debt.capitalInstallment),
@@ -148,7 +145,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-      
       let cashBonus = 0;
       let equityLoss = 0;
       const currentVal = calculateValuation(p);
@@ -162,7 +158,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         const loanAmount = offer.fixedAmount || 50000;
         const duration = offer.durationYears || 3;
         const rate = offer.interestRate || 0.08;
-        
         const newDebt: Debt = { 
           amount: loanAmount, 
           interestRate: rate, 
@@ -170,21 +165,9 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           annualInterest: loanAmount * rate,
           capitalInstallment: loanAmount / duration
         };
-
-        return { 
-          ...p, 
-          cash: p.cash + loanAmount, // Aggiunto al cash immediatamente
-          debts: [...p.debts, newDebt], 
-          hasHadFunding: true 
-        };
+        return { ...p, cash: p.cash + loanAmount, debts: [...p.debts, newDebt], hasHadFunding: true };
       }
-      
-      return { 
-        ...p, 
-        cash: p.cash + cashBonus, 
-        equity: Math.max(0, p.equity - equityLoss), 
-        hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding 
-      };
+      return { ...p, cash: p.cash + cashBonus, equity: Math.max(0, p.equity - equityLoss), hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding };
     }));
   }, [currentPlayerIndex, calculateValuation]);
 
@@ -193,49 +176,32 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     if (!tile.badges) return false;
     let success = false;
     
-    setPlayers(prev => {
-      const newState = prev.map((p, idx) => {
-        if (idx !== currentPlayerIndex) return p;
-        
-        const asset = p.assets.find(a => a.tileId === tileId);
-        const currentLevel = asset ? asset.level : 'none';
-        let nextLevel: BadgeLevel = 'none';
-        let cost = 0;
-        let revBonus = 0;
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== currentPlayerIndex) return p;
+      
+      const asset = p.assets.find(a => a.tileId === tileId);
+      const currentLevel = asset ? asset.level : 'none';
+      let nextLevel: BadgeLevel = 'none';
+      let cost = 0;
+      let revBonus = 0;
 
-        if (currentLevel === 'none') { 
-            nextLevel = 'bronze'; 
-            cost = tile.badges.bronze.cost; 
-            revBonus = tile.badges.bronze.revenueBonus; 
-        }
-        else if (currentLevel === 'bronze') { 
-            nextLevel = 'silver'; 
-            cost = tile.badges.silver.cost; 
-            revBonus = tile.badges.silver.revenueBonus; 
-        }
-        else if (currentLevel === 'silver') { 
-            nextLevel = 'gold'; 
-            cost = tile.badges.gold.cost; 
-            revBonus = tile.badges.gold.revenueBonus; 
-        }
+      if (currentLevel === 'none') { nextLevel = 'bronze'; cost = tile.badges.bronze.cost; revBonus = tile.badges.bronze.revenueBonus; }
+      else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = tile.badges.silver.cost; revBonus = tile.badges.silver.revenueBonus; }
+      else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = tile.badges.gold.cost; revBonus = tile.badges.gold.revenueBonus; }
 
-        if (nextLevel !== 'none' && p.cash >= cost) {
-          success = true;
-          const updatedAssets = asset 
+      if (nextLevel !== 'none' && p.cash >= cost) {
+        success = true;
+        return {
+          ...p,
+          cash: p.cash - cost,
+          mrr: p.mrr + revBonus,
+          assets: asset 
             ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a)
-            : [...p.assets, { tileId, level: nextLevel }];
-            
-          return {
-            ...p,
-            cash: p.cash - cost,
-            mrr: p.mrr + revBonus,
-            assets: updatedAssets
-          };
-        }
-        return p;
-      });
-      return newState;
-    });
+            : [...p.assets, { tileId, level: nextLevel }]
+        };
+      }
+      return p;
+    }));
     return success;
   }, [currentPlayerIndex]);
 
