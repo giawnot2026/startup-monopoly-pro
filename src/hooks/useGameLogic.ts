@@ -9,11 +9,11 @@ interface InitialPlayer {
 }
 
 interface Debt {
-  amount: number;
-  interestRate: number;
-  remainingYears: number;
-  annualInterest: number;
-  initialCash: number;
+  amount: number;         // Capitale residuo da restituire
+  interestRate: number;   // Tasso d'interesse (es. 0.08)
+  remainingYears: number; // Giri mancanti alla fine
+  annualInterest: number; // Quota interessi fissa per giro (calcolata sul capitale iniziale)
+  capitalInstallment: number; // Quota capitale da pagare ogni giro
 }
 
 export interface ExtendedPlayer extends PlayerState {
@@ -99,24 +99,27 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         if (idx === currentPlayerIndex) {
           let updatedCash = p.cash - tollToPay;
           let updatedLaps = p.laps;
-          let repaidAmount: number | undefined = undefined;
+          let totalRepaidThisTurn = 0;
           let updatedDebts = [...p.debts];
           
+          // LOGICA PASSAGGIO DAL VIA (ID 0)
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
-            updatedCash += 25000;
+            updatedCash += 25000; // Bonus giro
             
-            const processedDebts = updatedDebts.map(debt => {
-              updatedCash -= debt.annualInterest;
-              const newRemaining = debt.remainingYears - 1;
-              if (newRemaining === 0) {
-                updatedCash -= debt.amount;
-                repaidAmount = debt.amount;
-              }
-              return { ...debt, remainingYears: newRemaining };
-            }).filter(d => d.remainingYears > 0);
-            
-            updatedDebts = processedDebts;
+            updatedDebts = updatedDebts.map(debt => {
+              // 1. Paga la quota capitale + interessi
+              const payment = debt.capitalInstallment + debt.annualInterest;
+              updatedCash -= payment;
+              totalRepaidThisTurn += payment;
+
+              // 2. Riduce il capitale residuo e gli anni
+              return { 
+                ...debt, 
+                amount: Math.max(0, debt.amount - debt.capitalInstallment),
+                remainingYears: debt.remainingYears - 1 
+              };
+            }).filter(d => d.remainingYears > 0 && d.amount > 0);
           }
 
           const revMod = tile.revenueModifier || 0;
@@ -129,9 +132,9 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             mrr: Math.max(0, p.mrr + revMod),
             monthlyCosts: Math.max(0, p.monthlyCosts + costMod),
             laps: updatedLaps,
-            debts: updatedDebts, // Fix: Aggiornamento immutabile dei debiti
+            debts: updatedDebts,
             isBankrupt: (updatedCash < -50000 && updatedLaps >= 3),
-            lastLoanRepaidAmount: repaidAmount
+            lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
         if (owner && idx === owner.id) return { ...p, cash: p.cash + tollToPay };
@@ -146,28 +149,32 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
+      
       let cashBonus = 0;
       let equityLoss = 0;
       const currentVal = calculateValuation(p);
 
       if (offer.type === 'GRANT') {
-        cashBonus = offer.fixedAmount;
+        cashBonus = offer.fixedAmount || 25000;
       } else if (offer.type === 'EQUITY') {
         equityLoss = offer.actualDilution || 15;
         cashBonus = (currentVal * equityLoss) / 100;
       } else if (offer.type === 'BANK') {
-        cashBonus = offer.fixedAmount || 50000;
+        const loanAmount = offer.fixedAmount || 50000;
         const duration = offer.durationYears || 3;
+        const rate = offer.interestRate || 0.08;
+        
         const newDebt: Debt = { 
-          amount: cashBonus, 
-          interestRate: offer.interestRate || 0.08, 
+          amount: loanAmount, 
+          interestRate: rate, 
           remainingYears: duration, 
-          annualInterest: cashBonus * (offer.interestRate || 0.08), 
-          initialCash: cashBonus 
+          annualInterest: loanAmount * rate, // Quota interessi fissa su capitale iniziale
+          capitalInstallment: loanAmount / duration // Quota capitale da rimborsare a ogni giro
         };
+
         return { 
           ...p, 
-          cash: p.cash + cashBonus, 
+          cash: p.cash + loanAmount, // Il capitale viene aggiunto subito al cash
           debts: [...p.debts, newDebt], 
           hasHadFunding: true 
         };
