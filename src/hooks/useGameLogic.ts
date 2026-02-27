@@ -49,10 +49,19 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const currentPlayer = players[currentPlayerIndex];
 
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
-    const ebitdaVal = (p.mrr || 0) - (p.monthlyCosts || 0);
+    const mrr = p.mrr || 0;
+    const costs = p.monthlyCosts || 0;
+    const cash = p.cash || 0;
+
+    const ebitdaVal = mrr - costs;
     const annualEbitda = ebitdaVal * 12;
-    const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (p.mrr * 12) * 2;
-    return Math.max(100000, operationalValue + p.cash);
+    
+    // Moltiplicatore 10x su EBITDA positivo o 2x su fatturato se negativo
+    const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (mrr * 12) * 2;
+    
+    const total = operationalValue + cash;
+    // Protezione NaN e Floor a 100k
+    return !isNaN(total) && total > 100000 ? total : 100000;
   }, []);
 
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer, calculateValuation]);
@@ -97,7 +106,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedLaps = p.laps;
           let repaidAmount: number | undefined = undefined;
           
-          // Gestione Passaggio dal Via
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
@@ -141,17 +149,30 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       if (idx !== currentPlayerIndex) return p;
       let cashBonus = 0;
       let equityLoss = 0;
+      const currentVal = calculateValuation(p);
+
       if (offer.type === 'GRANT') cashBonus = offer.fixedAmount;
       else if (offer.type === 'EQUITY') {
-        equityLoss = Math.max(15, offer.actualDilution || 15);
-        cashBonus = (calculateValuation(p) * equityLoss) / 100;
+        equityLoss = offer.actualDilution || 15;
+        cashBonus = (currentVal * equityLoss) / 100;
       } else if (offer.type === 'BANK') {
         cashBonus = offer.fixedAmount;
         const duration = offer.durationYears || 3;
-        const newDebt = { amount: cashBonus, interestRate: offer.interestRate, remainingYears: duration, annualInterest: cashBonus * offer.interestRate, initialCash: cashBonus };
+        const newDebt = { 
+          amount: cashBonus, 
+          interestRate: offer.interestRate, 
+          remainingYears: duration, 
+          annualInterest: cashBonus * offer.interestRate, 
+          initialCash: cashBonus 
+        };
         return { ...p, cash: p.cash + cashBonus, debts: [...p.debts, newDebt], hasHadFunding: true };
       }
-      return { ...p, cash: p.cash + cashBonus, equity: Math.max(0, p.equity - equityLoss), hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding };
+      return { 
+        ...p, 
+        cash: p.cash + cashBonus, 
+        equity: Math.max(0, p.equity - equityLoss), 
+        hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding 
+      };
     }));
   }, [currentPlayerIndex, calculateValuation]);
 
