@@ -176,26 +176,28 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex && !event.global) return p;
       
-      let cashEff = 0;
-      let revMod = 0;
-      let costMod = 0;
+      let cashDelta = 0;
+      let mrrDelta = 0;
+      let costDelta = 0;
 
-      if (event.isBinary) {
-        // OPPORTUNITÀ (Macro): Solo effetto CASH con logica 50/50
-        const success = Math.random() > 0.5;
-        const outcome = success ? event.upside : event.downside;
-        cashEff = Number(outcome.cashEffect) || 0;
+      // FIX: Riconoscimento univoco dei campi basato sui nuovi database
+      if (event.cashEffect !== undefined) {
+        // Opportunità Macro: impatto solo sulla cassa
+        cashDelta = Number(event.cashEffect) || 0;
       } else {
-        // IMPREVISTI (Micro): Solo effetto MRR e COSTI
-        revMod = Number(event.revenueModifier) || 0;
-        costMod = Number(event.costModifier) || 0;
+        // Imprevisti Micro: impatto solo su MRR/Costi
+        mrrDelta = Number(event.revenueModifier) || 0;
+        costDelta = Number(event.costModifier) || 0;
       }
+
+      // Gestione eventuale impatto percentuale (es. inflazione o tasse)
+      const percentImpact = event.cashPercent ? (Number(p.cash) * Number(event.cashPercent)) : 0;
 
       return { 
         ...p, 
-        cash: Number(p.cash) + cashEff + (Number(p.cash) * (event.cashPercent || 0)), 
-        mrr: Math.max(0, Number(p.mrr) + revMod), 
-        monthlyCosts: Math.max(0, Number(p.monthlyCosts) + costMod) 
+        cash: Number(p.cash) + cashDelta + percentImpact, 
+        mrr: Math.max(0, Number(p.mrr) + mrrDelta), 
+        monthlyCosts: Math.max(0, Number(p.monthlyCosts) + costDelta) 
       };
     }));
   }, [currentPlayerIndex]);
