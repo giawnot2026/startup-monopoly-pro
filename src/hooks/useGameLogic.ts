@@ -48,15 +48,21 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const currentPlayer = players[currentPlayerIndex];
 
+  // MODIFICA RICHIESTA: Calcolo Valutazione Rigoroso (Ebitda * 12 * 10)
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
     const cash = Number(p.cash) || 0;
-    const ebitdaVal = mrr - costs;
-    const annualEbitda = ebitdaVal * 12;
-    const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : (mrr * 12) * 2;
+    
+    const monthlyEbitda = mrr - costs;
+    const annualEbitda = monthlyEbitda * 12;
+    
+    // Multiplo 10x sull'Ebitda annuale + Cash
+    // Manteniamo la logica che se l'Ebitda è negativo la valutazione operativa è 0
+    const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : 0;
     const total = operationalValue + cash;
-    return !isNaN(total) && total > 100000 ? total : 100000;
+    
+    return !isNaN(total) ? total : 0;
   }, []);
 
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer, calculateValuation]);
@@ -86,6 +92,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
+      // Logica Pedaggi: Trova il proprietario della casella
       const owner = prevPlayers.find(p => !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
       const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
       let tollToPay = 0;
@@ -102,6 +109,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let totalRepaidThisTurn = 0;
           let updatedDebts = [...p.debts];
           
+          // Gestione passaggio dal via e debiti
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
@@ -118,6 +126,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             }).filter(d => d.remainingYears > 0 && d.amount > 0);
           }
 
+          // MODIFICA RICHIESTA: Gli importi di MRR e Costi impattano la dashboard
           const revMod = Number(tile.revenueModifier) || 0;
           const costMod = Number(tile.costModifier) || 0;
 
@@ -133,9 +142,11 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
+        // Accredito pedaggio al proprietario
         if (owner && idx === owner.id) return { ...p, cash: Number(p.cash) + tollToPay };
         return p;
       });
+      
       checkGameStatus(newState);
       return newState;
     });
@@ -149,6 +160,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       let equityLoss = 0;
       const currentVal = calculateValuation(p);
 
+      // MODIFICA RICHIESTA: Iniezioni investimento in sezione Cash
       if (offer.type === 'GRANT') {
         cashBonus = Number(offer.fixedAmount) || 25000;
       } else if (offer.type === 'EQUITY') {
@@ -167,7 +179,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         };
         return { ...p, cash: Number(p.cash) + loanAmount, debts: [...p.debts, newDebt], hasHadFunding: true };
       }
-      return { ...p, cash: Number(p.cash) + cashBonus, equity: Math.max(0, p.equity - equityLoss), hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding };
+      return { 
+        ...p, 
+        cash: Number(p.cash) + cashBonus, 
+        equity: Math.max(0, p.equity - equityLoss), 
+        hasHadFunding: offer.type !== 'GRANT' ? true : p.hasHadFunding 
+      };
     }));
   }, [currentPlayerIndex, calculateValuation]);
 
@@ -201,7 +218,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         revBonus = Number(tile.badges.gold.revenueBonus); 
       }
 
-      // FIX: Controllo cash forzato a numero
       if (nextLevel !== 'none' && Number(p.cash) >= cost) {
         success = true;
         return {
@@ -220,7 +236,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
-      if (idx !== currentPlayerIndex) return p;
+      if (idx !== currentPlayerIndex && !event.global) return p;
       const cashEff = Number(event.cashEffect) || 0;
       const cashPerc = Number(event.cashPercent) || 0;
       return { 
@@ -240,5 +256,17 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     return false;
   }, [currentPlayer, calculateValuation]);
 
-  return { players, currentPlayer, valuation, movePlayer, applyFunding, upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, calculateValuation };
+  return { 
+    players, 
+    currentPlayer, 
+    valuation, 
+    movePlayer, 
+    applyFunding, 
+    upgradeBadge, 
+    applyEvent, 
+    nextTurn, 
+    gameWinner, 
+    attemptExit, 
+    calculateValuation 
+  };
 };
