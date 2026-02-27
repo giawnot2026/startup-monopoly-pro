@@ -45,24 +45,19 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   const processTile = (tile: any) => {
     if (!tile) { nextTurn(); return; }
-    
     const corners = [0, 7, 14, 21];
-    if (corners.includes(tile.id)) {
-      handleCornerTile(tile);
-      return;
-    }
-
+    if (corners.includes(tile.id)) { handleCornerTile(tile); return; }
     const tileName = tile.name?.toLowerCase() || "";
 
     if (tile.id === 27) {
-      const canExit = (valuation || 0) >= 1000000 && currentPlayer.equity > 0;
+      const currentVal = calculateValuation(currentPlayer);
+      const canExit = currentVal >= 1000000 && currentPlayer.equity > 0;
       setModalConfig({
-        isOpen: true,
-        type: canExit ? 'success' : 'danger',
+        isOpen: true, type: canExit ? 'success' : 'danger',
         title: "Tavolo delle Trattative Exit",
         description: canExit ? "La tua startup ha raggiunto la massa critica. Vuoi vendere?" : "Valutazione troppo bassa per una Exit (Min €1M).",
-        insight: tile.insight || "L'Exit è il momento in cui i founder e gli investitori monetizzano il valore creato.",
-        impact: { details: `Valutazione attuale: €${(valuation || 0).toLocaleString()}` },
+        insight: tile.insight || "L'Exit è il momento del payoff.",
+        impact: { details: `Valutazione attuale: €${currentVal.toLocaleString()}` },
         actionLabel: canExit ? "Vendi e Vinci" : "Rifiuta e continua",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
         onClose: handleCloseModal
@@ -75,13 +70,10 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       setModalConfig({ 
-        isOpen: true, 
-        type: isOpp ? 'opportunity' : 'danger_event', 
-        title: event.title, 
-        description: event.effect,
-        insight: event.insight || (isOpp ? "Le opportunità accelerano la crescita se colte al momento giusto." : "Gli imprevisti testano la resilienza finanziaria del team."),
-        actionLabel: "Ok", 
-        onAction: () => { applyEvent(event); handleCloseModal(); } 
+        isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
+        title: event.title, description: event.effect,
+        insight: event.insight || "Le opportunità accelerano la crescita.",
+        actionLabel: "Ok", onAction: () => { applyEvent(event); handleCloseModal(); } 
       });
       return;
     }
@@ -91,62 +83,29 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
 
-      const revMod = tile.revenueModifier || 0;
-      const costMod = tile.costModifier || 0;
-      const impactDetails = `Bonus MRR Base: +€${revMod.toLocaleString()} | Costi: €${costMod.toLocaleString()}`;
-
       if (owner) {
         const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
         const toll = tile.badges?.[level]?.toll || 0;
         setModalConfig({ 
-          isOpen: true, 
-          type: 'danger', 
-          title: "Tassa di Mercato", 
+          isOpen: true, type: 'danger', title: "Tassa di Mercato", 
           description: `Sei atterrato su un asset di ${owner.name}`, 
-          insight: "Pagare royalties ai competitor è un costo operativo che deriva dalla mancanza di proprietà intellettuale in quell'area.",
           impact: { details: `Paga royalties: €${toll.toLocaleString()}` }, 
-          actionLabel: "Paga", 
-          onAction: handleCloseModal 
+          actionLabel: "Paga", onAction: handleCloseModal 
         });
       } else {
         const levelsData = [
-          { id: 'bronze', label: 'Bronzo', icon: '🥉', data: tile.badges?.bronze },
-          { id: 'silver', label: 'Argento', icon: '🥈', data: tile.badges?.silver },
-          { id: 'gold', label: 'Oro', icon: '🥇', data: tile.badges?.gold },
+          { id: 'bronze', label: 'Bronzo', data: tile.badges?.bronze },
+          { id: 'silver', label: 'Argento', data: tile.badges?.silver },
+          { id: 'gold', label: 'Oro', data: tile.badges?.gold },
         ];
-
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
-
-        const assetLevels = levelsData.map((l, i) => {
-          let status: 'owned' | 'available' | 'locked' = 'locked';
-          if ((currentLevel === 'bronze' && i === 0) || (currentLevel === 'silver' && i <= 1) || (currentLevel === 'gold')) {
-            status = 'owned';
-          } else if (i === nextLevelIndex) {
-            status = currentPlayer.cash >= (l.data?.cost || 0) ? 'available' : 'locked';
-          }
-          return { 
-            id: l.id, 
-            label: l.label, 
-            icon: l.icon, 
-            cost: Number(l.data?.cost) || 0, 
-            revenueBonus: Number(l.data?.revenueBonus) || 0, 
-            status 
-          };
-        });
-
         const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= (levelsData[nextLevelIndex]?.data?.cost || 0);
 
         setModalConfig({
-          isOpen: true, 
-          type: 'success', 
-          title: tile.name,
-          description: "Potenzia la tua startup acquisando o migliorando questo asset.",
-          insight: tile.insight,
-          badgeCta: tile.badgeCta,
-          impact: { details: impactDetails },
-          assetLevels,
-          actionLabel: canAfford ? `Sì, acquista ${levelsData[nextLevelIndex].label}` : "Passa Turno",
-          secondaryActionLabel: canAfford ? "Rifiuta" : undefined,
+          isOpen: true, type: 'success', title: tile.name,
+          description: "Migliora questo asset per aumentare il tuo MRR.",
+          insight: tile.insight, badgeCta: tile.badgeCta,
+          actionLabel: canAfford ? `Acquista ${levelsData[nextLevelIndex].label}` : "Passa",
           onAction: () => { if (canAfford) upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
@@ -155,21 +114,13 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     if (tile.type === 'tax') {
-      const revMod = tile.revenueModifier || 0;
-      const costMod = tile.costModifier || 0;
       setModalConfig({
-        isOpen: true, 
-        type: 'danger', 
-        title: tile.name,
-        description: "Variazione dei flussi di cassa operativi.",
-        insight: tile.insight || "I costi imprevisti e le tasse mettono alla prova la tua 'runway' (riserva di cassa).",
-        impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
-        actionLabel: "Ricevuto", 
-        onAction: handleCloseModal
+        isOpen: true, type: 'danger', title: tile.name, description: "Variazione flussi di cassa.",
+        impact: { details: `MRR: ${tile.revenueModifier?.toLocaleString()} | Costi: ${tile.costModifier?.toLocaleString()}` },
+        actionLabel: "Ok", onAction: handleCloseModal
       });
       return;
     }
-
     nextTurn();
   };
 
@@ -178,48 +129,30 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 0:
         setModalConfig({
           isOpen: true, type: 'info', title: "Inizio Anno Fiscale",
-          description: "Hai completato un giro di mercato. Il budget operativo è stato ricaricato.",
-          insight: "La chiusura dell'anno fiscale è il momento per analizzare il bilancio e pianificare i nuovi investimenti.",
-          impact: { details: "+€25.000 Cash | Pagamento Interessi Debiti" },
+          description: "Budget ricaricato e interessi pagati.",
+          impact: { details: "+€25.000 Cash | Manutenzione Debiti" },
           actionLabel: "Continua", onAction: handleCloseModal
         });
         break;
       case 7:
       case 14:
       case 21:
-        const isStartupValuable = (calculateValuation(currentPlayer) || 0) > 120000;
-        const availableOffers = FUNDING_OFFERS.filter(o => {
-          if (o.type === 'EQUITY') return isStartupValuable && (currentPlayer.laps || 0) > 0;
-          return true;
-        });
-
-        const rawOffer = availableOffers[Math.floor(Math.random() * availableOffers.length)];
-        const offer = { ...rawOffer };
+        const currentVal = calculateValuation(currentPlayer);
+        const isValuable = currentVal > 120000;
+        const availableOffers = FUNDING_OFFERS.filter(o => o.type === 'EQUITY' ? (isValuable && currentPlayer.laps > 0) : true);
+        const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
         let details = "";
-
         if (offer.type === 'EQUITY') {
-          const dil = 15; 
-          const cashAmount = ((calculateValuation(currentPlayer) || 0) * dil) / 100;
-          details = `Ricevi: +€${cashAmount.toLocaleString()} | Cedi: ${dil}% Equity`;
-          offer.actualDilution = dil;
+          const cash = (currentVal * 15) / 100;
+          details = `Ricevi: €${cash.toLocaleString()} | Cedi: 15% Equity`;
+          offer.actualDilution = 15;
         } else if (offer.type === 'BANK') {
-          const minDebt = offer.fixedAmount || 50000;
-          const intRate = offer.interestRate || 0.08;
-          details = `Prestito: €${minDebt.toLocaleString()} | Interessi: ${(intRate * 100).toFixed(0)}% (€${(minDebt * intRate).toLocaleString()}/giro)`;
-        } else {
-          const amount = offer.fixedAmount || 25000;
-          details = `Grant: €${amount.toLocaleString()}`;
+          details = `Prestito: €${(offer.fixedAmount || 50000).toLocaleString()} | Interessi: ${(offer.interestRate * 100)}%`;
         }
-
         setModalConfig({
-          isOpen: true, 
-          type: 'info', 
-          title: `Round: ${offer.investor}`, 
-          description: offer.description,
-          insight: offer.insight, 
-          impact: { details }, 
-          actionLabel: "Accetta Investimento", 
-          secondaryActionLabel: "Rifiuta",
+          isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
+          description: offer.description, insight: offer.insight, impact: { details },
+          actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
           onAction: () => { applyFunding(offer); handleCloseModal(); },
           onClose: handleCloseModal
         });
@@ -230,18 +163,17 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
-        
-        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 shadow-2xl text-center">
+        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
             <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">{currentPlayer.name}</span>
           </div>
-          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-150 ${isRolling ? 'scale-110 border-blue-500 shadow-[0_0_25px_rgba(37,99,235,0.4)] rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
+          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(valuation || 0).toLocaleString()}</div>
-          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
-          <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className={`px-10 py-3 font-black rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-lg font-mono ${isRolling ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'}`}>
+          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Valuation</span>
+          <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className="px-10 py-3 font-black rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono">
             {isRolling ? "Lancio..." : "Lancia Dadi"}
           </button>
         </div>
@@ -268,37 +200,34 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       </div>
 
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
-        <h3 className="text-blue-400 font-black tracking-[0.2em] uppercase text-[10px] mb-2 px-2 italic opacity-80">Market Participants</h3>
+        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
           const currentEbitda = (p.mrr || 0) - (p.monthlyCosts || 0);
           const pVal = calculateValuation(p) || 0;
           
-          // FIX: Somma i debiti controllando sia la proprietà 'amount' che 'fixedAmount'
-          const totalDebt = p.debts?.reduce((acc: number, d: any) => {
-            return acc + (d.amount || d.fixedAmount || 0);
-          }, 0) || 0;
+          // FIX: Calcolo debito con fallback sicuro
+          const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
 
           return (
-            <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-xl' : 'bg-slate-900/50 border-white/5 opacity-80'} ${p.isBankrupt ? 'grayscale opacity-50 contrast-50' : ''}`}>
+            <div key={p.id} className={`p-4 rounded-2xl border transition-all ${isTurn ? 'bg-blue-600/20 border-blue-500' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-                  <span className="text-white font-bold text-xs uppercase tracking-tight">{p.name}</span>
+                  <span className="text-white font-bold text-xs uppercase">{p.name}</span>
                 </div>
                 <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(0) || 100}% EQ</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
-                  <span className="text-white font-black">€{(p.cash || 0).toLocaleString()}</span>
+                  <span className="text-white font-black">€{p.cash.toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
                   <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
-                {/* Visualizzazione Debito con Fix per visualizzare 0 o importo */}
-                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debts</span>
                   <span className={`font-black ${totalDebt > 0 ? 'text-rose-400' : 'text-amber-400'}`}>
                     {totalDebt > 0 ? `€${totalDebt.toLocaleString()}` : 'NONE'}
