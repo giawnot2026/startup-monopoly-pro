@@ -93,19 +93,32 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           actionLabel: "Paga", onAction: handleCloseModal 
         });
       } else {
+        // Logica per i 3 badge illuminati
+        const badgesInfo = {
+          currentLevel: currentLevel,
+          bronze: { ...tile.badges.bronze, owned: ['bronze', 'silver', 'gold'].includes(currentLevel) },
+          silver: { ...tile.badges.silver, owned: ['silver', 'gold'].includes(currentLevel) },
+          gold: { ...tile.badges.gold, owned: currentLevel === 'gold' }
+        };
+
         const levelsData = [
-          { id: 'bronze', label: 'Bronzo', data: tile.badges?.bronze },
-          { id: 'silver', label: 'Argento', data: tile.badges?.silver },
-          { id: 'gold', label: 'Oro', data: tile.badges?.gold },
+          { id: 'bronze', label: 'Bronzo', cost: tile.badges.bronze.cost },
+          { id: 'silver', label: 'Argento', cost: tile.badges.silver.cost },
+          { id: 'gold', label: 'Oro', cost: tile.badges.gold.cost },
         ];
+
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
-        const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= (levelsData[nextLevelIndex]?.data?.cost || 0);
+        const canAfford = nextLevelIndex < 3 && currentPlayer.cash >= (levelsData[nextLevelIndex]?.cost || 0);
 
         setModalConfig({
-          isOpen: true, type: 'success', title: tile.name,
+          isOpen: true, 
+          type: 'success', 
+          title: tile.name,
           description: "Migliora questo asset per aumentare il tuo MRR.",
-          insight: tile.insight, badgeCta: tile.badgeCta,
-          actionLabel: canAfford ? `Acquista ${levelsData[nextLevelIndex].label}` : "Passa",
+          insight: tile.insight, 
+          badgeCta: tile.badgeCta,
+          badges: badgesInfo, // Passiamo l'oggetto completo
+          actionLabel: canAfford ? `Acquista ${levelsData[nextLevelIndex].label}` : (nextLevelIndex > 2 ? "Massimo Livello" : "Fondi Insufficienti"),
           onAction: () => { if (canAfford) upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
@@ -129,8 +142,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 0:
         setModalConfig({
           isOpen: true, type: 'info', title: "Inizio Anno Fiscale",
-          description: "Budget ricaricato e interessi pagati.",
-          impact: { details: "+€25.000 Cash | Manutenzione Debiti" },
+          description: "Budget ricaricato e ammortamento debiti processato.",
+          impact: { details: "+€25.000 Cash | Pagamento quote capitali e interessi" },
           actionLabel: "Continua", onAction: handleCloseModal
         });
         break;
@@ -147,7 +160,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           details = `Ricevi: €${cash.toLocaleString()} | Cedi: 15% Equity`;
           offer.actualDilution = 15;
         } else if (offer.type === 'BANK') {
-          details = `Prestito: €${(offer.fixedAmount || 50000).toLocaleString()} | Interessi: ${(offer.interestRate * 100)}%`;
+          details = `Prestito: €${(offer.fixedAmount || 50000).toLocaleString()} | Tasso: ${(offer.interestRate * 100)}% | Durata: ${offer.durationYears} giri`;
         }
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
@@ -199,18 +212,16 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
-      <div className="w-full lg:w-[350px] space-y-3 font-mono">
+      <div className="w-full lg:w-[350px] space-y-3 font-mono text-white">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
           const currentEbitda = (p.mrr || 0) - (p.monthlyCosts || 0);
           const pVal = calculateValuation(p) || 0;
-          
-          // FIX: Calcolo debito con fallback sicuro
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
 
           return (
-            <div key={p.id} className={`p-4 rounded-2xl border transition-all ${isTurn ? 'bg-blue-600/20 border-blue-500' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
+            <div key={p.id} className={`p-4 rounded-2xl border transition-all ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
