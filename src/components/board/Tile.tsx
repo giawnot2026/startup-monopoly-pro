@@ -6,7 +6,7 @@ import {
   Zap, Globe, ShieldAlert, Handshake, TrendingUp, Briefcase, 
   Factory, Network, Users2, Settings, HeartPulse, Landmark, 
   LineChart, Building2, Share2, FileCheck, Coins, Trophy, 
-  HelpCircle, AlertTriangle, Award
+  HelpCircle, AlertTriangle
 } from 'lucide-react';
 
 const getIcon = (name: string) => {
@@ -40,6 +40,37 @@ const getIcon = (name: string) => {
   return <Briefcase size={16} />;
 };
 
+// Componente per le forme geometriche dei Badge
+const GeometricBadge = ({ level, color }: { level: string, color: string }) => {
+  const glowStyle = { filter: `drop-shadow(0 0 5px ${color})`, fill: color };
+  
+  if (level === 'bronze') {
+    // Triangolo
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" className="animate-in zoom-in duration-500">
+        <path d="M12 2L2 20H22L12 2Z" style={glowStyle} />
+      </svg>
+    );
+  }
+  if (level === 'silver') {
+    // Quadrato
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" className="animate-in zoom-in duration-500">
+        <rect x="3" y="3" width="18" height="18" rx="2" style={glowStyle} />
+      </svg>
+    );
+  }
+  if (level === 'gold') {
+    // Cerchio
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" className="animate-pulse">
+        <circle cx="12" cy="12" r="10" style={glowStyle} />
+      </svg>
+    );
+  }
+  return null;
+};
+
 export default function Tile({ id, name, type, style, isActive = false, ownerBadge = 'none', ownerColor = '#3b82f6' }: any) {
   const isCorner = [0, 7, 14, 21].includes(id);
   const isOpportunity = name.toLowerCase().includes("opportunità");
@@ -57,26 +88,16 @@ export default function Tile({ id, name, type, style, isActive = false, ownerBad
         ${isActive ? 'ring-2 ring-inset ring-white/40 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : ''}
       `}
     >
-      {/* Badge Ownership Indicator */}
-      {ownerBadge !== 'none' && (
-        <div className="absolute top-1 right-1 flex items-center gap-1 z-20">
-          <div 
-            className="w-1.5 h-4 rounded-full" 
-            style={{ backgroundColor: ownerColor, boxShadow: `0 0 8px ${ownerColor}` }} 
-          />
-          <Award 
-            size={12} 
-            className={
-              ownerBadge === 'gold' ? 'text-yellow-400 animate-pulse' : 
-              ownerBadge === 'silver' ? 'text-slate-300' : 
-              'text-amber-700'
-            } 
-          />
-        </div>
-      )}
-
       <div className="flex justify-between items-start z-10">
-        <span className="text-[7px] font-mono text-slate-500 uppercase tracking-tighter">0x{id}</span>
+        {/* Se l'asset è posseduto, mostriamo la forma geometrica, altrimenti l'ID */}
+        <div className="flex items-center justify-center min-w-[14px] min-h-[14px]">
+          {ownerBadge !== 'none' ? (
+            <GeometricBadge level={ownerBadge} color={ownerColor} />
+          ) : (
+            <span className="text-[7px] font-mono text-slate-500 uppercase tracking-tighter">0x{id}</span>
+          )}
+        </div>
+
         <div className={`transition-all duration-300 
           ${isOpportunity || isCorner ? 'text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' : (isImprevisto || isTax) ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'text-slate-400 group-hover:text-white'}
         `}>
