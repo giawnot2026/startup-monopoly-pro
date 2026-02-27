@@ -7,7 +7,7 @@ interface InitialPlayer { name: string; color: string; }
 
 export interface ExtendedPlayer extends PlayerState {
   hasHadFunding: boolean;
-  lastLoanRepaidAmount?: number;
+  laps: number;
 }
 
 export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
@@ -23,32 +23,32 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const [gameWinner, setGameWinner] = useState<ExtendedPlayer | null>(null);
   const currentPlayer = players[currentPlayerIndex];
 
-  // --- CALCOLO FINANZIARIO ---
+  // --- LOGICA FINANZIARIA CORE ---
   const calculateFinancials = useCallback((p: ExtendedPlayer) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
     const cash = Number(p.cash) || 0;
 
-    // Interessi mensili (Annual Interest / 12)
-    const monthlyInterests = p.debts.reduce((acc, d) => {
-      return acc + ((d.principal * d.interestRate) / 12);
+    // Interessi mensili: (Capitale * Tasso) / 12
+    const monthlyInterests = (p.debts || []).reduce((acc, d) => {
+      return acc + ((Number(d.principal) * Number(d.interestRate)) / 12);
     }, 0);
 
     const monthlyEbitda = mrr - costs - monthlyInterests;
     const annualEbitda = monthlyEbitda * 12;
     
-    // Valutazione = (EBITDA Annuale * 10) + Cash
+    // Valutazione = (EBITDA Annuale * 10) + Cash. (Multiplo 10x)
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : 0;
     const valuation = operationalValue + cash;
 
-    return { monthlyEbitda, valuation, monthlyInterests };
+    return { monthlyEbitda, valuation, monthlyInterests, annualEbitda };
   }, []);
 
   const { valuation, monthlyEbitda } = useMemo(() => 
     calculateFinancials(currentPlayer), [currentPlayer, calculateFinancials]
   );
 
-  // --- MOVIMENTO E VIA ---
+  // --- MOVIMENTO E PASSAGGIO DAL VIA ---
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
@@ -60,9 +60,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         let updatedCash = Number(p.cash);
         let updatedLaps = p.laps;
         let updatedDebts = [...p.debts];
-        let totalRepaidThisTurn = 0;
 
-        // Gestione Passaggio dal VIA
+        // Gestione Passaggio dal VIA (Bonus e Ammortamento Debiti)
         if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
           updatedLaps += 1;
           updatedCash += 25000; // Bonus giro
@@ -72,9 +71,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             const capitalInstallment = debt.principal / debt.remainingYears;
             
             // La rata (Capitale + Interessi) esce dal Cash
-            const yearlyRepayment = capitalInstallment + annualInterest;
-            updatedCash -= yearlyRepayment;
-            totalRepaidThisTurn += yearlyRepayment;
+            updatedCash -= (capitalInstallment + annualInterest);
 
             return {
               ...debt,
@@ -90,40 +87,37 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           cash: updatedCash,
           laps: updatedLaps,
           debts: updatedDebts,
+          // Modificatori diretti della casella (se presenti)
           mrr: Math.max(0, p.mrr + (Number(tile.revenueModifier) || 0)),
           monthlyCosts: Math.max(0, p.monthlyCosts + (Number(tile.costModifier) || 0)),
-          isBankrupt: updatedCash < -50000 && updatedLaps >= 3,
-          lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
+          isBankrupt: updatedCash < -50000 && updatedLaps >= 3
         };
       });
     });
     return tile;
   }, [currentPlayerIndex, currentPlayer.position]);
 
-  // --- EVENTI E FUNDING ---
+  // --- APPLICAZIONE EVENTI (OPPORTUNITÀ/IMPREVISTI) ---
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex && !event.global) return p;
       
-      if (event.cashEffect !== undefined) {
-        // OPPORTUNITÀ: Solo Cash
-        return { ...p, cash: p.cash + Number(event.cashEffect) };
-      } 
-      // IMPREVISTI: Solo EBITDA (MRR/Costi)
       return {
         ...p,
+        cash: p.cash + (Number(event.cashEffect) || 0),
         mrr: Math.max(0, p.mrr + (Number(event.revenueModifier) || 0)),
         monthlyCosts: Math.max(0, p.monthlyCosts + (Number(event.costModifier) || 0))
       };
     }));
   }, [currentPlayerIndex]);
 
+  // --- FUNDING (INVESTIMENTI/DEBITI/GRANT) ---
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
 
       if (offer.type === 'BANK') {
-        const amount = Number(offer.fixedAmount) || 50000;
+        const amount = Number(offer.fixedAmount);
         const newDebt: Debt = {
           id: `loan-${Date.now()}`,
           principal: amount,
@@ -137,7 +131,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         const { valuation: currentVal } = calculateFinancials(p);
         const dilution = Number(offer.actualDilution) || 15;
         const cashInjected = (currentVal * dilution) / 100;
-        return { ...p, cash: p.cash + cashInjected, equity: Math.max(0, p.equity - dilution), hasHadFunding: true };
+        return { 
+          ...p, 
+          cash: p.cash + cashInjected, 
+          equity: Math.max(0, p.equity - dilution), 
+          hasHadFunding: true 
+        };
       }
 
       if (offer.type === 'GRANT') {
@@ -147,10 +146,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     }));
   }, [currentPlayerIndex, calculateFinancials]);
 
+  // --- UPGRADE ASSET (BADGES) ---
   const upgradeBadge = useCallback((tileId: number) => {
     const tile = TILES[tileId];
     if (!tile.badges) return false;
     let success = false;
+
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
       const asset = p.assets.find(a => a.tileId === tileId);
@@ -165,8 +166,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       if (nextLevel !== 'none' && p.cash >= cost) {
         success = true;
         return {
-          ...p, cash: p.cash - cost, mrr: p.mrr + revBonus,
-          assets: asset ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) : [...p.assets, { tileId, level: nextLevel }]
+          ...p,
+          cash: p.cash - cost,
+          mrr: p.mrr + revBonus,
+          assets: asset 
+            ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a) 
+            : [...p.assets, { tileId, level: nextLevel }]
         };
       }
       return p;
@@ -180,7 +185,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const attemptExit = useCallback(() => {
     const { valuation: currentVal } = calculateFinancials(currentPlayer);
-    if (currentPlayer.equity > 0 && currentVal >= 1000000) {
+    if (currentVal >= 1000000) {
       setGameWinner(currentPlayer);
       return true;
     }
