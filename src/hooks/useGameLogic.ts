@@ -32,7 +32,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   const [gameWinner, setGameWinner] = useState<ExtendedPlayer | null>(null);
   const currentPlayer = players[currentPlayerIndex];
 
-  // LOGICA VALUTAZIONE: (EbitDA * 12) * 10 + Cash
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
@@ -177,17 +176,19 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex && !event.global) return p;
       
-      let cashEff = Number(event.cashEffect) || 0;
-      let revMod = Number(event.revenueModifier) || 0;
-      let costMod = Number(event.costModifier) || 0;
+      let cashEff = 0;
+      let revMod = 0;
+      let costMod = 0;
 
-      // Logica 50/50 per Opportunità (Macro)
       if (event.isBinary) {
+        // OPPORTUNITÀ (Macro): Solo effetto CASH con logica 50/50
         const success = Math.random() > 0.5;
         const outcome = success ? event.upside : event.downside;
-        cashEff = outcome.cashEffect || 0;
-        revMod = outcome.revenueModifier || 0;
-        costMod = outcome.costModifier || 0;
+        cashEff = Number(outcome.cashEffect) || 0;
+      } else {
+        // IMPREVISTI (Micro): Solo effetto MRR e COSTI
+        revMod = Number(event.revenueModifier) || 0;
+        costMod = Number(event.costModifier) || 0;
       }
 
       return { 
