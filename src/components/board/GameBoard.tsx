@@ -120,7 +120,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty (MRR) dai competitor.",
           insight: tile.insight, badges: badgesInfo,
           impact: { details: `${immediateImpact} | ${nextLevelIndex < 3 ? `Royalty futura: €${nextLevelToll.toLocaleString()}` : "Livello Massimo"}` },
-          // FIX: Aggiunta opzione di rifiuto per il Badge
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
           secondaryActionLabel: nextLevelIndex <= 2 ? "Rifiuta" : null,
           onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
@@ -147,12 +146,34 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   const handleCornerTile = (tile: any) => {
     switch (tile.id) {
       case 0:
-        setModalConfig({
-          isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
-          description: "Rendicontazione annuale completata. La quota capitale è stata detratta dal cash, mentre l'interesse residuo è stato imputato all'EBITDA.",
-          impact: { details: "Ammortamento Capitale (Cash) | Interessi Operativi (EBITDA)" },
-          actionLabel: "Continua", onAction: handleCloseModal
-        });
+        const totalDebtAmount = (currentPlayer.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+        
+        if (totalDebtAmount > 0) {
+          // Calcoliamo gli importi del turno corrente per il modale
+          // Nota: nel modale mostriamo i valori del debito residuo PRIMA del calcolo appena avvenuto
+          // o quelli calcolati durante il passaggio.
+          const totalCapital = (currentPlayer.debts || []).reduce((acc, d) => acc + Number(d.capitalInstallment), 0);
+          const totalInterest = (currentPlayer.debts || []).reduce((acc, d) => {
+             // L'interesse viene calcolato sul debito che c'era all'inizio del giro
+             // Poiché il debito è già stato aggiornato nel loop di movePlayer,
+             // ri-calcoliamo l'interesse basandoci sul debito corrente + quota appena tolta
+             return acc + Math.round((Number(d.amount) + Number(d.capitalInstallment)) * Number(d.interestRate));
+          }, 0);
+
+          setModalConfig({
+            isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
+            description: `Rendicontazione annuale completata. Pagata quota capitale del debito: €${totalCapital.toLocaleString()} e relativa quota di interesse di €${totalInterest.toLocaleString()}`,
+            impact: { details: `Ammortamento: -€${totalCapital.toLocaleString()} (Cash) | Interessi: -€${totalInterest.toLocaleString()} (EBITDA)` },
+            actionLabel: "Continua", onAction: handleCloseModal
+          });
+        } else {
+          setModalConfig({
+            isOpen: true, type: 'info', title: "Revisione dei Bilanci",
+            description: "L'anno fiscale si chiude in assenza di debiti finanziari. Il team contabile ha confermato la solidità dei flussi e la corretta quadratura dei conti.",
+            impact: { details: "Audit superato con successo | Nessun onere finanziario rilevato" },
+            actionLabel: "Continua", onAction: handleCloseModal
+          });
+        }
         break;
       case 7:
       case 14:
@@ -187,6 +208,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white">
+      {/* ... (Resto del componente GameBoard identico) */}
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
