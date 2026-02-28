@@ -47,8 +47,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     if (!tile) { nextTurn(); return; }
     const corners = [0, 7, 14, 21];
     if (corners.includes(tile.id)) { handleCornerTile(tile); return; }
-    const tileName = tile.name?.toLowerCase() || "";
-
+    
+    // 1. EXIT TILE
     if (tile.id === 27) {
       const currentVal = calculateValuation(currentPlayer);
       const canExit = currentVal >= 1000000 && currentPlayer.equity > 0;
@@ -56,7 +56,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         isOpen: true, type: canExit ? 'success' : 'danger',
         title: "Tavolo delle Trattative Exit",
         description: canExit ? "La tua startup ha raggiunto la massa critica. Vuoi vendere?" : "Valutazione troppo bassa per una Exit (Min €1M).",
-        insight: tile.insight || "L'Exit è il momento del payoff.",
         impact: { details: `Valutazione attuale: €${currentVal.toLocaleString()}` },
         actionLabel: canExit ? "Vendi e Vinci" : "Rifiuta e continua",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
@@ -65,8 +64,10 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
+    // 2. SPECIAL TILES (Opportunità / Imprevisti)
+    // Qui manteniamo applyEvent perché l'evento è pescato a caso dal mazzo, non è scritto nel tile.ts
     if (tile.type === 'special') {
-      const isOpp = tileName.includes("opportunità") || [3, 15, 22].includes(tile.id);
+      const isOpp = tile.name?.toLowerCase().includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       
@@ -78,13 +79,14 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       setModalConfig({ 
         isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
         title: event.title, description: event.effect,
-        insight: event.insight || "Le opportunità accelerano la crescita.",
         impact: { details: impactDetails.join(' | ') || "Variazione assetto societario" },
-        actionLabel: "Ok", onAction: () => { applyEvent(event); handleCloseModal(); } 
+        actionLabel: "Ricevuto", 
+        onAction: () => { applyEvent(event); handleCloseModal(); } 
       });
       return;
     }
 
+    // 3. ASSET TILES (Proprietà)
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
@@ -96,8 +98,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         setModalConfig({ 
           isOpen: true, type: 'danger', title: "Tassa di Mercato", 
           description: `Sei atterrato su un asset di ${owner.name}`, 
-          impact: { details: `Paga royalties: €${toll.toLocaleString()}` }, 
-          actionLabel: "Paga", onAction: handleCloseModal 
+          impact: { details: `Pagamento effettuato: €${toll.toLocaleString()}` }, 
+          actionLabel: "Prosegui", 
+          onAction: handleCloseModal // Nessun calcolo: il pedaggio è già stato scalato in movePlayer
         });
       } else {
         const badgesInfo = {
@@ -118,29 +121,28 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         const nextLevelRevenue = nextLevelIndex < 3 ? tile.badges[levelsData[nextLevelIndex].id].revenueBonus : 0;
 
         setModalConfig({
-          isOpen: true, 
-          type: 'success', 
-          title: tile.name,
+          isOpen: true, type: 'success', title: tile.name,
           description: "Migliora questo asset per aumentare il tuo MRR.",
-          insight: tile.insight, 
-          badgeCta: tile.badgeCta,
           badges: badgesInfo,
           impact: { details: nextLevelIndex < 3 ? `Prossimo MRR Bonus: +€${nextLevelRevenue.toLocaleString()}` : "Livello Massimo Raggiunto" },
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
-          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
+          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); }, // UpgradeBadge rimane un'azione manuale (l'utente sceglie se comprare)
           onClose: handleCloseModal
         });
       }
       return;
     }
 
+    // 4. TAX TILES (Caselle MRR/Costi fissi)
     if (tile.type === 'tax') {
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
       setModalConfig({
-        isOpen: true, type: 'danger', title: tile.name, description: "Variazione flussi di cassa.",
+        isOpen: true, type: 'danger', title: tile.name, 
+        description: "Variazione automatica dei flussi operativi.",
         impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
-        actionLabel: "Ok", onAction: handleCloseModal
+        actionLabel: "Ricevuto", 
+        onAction: handleCloseModal // Notifica pura: movePlayer ha già applicato revMod e costMod
       });
       return;
     }
@@ -160,6 +162,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 7:
       case 14:
       case 21:
+        // Funding logic (Accetta/Rifiuta) rimane manuale perché l'utente deve decidere
         const currentVal = calculateValuation(currentPlayer);
         const isValuable = currentVal > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => o.type === 'EQUITY' ? (isValuable && currentPlayer.laps > 0) : true);
@@ -171,7 +174,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           details = `Iniezione Cash: €${cash.toLocaleString()} | Cessione: 15% Equity`;
           offer.actualDilution = 15;
         } else if (offer.type === 'BANK') {
-          // FIX: Aggiunta durata (durationYears) ai dettagli per i prestiti
           const amount = (Number(offer.fixedAmount) || 50000).toLocaleString();
           const rate = (Number(offer.interestRate) * 100);
           const duration = offer.durationYears || 3;
@@ -182,7 +184,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
-          description: offer.description, insight: offer.insight, impact: { details },
+          description: offer.description, impact: { details },
           actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
           onAction: () => { applyFunding(offer); handleCloseModal(); },
           onClose: handleCloseModal
@@ -193,6 +195,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
+      {/* MAPPA DI GIOCO */}
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
@@ -230,6 +233,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         </div>
       </div>
 
+      {/* DASHBOARD STATISTICHE */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono text-white">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
