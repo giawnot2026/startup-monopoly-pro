@@ -65,7 +65,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     // 2. SPECIAL TILES (Opportunità / Imprevisti)
-    // Logica: Il calcolo avviene SOLO all'onAction per dare suspense e coerenza con la pesca casuale
     if (tile.type === 'special') {
       const isOpp = tile.name?.toLowerCase().includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
@@ -81,32 +80,40 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         type: isOpp ? 'opportunity' : 'danger_event', 
         title: event.title, 
         description: event.effect || "Evento di mercato",
-        insight: event.insight, // Visualizzazione dell'insight dai file .ts
+        insight: event.insight,
         impact: { details: impactDetails.join(' | ') || "Variazione assetto societario" },
         actionLabel: "Ricevuto", 
         onAction: () => { 
-          applyEvent(event); // AGGIORNAMENTO CASH/EBITDA QUI
+          applyEvent(event);
           handleCloseModal(); 
         } 
       });
       return;
     }
 
-    // 3. ASSET TILES (Proprietà)
+    // 3. ASSET TILES (Proprietà) - LOGICA AGGIORNATA
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
 
+      // Calcolo impatto immediato della casella (notifica)
+      const revMod = tile.revenueModifier || 0;
+      const costMod = tile.costModifier || 0;
+      const immediateImpact = `Impatto Casella: MRR ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}`;
+
       if (owner) {
         const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
         const toll = Number(tile.badges?.[level]?.toll) || 0;
         setModalConfig({ 
-          isOpen: true, type: 'danger', title: "Tassa di Mercato", 
-          description: `Sei atterrato su un asset di ${owner.name}`, 
-          impact: { details: `Pagamento effettuato: €${toll.toLocaleString()}` }, 
+          isOpen: true, 
+          type: 'danger', 
+          title: "Tassa di Mercato", 
+          description: `Sei atterrato su un asset di ${owner.name}.`,
+          insight: tile.insight,
+          impact: { details: `${immediateImpact} | Royalty pagata: €${toll.toLocaleString()}` }, 
           actionLabel: "Prosegui", 
-          onAction: handleCloseModal // Notifica: pedaggio già detratto in movePlayer
+          onAction: handleCloseModal
         });
       } else {
         const badgesInfo = {
@@ -117,20 +124,23 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         };
 
         const levelsData = [
-          { id: 'bronze', label: 'Bronzo', cost: Number(tile.badges.bronze.cost) },
-          { id: 'silver', label: 'Argento', cost: Number(tile.badges.silver.cost) },
-          { id: 'gold', label: 'Oro', cost: Number(tile.badges.gold.cost) },
+          { id: 'bronze', label: 'Bronzo' },
+          { id: 'silver', label: 'Argento' },
+          { id: 'gold', label: 'Oro' },
         ];
 
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
         const nextLevelLabel = levelsData[nextLevelIndex]?.label || '';
-        const nextLevelRevenue = nextLevelIndex < 3 ? tile.badges[levelsData[nextLevelIndex].id].revenueBonus : 0;
+        const nextLevelToll = nextLevelIndex < 3 ? tile.badges[levelsData[nextLevelIndex].id].toll : 0;
 
         setModalConfig({
-          isOpen: true, type: 'success', title: tile.name,
-          description: "Migliora questo asset per aumentare il tuo MRR.",
+          isOpen: true, 
+          type: 'success', 
+          title: tile.name,
+          description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty dai competitor.",
+          insight: tile.insight,
           badges: badgesInfo,
-          impact: { details: nextLevelIndex < 3 ? `Prossimo MRR Bonus: +€${nextLevelRevenue.toLocaleString()}` : "Livello Massimo Raggiunto" },
+          impact: { details: `${immediateImpact} | ${nextLevelIndex < 3 ? `Royalty futura: €${nextLevelToll.toLocaleString()}` : "Livello Massimo"}` },
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
           onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
@@ -148,7 +158,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         description: "Variazione automatica dei flussi operativi.",
         impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
         actionLabel: "Ricevuto", 
-        onAction: handleCloseModal // Notifica: movePlayer ha già applicato i modificatori
+        onAction: handleCloseModal 
       });
       return;
     }
