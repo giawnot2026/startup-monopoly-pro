@@ -65,7 +65,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     // 2. SPECIAL TILES (Opportunità / Imprevisti)
-    // Qui manteniamo applyEvent perché l'evento è pescato a caso dal mazzo, non è scritto nel tile.ts
+    // Logica: Il calcolo avviene SOLO all'onAction per dare suspense e coerenza con la pesca casuale
     if (tile.type === 'special') {
       const isOpp = tile.name?.toLowerCase().includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
@@ -77,11 +77,17 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       if (event.costModifier) impactDetails.push(`${event.costModifier > 0 ? '+' : ''}€${event.costModifier.toLocaleString()} Costi`);
 
       setModalConfig({ 
-        isOpen: true, type: isOpp ? 'opportunity' : 'danger_event', 
-        title: event.title, description: event.effect,
+        isOpen: true, 
+        type: isOpp ? 'opportunity' : 'danger_event', 
+        title: event.title, 
+        description: event.effect || "Evento di mercato",
+        insight: event.insight, // Visualizzazione dell'insight dai file .ts
         impact: { details: impactDetails.join(' | ') || "Variazione assetto societario" },
         actionLabel: "Ricevuto", 
-        onAction: () => { applyEvent(event); handleCloseModal(); } 
+        onAction: () => { 
+          applyEvent(event); // AGGIORNAMENTO CASH/EBITDA QUI
+          handleCloseModal(); 
+        } 
       });
       return;
     }
@@ -100,7 +106,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           description: `Sei atterrato su un asset di ${owner.name}`, 
           impact: { details: `Pagamento effettuato: €${toll.toLocaleString()}` }, 
           actionLabel: "Prosegui", 
-          onAction: handleCloseModal // Nessun calcolo: il pedaggio è già stato scalato in movePlayer
+          onAction: handleCloseModal // Notifica: pedaggio già detratto in movePlayer
         });
       } else {
         const badgesInfo = {
@@ -126,7 +132,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           badges: badgesInfo,
           impact: { details: nextLevelIndex < 3 ? `Prossimo MRR Bonus: +€${nextLevelRevenue.toLocaleString()}` : "Livello Massimo Raggiunto" },
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
-          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); }, // UpgradeBadge rimane un'azione manuale (l'utente sceglie se comprare)
+          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
       }
@@ -142,7 +148,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         description: "Variazione automatica dei flussi operativi.",
         impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
         actionLabel: "Ricevuto", 
-        onAction: handleCloseModal // Notifica pura: movePlayer ha già applicato revMod e costMod
+        onAction: handleCloseModal // Notifica: movePlayer ha già applicato i modificatori
       });
       return;
     }
@@ -162,7 +168,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       case 7:
       case 14:
       case 21:
-        // Funding logic (Accetta/Rifiuta) rimane manuale perché l'utente deve decidere
         const currentVal = calculateValuation(currentPlayer);
         const isValuable = currentVal > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => o.type === 'EQUITY' ? (isValuable && currentPlayer.laps > 0) : true);
@@ -194,7 +199,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans">
+    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white">
       {/* MAPPA DI GIOCO */}
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
@@ -234,7 +239,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       </div>
 
       {/* DASHBOARD STATISTICHE */}
-      <div className="w-full lg:w-[350px] space-y-3 font-mono text-white">
+      <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
