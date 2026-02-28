@@ -58,7 +58,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const annualEbitda = monthlyEbitda * 12;
     
     // Multiplo 10x sull'Ebitda annuale + Cash
-    // Manteniamo la logica che se l'Ebitda è negativo la valutazione operativa è 0
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : 0;
     const total = operationalValue + cash;
     
@@ -126,19 +125,20 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             }).filter(d => d.remainingYears > 0 && d.amount > 0);
           }
 
-          // MODIFICA RICHIESTA: Gli importi di MRR e Costi impattano la dashboard
+          // LOGICA INTEGRATA: Calcolo immediato dei modificatori della casella (Tile)
           const revMod = Number(tile.revenueModifier) || 0;
           const costMod = Number(tile.costModifier) || 0;
+          const cashMod = Number(tile.cashEffect) || 0;
 
           return { 
             ...p, 
             position: nextPos, 
-            cash: updatedCash,
+            cash: updatedCash + cashMod,
             mrr: Math.max(0, Number(p.mrr) + revMod),
             monthlyCosts: Math.max(0, Number(p.monthlyCosts) + costMod),
             laps: updatedLaps,
             debts: updatedDebts,
-            isBankrupt: (updatedCash < -50000 && updatedLaps >= 3),
+            isBankrupt: (updatedCash + cashMod < -50000 && updatedLaps >= 3),
             lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
@@ -160,7 +160,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       let equityLoss = 0;
       const currentVal = calculateValuation(p);
 
-      // MODIFICA RICHIESTA: Iniezioni investimento in sezione Cash
       if (offer.type === 'GRANT') {
         cashBonus = Number(offer.fixedAmount) || 25000;
       } else if (offer.type === 'EQUITY') {
