@@ -48,7 +48,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const currentPlayer = players[currentPlayerIndex];
 
-  // Calcolo Valutazione Rigoroso (Ebitda * 12 * 10) + Cash
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
@@ -101,24 +100,34 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
       const newState = prevPlayers.map((p, idx) => {
         if (idx === currentPlayerIndex) {
-          // MODIFICA: Il toll viene sottratto dall'MRR invece che dal Cash
           let updatedMrr = Math.max(0, Number(p.mrr) - tollToPay);
           let updatedCash = Number(p.cash);
           let updatedLaps = p.laps;
           let totalRepaidThisTurn = 0;
           let updatedDebts = [...p.debts];
-          
+          let newMonthlyCosts = Number(p.monthlyCosts);
+
+          // LOGICA PASSAGGIO DAL VIA / CHIUSURA ANNO FISCALE
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
-            updatedCash += 25000;
-            
+
             updatedDebts = updatedDebts.map(debt => {
-              const payment = Number(debt.capitalInstallment) + Number(debt.annualInterest);
-              updatedCash -= payment;
-              totalRepaidThisTurn += payment;
+              // 1. Calcolo interesse sul debito residuo
+              const annualInterest = Math.round(Number(debt.amount) * Number(debt.interestRate));
+              
+              // 2. Quota Capitale
+              const capitalRepayment = Number(debt.capitalInstallment);
+              
+              // 3. FIX: Al cash viene sottratta SOLO la quota capitale
+              updatedCash -= capitalRepayment;
+              totalRepaidThisTurn += capitalRepayment;
+
+              // 4. L'interesse viene imputato come costo operativo all'EBITDA
+              newMonthlyCosts += annualInterest; 
+
               return { 
                 ...debt, 
-                amount: Math.max(0, Number(debt.amount) - Number(debt.capitalInstallment)),
+                amount: Math.max(0, Number(debt.amount) - capitalRepayment),
                 remainingYears: debt.remainingYears - 1 
               };
             }).filter(d => d.remainingYears > 0 && d.amount > 0);
@@ -134,14 +143,13 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             position: nextPos, 
             cash: updatedCash + cashMod,
             mrr: Math.max(0, updatedMrr + revMod),
-            monthlyCosts: Math.max(0, Number(p.monthlyCosts) + costMod),
+            monthlyCosts: Math.max(0, newMonthlyCosts + costMod),
             laps: updatedLaps,
             debts: updatedDebts,
             isBankrupt: (updatedCash + cashMod < -50000 && updatedLaps >= 3),
             lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
-        // MODIFICA: Il proprietario riceve il toll nell'MRR
         if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
         return p;
       });
@@ -193,24 +201,14 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
-      
       const asset = p.assets.find(a => a.tileId === tileId);
       const currentLevel = asset ? asset.level : 'none';
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
 
-      if (currentLevel === 'none') { 
-        nextLevel = 'bronze'; 
-        cost = Number(tile.badges.bronze.cost); 
-      }
-      else if (currentLevel === 'bronze') { 
-        nextLevel = 'silver'; 
-        cost = Number(tile.badges.silver.cost); 
-      }
-      else if (currentLevel === 'silver') { 
-        nextLevel = 'gold'; 
-        cost = Number(tile.badges.gold.cost); 
-      }
+      if (currentLevel === 'none') { nextLevel = 'bronze'; cost = Number(tile.badges.bronze.cost); }
+      else if (currentLevel === 'bronze') { nextLevel = 'silver'; cost = Number(tile.badges.silver.cost); }
+      else if (currentLevel === 'silver') { nextLevel = 'gold'; cost = Number(tile.badges.gold.cost); }
 
       if (nextLevel !== 'none' && Number(p.cash) >= cost) {
         success = true;
