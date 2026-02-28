@@ -43,17 +43,17 @@ export const FUNDING_OFFERS: FundingOffer[] = [
   { 
     id: 21, investor: "Banca Nazionale", type: "BANK", description: "Prestito standard a tasso fisso.", 
     insight: "Il debito bancario è capitale 'non diluitivo'. Restituisci i soldi con gli interessi senza cedere quote della società.",
-    interestRate: 0.11, durationYears: 5 
+    interestRate: 0.10, durationYears: 5,fixedAmount: 100000 
   },
   { 
     id: 22, investor: "Venture Debt Fund", type: "BANK", description: "Debito per chi ha già VC. Caro ma veloce.", 
     insight: "Il Venture Debt è uno strumento ibrido: è debito, ma spesso richiede dei 'warrant' (opzioni sulle quote) come garanzia.",
-    interestRate: 0.09, durationYears: 3 
+    interestRate: 0.12, durationYears: 3, fixedAmount: 75000  
   },
   { 
     id: 26, investor: "Prestito Ponte (Bridge)", type: "BANK", description: "Breve durata per arrivare al prossimo round.", 
     insight: "Un finanziamento bridge serve a non finire i soldi mentre si chiude un round di investimento più grande.",
-    interestRate: 0.07, durationYears: 2 
+    interestRate: 0.08, durationYears: 2, fixedAmount: 50000  
   },
 
   // --- FONDI PERDUTI (GRANT) ---
