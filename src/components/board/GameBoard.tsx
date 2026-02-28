@@ -120,7 +120,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty (MRR) dai competitor.",
           insight: tile.insight, badges: badgesInfo,
           impact: { details: `${immediateImpact} | ${nextLevelIndex < 3 ? `Royalty futura: €${nextLevelToll.toLocaleString()}` : "Livello Massimo"}` },
+          // FIX: Aggiunta opzione di rifiuto per il Badge
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
+          secondaryActionLabel: nextLevelIndex <= 2 ? "Rifiuta" : null,
           onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
@@ -166,7 +168,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           offer.actualDilution = 15;
         } else if (offer.type === 'BANK') {
           const amount = (Number(offer.fixedAmount) || 50000).toLocaleString();
-          const rate = (Number(offer.interestRate) * 100);
+          const rate = (Number(offer.interestRate) * 100).toFixed(1);
           const duration = offer.durationYears || 3;
           details = `Erogazione: €${amount} | Tasso: ${rate}% | Durata: ${duration} giri`;
         } else if (offer.type === 'GRANT') {
