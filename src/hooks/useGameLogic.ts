@@ -101,7 +101,9 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
       const newState = prevPlayers.map((p, idx) => {
         if (idx === currentPlayerIndex) {
-          let updatedCash = Number(p.cash) - tollToPay;
+          // MODIFICA: Il toll viene sottratto dall'MRR invece che dal Cash
+          let updatedMrr = Math.max(0, Number(p.mrr) - tollToPay);
+          let updatedCash = Number(p.cash);
           let updatedLaps = p.laps;
           let totalRepaidThisTurn = 0;
           let updatedDebts = [...p.debts];
@@ -122,10 +124,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             }).filter(d => d.remainingYears > 0 && d.amount > 0);
           }
 
-          // MODIFICA: Applica i modificatori immediati SOLO se la casella NON è speciale o funding
-          // Per Imprevisti/Opportunità (special), il calcolo avverrà solo via applyEvent
           const isSpecial = tile.type === 'special' || [7, 14, 21].includes(tile.id);
-          
           const revMod = !isSpecial ? (Number(tile.revenueModifier) || 0) : 0;
           const costMod = !isSpecial ? (Number(tile.costModifier) || 0) : 0;
           const cashMod = !isSpecial ? (Number(tile.cashEffect) || 0) : 0;
@@ -134,7 +133,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             ...p, 
             position: nextPos, 
             cash: updatedCash + cashMod,
-            mrr: Math.max(0, Number(p.mrr) + revMod),
+            mrr: Math.max(0, updatedMrr + revMod),
             monthlyCosts: Math.max(0, Number(p.monthlyCosts) + costMod),
             laps: updatedLaps,
             debts: updatedDebts,
@@ -142,7 +141,8 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
-        if (owner && idx === owner.id) return { ...p, cash: Number(p.cash) + tollToPay };
+        // MODIFICA: Il proprietario riceve il toll nell'MRR
+        if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
         return p;
       });
       
@@ -198,22 +198,18 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
       const currentLevel = asset ? asset.level : 'none';
       let nextLevel: BadgeLevel = 'none';
       let cost = 0;
-      let revBonus = 0;
 
       if (currentLevel === 'none') { 
         nextLevel = 'bronze'; 
         cost = Number(tile.badges.bronze.cost); 
-        revBonus = Number(tile.badges.bronze.revenueBonus); 
       }
       else if (currentLevel === 'bronze') { 
         nextLevel = 'silver'; 
         cost = Number(tile.badges.silver.cost); 
-        revBonus = Number(tile.badges.silver.revenueBonus); 
       }
       else if (currentLevel === 'silver') { 
         nextLevel = 'gold'; 
         cost = Number(tile.badges.gold.cost); 
-        revBonus = Number(tile.badges.gold.revenueBonus); 
       }
 
       if (nextLevel !== 'none' && Number(p.cash) >= cost) {
@@ -221,7 +217,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         return {
           ...p,
           cash: Number(p.cash) - cost,
-          mrr: Number(p.mrr) + revBonus,
           assets: asset 
             ? p.assets.map(a => a.tileId === tileId ? { ...a, level: nextLevel } : a)
             : [...p.assets, { tileId, level: nextLevel }]
