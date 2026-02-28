@@ -48,7 +48,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     const corners = [0, 7, 14, 21];
     if (corners.includes(tile.id)) { handleCornerTile(tile); return; }
     
-    // 1. EXIT TILE
     if (tile.id === 27) {
       const currentVal = calculateValuation(currentPlayer);
       const canExit = currentVal >= 1000000 && currentPlayer.equity > 0;
@@ -64,12 +63,10 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // 2. SPECIAL TILES (Opportunità / Imprevisti)
     if (tile.type === 'special') {
       const isOpp = tile.name?.toLowerCase().includes("opportunità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
-      
       const impactDetails = [];
       if (event.cashEffect) impactDetails.push(`${event.cashEffect > 0 ? '+' : ''}€${event.cashEffect.toLocaleString()} Cash`);
       if (event.revenueModifier) impactDetails.push(`${event.revenueModifier > 0 ? '+' : ''}€${event.revenueModifier.toLocaleString()} MRR`);
@@ -83,21 +80,15 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         insight: event.insight,
         impact: { details: impactDetails.join(' | ') || "Variazione assetto societario" },
         actionLabel: "Ricevuto", 
-        onAction: () => { 
-          applyEvent(event);
-          handleCloseModal(); 
-        } 
+        onAction: () => { applyEvent(event); handleCloseModal(); } 
       });
       return;
     }
 
-    // 3. ASSET TILES (Proprietà) - LOGICA AGGIORNATA
     if (tile.type === 'asset') {
       const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
-
-      // Calcolo impatto immediato della casella (notifica)
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
       const immediateImpact = `Impatto Casella: MRR ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}`;
@@ -106,14 +97,11 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
         const toll = Number(tile.badges?.[level]?.toll) || 0;
         setModalConfig({ 
-          isOpen: true, 
-          type: 'danger', 
-          title: "Tassa di Mercato", 
+          isOpen: true, type: 'danger', title: "Tassa di Mercato", 
           description: `Sei atterrato su un asset di ${owner.name}.`,
           insight: tile.insight,
-          impact: { details: `${immediateImpact} | Royalty pagata: €${toll.toLocaleString()}` }, 
-          actionLabel: "Prosegui", 
-          onAction: handleCloseModal
+          impact: { details: `${immediateImpact} | Royalty pagata (MRR): -€${toll.toLocaleString()}` }, 
+          actionLabel: "Prosegui", onAction: handleCloseModal
         });
       } else {
         const badgesInfo = {
@@ -122,24 +110,15 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           silver: { ...tile.badges.silver, owned: ['silver', 'gold'].includes(currentLevel) },
           gold: { ...tile.badges.gold, owned: currentLevel === 'gold' }
         };
-
-        const levelsData = [
-          { id: 'bronze', label: 'Bronzo' },
-          { id: 'silver', label: 'Argento' },
-          { id: 'gold', label: 'Oro' },
-        ];
-
+        const levelsData = [{ id: 'bronze', label: 'Bronzo' }, { id: 'silver', label: 'Argento' }, { id: 'gold', label: 'Oro' }];
         const nextLevelIndex = currentLevel === 'none' ? 0 : currentLevel === 'bronze' ? 1 : currentLevel === 'silver' ? 2 : 3;
         const nextLevelLabel = levelsData[nextLevelIndex]?.label || '';
         const nextLevelToll = nextLevelIndex < 3 ? tile.badges[levelsData[nextLevelIndex].id].toll : 0;
 
         setModalConfig({
-          isOpen: true, 
-          type: 'success', 
-          title: tile.name,
-          description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty dai competitor.",
-          insight: tile.insight,
-          badges: badgesInfo,
+          isOpen: true, type: 'success', title: tile.name,
+          description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty (MRR) dai competitor.",
+          insight: tile.insight, badges: badgesInfo,
           impact: { details: `${immediateImpact} | ${nextLevelIndex < 3 ? `Royalty futura: €${nextLevelToll.toLocaleString()}` : "Livello Massimo"}` },
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
           onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
@@ -149,7 +128,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
       return;
     }
 
-    // 4. TAX TILES (Caselle MRR/Costi fissi)
     if (tile.type === 'tax') {
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
@@ -157,8 +135,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         isOpen: true, type: 'danger', title: tile.name, 
         description: "Variazione automatica dei flussi operativi.",
         impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
-        actionLabel: "Ricevuto", 
-        onAction: handleCloseModal 
+        actionLabel: "Ricevuto", onAction: handleCloseModal 
       });
       return;
     }
@@ -169,9 +146,9 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     switch (tile.id) {
       case 0:
         setModalConfig({
-          isOpen: true, type: 'info', title: "Inizio Anno Fiscale",
-          description: "Budget ricaricato e ammortamento debiti processato.",
-          impact: { details: "+€25.000 Cash | Pagamento quote capitali e interessi" },
+          isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
+          description: "Rendicontazione annuale completata. La quota capitale è stata detratta dal cash, mentre l'interesse residuo è stato imputato all'EBITDA.",
+          impact: { details: "Ammortamento Capitale (Cash) | Interessi Operativi (EBITDA)" },
           actionLabel: "Continua", onAction: handleCloseModal
         });
         break;
@@ -182,7 +159,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         const isValuable = currentVal > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => o.type === 'EQUITY' ? (isValuable && currentPlayer.laps > 0) : true);
         const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
-        
         let details = "";
         if (offer.type === 'EQUITY') {
           const cash = (currentVal * 15) / 100;
@@ -196,7 +172,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
         } else if (offer.type === 'GRANT') {
           details = `Capitale a fondo perduto: +€${(Number(offer.fixedAmount) || 25000).toLocaleString()}`;
         }
-        
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
           description: offer.description, impact: { details },
@@ -210,7 +185,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white">
-      {/* MAPPA DI GIOCO */}
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
@@ -226,7 +200,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
             {isRolling ? "Lancio..." : "Lancia Dadi"}
           </button>
         </div>
-
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
@@ -247,8 +220,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           })}
         </div>
       </div>
-
-      {/* DASHBOARD STATISTICHE */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
@@ -256,7 +227,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
               <div className="flex items-center justify-between mb-2">
@@ -290,7 +260,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           );
         })}
       </div>
-      
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
     </div>
   );
