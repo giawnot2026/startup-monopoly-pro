@@ -48,7 +48,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
 
   const currentPlayer = players[currentPlayerIndex];
 
-  // MODIFICA RICHIESTA: Calcolo Valutazione Rigoroso (Ebitda * 12 * 10)
+  // Calcolo Valutazione Rigoroso (Ebitda * 12 * 10) + Cash
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
@@ -57,7 +57,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const monthlyEbitda = mrr - costs;
     const annualEbitda = monthlyEbitda * 12;
     
-    // Multiplo 10x sull'Ebitda annuale + Cash
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : 0;
     const total = operationalValue + cash;
     
@@ -91,7 +90,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
-      // Logica Pedaggi: Trova il proprietario della casella
       const owner = prevPlayers.find(p => !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
       const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
       let tollToPay = 0;
@@ -108,7 +106,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let totalRepaidThisTurn = 0;
           let updatedDebts = [...p.debts];
           
-          // Gestione passaggio dal via e debiti
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
             updatedCash += 25000;
@@ -125,10 +122,13 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             }).filter(d => d.remainingYears > 0 && d.amount > 0);
           }
 
-          // LOGICA INTEGRATA: Calcolo immediato dei modificatori della casella (Tile)
-          const revMod = Number(tile.revenueModifier) || 0;
-          const costMod = Number(tile.costModifier) || 0;
-          const cashMod = Number(tile.cashEffect) || 0;
+          // MODIFICA: Applica i modificatori immediati SOLO se la casella NON è speciale o funding
+          // Per Imprevisti/Opportunità (special), il calcolo avverrà solo via applyEvent
+          const isSpecial = tile.type === 'special' || [7, 14, 21].includes(tile.id);
+          
+          const revMod = !isSpecial ? (Number(tile.revenueModifier) || 0) : 0;
+          const costMod = !isSpecial ? (Number(tile.costModifier) || 0) : 0;
+          const cashMod = !isSpecial ? (Number(tile.cashEffect) || 0) : 0;
 
           return { 
             ...p, 
@@ -142,7 +142,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
             lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
-        // Accredito pedaggio al proprietario
         if (owner && idx === owner.id) return { ...p, cash: Number(p.cash) + tollToPay };
         return p;
       });
@@ -256,16 +255,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   }, [currentPlayer, calculateValuation]);
 
   return { 
-    players, 
-    currentPlayer, 
-    valuation, 
-    movePlayer, 
-    applyFunding, 
-    upgradeBadge, 
-    applyEvent, 
-    nextTurn, 
-    gameWinner, 
-    attemptExit, 
-    calculateValuation 
+    players, currentPlayer, valuation, movePlayer, applyFunding, 
+    upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, calculateValuation 
   };
 };
