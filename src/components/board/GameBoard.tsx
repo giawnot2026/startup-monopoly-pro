@@ -52,15 +52,17 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
     
     if (tile.id === 27) {
       const currentVal = calculateValuation(currentPlayer);
-      // MODIFICA: Utilizzo del victoryTarget dinamico invece di 1M
-      const canExit = currentVal >= victoryTarget && currentPlayer.equity > 0;
+      // Calcoliamo quanto incassa il founder in base alla sua equity attuale
+  const founderExitValue = (currentVal * currentPlayer.equity)
+      const canExit = founderExitValue >= victoryTarget && currentPlayer.equity > 0;
+    
       setModalConfig({
         isOpen: true, type: canExit ? 'success' : 'danger',
         title: "Tavolo delle Trattative Exit",
         description: canExit 
           ? `Complimenti! Hai raggiunto il target di €${victoryTarget.toLocaleString()}. Vuoi vendere ora?` 
-          : `Valutazione insufficiente per la Exit. Il target è €${victoryTarget.toLocaleString()}.`,
-        impact: { details: `Valutazione attuale: €${currentVal.toLocaleString()}` },
+          : `Ancora presto per la Exit! Il target è €${victoryTarget.toLocaleString()}.`,
+        impact: { details: `Valutazione attuale: €${currentVal.toLocaleString()} | Tua Quota (${currentPlayer.equity.toFixed(1)}%): €${founderExitValue.toLocaleString()}`` },
         actionLabel: canExit ? "Vendi e Vinci" : "Rifiuta e continua",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
         onClose: handleCloseModal
