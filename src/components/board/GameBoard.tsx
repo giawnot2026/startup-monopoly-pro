@@ -1,19 +1,21 @@
 'use client'
 import React, { useState, useCallback } from 'react';
-import { useGameLogic } from '@/hooks/useGameLogic';
+import { useGameLogic, ExtendedPlayer } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
 import { TILES } from '@/data/tiles';
 import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, Star, TrendingUp, DollarSign, Briefcase, Award } from 'lucide-react';
 
-export default function GameBoard({ initialPlayers }: { initialPlayers: any[] }) {
+export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: { initialPlayers: any[], victoryTarget?: number }) {
   const { 
     players, currentPlayer, valuation, 
     movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
     gameWinner, attemptExit, calculateValuation
-  } = useGameLogic(initialPlayers);
+  } = useGameLogic(initialPlayers, victoryTarget);
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
@@ -50,11 +52,14 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     
     if (tile.id === 27) {
       const currentVal = calculateValuation(currentPlayer);
-      const canExit = currentVal >= 1000000 && currentPlayer.equity > 0;
+      // MODIFICA: Utilizzo del victoryTarget dinamico invece di 1M
+      const canExit = currentVal >= victoryTarget && currentPlayer.equity > 0;
       setModalConfig({
         isOpen: true, type: canExit ? 'success' : 'danger',
         title: "Tavolo delle Trattative Exit",
-        description: canExit ? "La tua startup ha raggiunto la massa critica. Vuoi vendere?" : "Valutazione troppo bassa per una Exit (Min €1M).",
+        description: canExit 
+          ? `Complimenti! Hai raggiunto il target di €${victoryTarget.toLocaleString()}. Vuoi vendere ora?` 
+          : `Valutazione insufficiente per la Exit. Il target è €${victoryTarget.toLocaleString()}.`,
         impact: { details: `Valutazione attuale: €${currentVal.toLocaleString()}` },
         actionLabel: canExit ? "Vendi e Vinci" : "Rifiuta e continua",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
@@ -64,7 +69,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     if (tile.type === 'special') {
-      // AGGIORNATA LOGICA PER "PROBABILITÀ"
       const isOpp = tile.name?.toLowerCase().includes("probabilità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
@@ -200,7 +204,108 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white">
+    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
+      
+      {/* SCHERMATA DI VITTORIA */}
+      <AnimatePresence>
+        {gameWinner && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.8, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-4xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-10 shadow-[0_0_50px_rgba(59,130,246,0.2)] text-center relative overflow-hidden"
+            >
+              {/* Fuochi d'artificio simulati con framer-motion */}
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                  animate={{
+                    y: [-20, -200],
+                    x: [0, (i - 3) * 100],
+                    opacity: [1, 0],
+                    scale: [1, 5]
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                  style={{ left: '50%', bottom: '20%' }}
+                />
+              ))}
+
+              <div className="relative z-10">
+                <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/40">
+                  <Trophy size={48} className="text-white" />
+                </div>
+                <h2 className="text-5xl font-black italic uppercase tracking-tighter text-white mb-2">Vittoria Epica!</h2>
+                <p className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase mb-10">L'azienda è stata venduta con successo</p>
+
+                <div className="grid grid-cols-1 gap-4 mb-10">
+                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest text-left ml-2">Classifica Finale per Valutazione</p>
+                  {[...players].sort((a, b) => calculateValuation(b) - calculateValuation(a)).map((p, idx) => {
+                    const pVal = calculateValuation(p);
+                    const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
+                    const debt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+                    
+                    return (
+                      <motion.div 
+                        key={p.id}
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className={`flex flex-col md:flex-row items-center justify-between p-6 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-xl' : 'bg-white/5 border-white/10 opacity-60'}`}
+                      >
+                        <div className="flex items-center gap-4 mb-4 md:mb-0">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">
+                            {idx + 1}
+                          </div>
+                          <div className="text-left">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span className="font-black text-white uppercase text-lg">{p.name}</span>
+                              {idx === 0 && <Award size={18} className="text-yellow-400" />}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Equity: {p.equity?.toFixed(0)}%</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto">
+                          <div className="text-center md:text-right px-4 border-r border-white/5">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black">Cash</span>
+                            <span className="text-white font-mono font-bold">€{Number(p.cash).toLocaleString()}</span>
+                          </div>
+                          <div className="text-center md:text-right px-4 border-r border-white/5">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black">EBITDA (Annuale)</span>
+                            <span className={`font-mono font-bold ${ebitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{(ebitda * 12).toLocaleString()}</span>
+                          </div>
+                          <div className="text-center md:text-right px-4 border-r border-white/5">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black">Debiti</span>
+                            <span className="text-rose-400 font-mono font-bold">€{debt.toLocaleString()}</span>
+                          </div>
+                          <div className="text-center md:text-right px-4">
+                            <span className="block text-[8px] text-blue-400 uppercase font-black italic">Net Valuation</span>
+                            <span className="text-blue-400 font-mono font-black text-xl">€{pVal.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="px-12 py-5 bg-white text-slate-900 font-black uppercase rounded-2xl hover:bg-blue-400 hover:text-white transition-all shadow-xl"
+                >
+                  Nuova Scalata
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
@@ -236,6 +341,7 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
           })}
         </div>
       </div>
+
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
         {players.map((p) => {
