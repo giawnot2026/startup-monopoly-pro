@@ -64,7 +64,8 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     }
 
     if (tile.type === 'special') {
-      const isOpp = tile.name?.toLowerCase().includes("opportunità") || [3, 15, 22].includes(tile.id);
+      // AGGIORNATA LOGICA PER "PROBABILITÀ"
+      const isOpp = tile.name?.toLowerCase().includes("probabilità") || [3, 15, 22].includes(tile.id);
       const deck = isOpp ? OPPORTUNITA : IMPREVISTI;
       const event = deck[Math.floor(Math.random() * deck.length)];
       const impactDetails = [];
@@ -147,19 +148,11 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
     switch (tile.id) {
       case 0:
         const totalDebtAmount = (currentPlayer.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-        
         if (totalDebtAmount > 0) {
-          // Calcoliamo gli importi del turno corrente per il modale
-          // Nota: nel modale mostriamo i valori del debito residuo PRIMA del calcolo appena avvenuto
-          // o quelli calcolati durante il passaggio.
           const totalCapital = (currentPlayer.debts || []).reduce((acc, d) => acc + Number(d.capitalInstallment), 0);
           const totalInterest = (currentPlayer.debts || []).reduce((acc, d) => {
-             // L'interesse viene calcolato sul debito che c'era all'inizio del giro
-             // Poiché il debito è già stato aggiornato nel loop di movePlayer,
-             // ri-calcoliamo l'interesse basandoci sul debito corrente + quota appena tolta
              return acc + Math.round((Number(d.amount) + Number(d.capitalInstallment)) * Number(d.interestRate));
           }, 0);
-
           setModalConfig({
             isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
             description: `Rendicontazione annuale completata. Pagata quota capitale del debito: €${totalCapital.toLocaleString()} e relativa quota di interesse di €${totalInterest.toLocaleString()}`,
@@ -208,7 +201,6 @@ export default function GameBoard({ initialPlayers }: { initialPlayers: any[] })
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white">
-      {/* ... (Resto del componente GameBoard identico) */}
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
