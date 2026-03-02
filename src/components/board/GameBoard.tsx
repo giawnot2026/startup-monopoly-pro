@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
@@ -8,7 +8,7 @@ import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award } from 'lucide-react';
+import { Trophy, Award, Skull } from 'lucide-react';
 
 export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: { initialPlayers: any[], victoryTarget?: number }) {
   const { 
@@ -21,13 +21,28 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
+  // Controllo per notifica Bancarotta
+  useEffect(() => {
+    if (currentPlayer.isBankrupt && !modalConfig.isOpen && !gameWinner) {
+      setModalConfig({
+        isOpen: true,
+        type: 'danger_event',
+        title: "Default Finanziario",
+        description: `La startup di ${currentPlayer.name} è ufficialmente fallita. Il cash negativo e l'EBITDA non sono stati sufficienti a garantire la continuità operativa.`,
+        impact: { details: "Liquidazione forzata | Rimozione dalla board" },
+        actionLabel: "Continua Partita",
+        onAction: () => { handleCloseModal(); }
+      });
+    }
+  }, [currentPlayer.isBankrupt]);
+
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     nextTurn();
   }, [nextTurn]);
 
   const handleDiceRoll = () => {
-    if (modalConfig.isOpen || isRolling) return;
+    if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
     setIsRolling(true);
     let counter = 0;
     const shuffleInterval = setInterval(() => {
@@ -248,7 +263,6 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                         transition={{ delay: idx * 0.1 }}
                         className={`flex flex-col lg:flex-row items-center gap-4 p-5 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-white/5 border-white/10 opacity-70'}`}
                       >
-                        {/* Sezione Nome e Rank: Spazio flessibile per nomi lunghi */}
                         <div className="flex items-center gap-4 min-w-[200px] w-full lg:w-1/4">
                           <div className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">
                             {idx + 1}
@@ -262,8 +276,6 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                             <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
                           </div>
                         </div>
-
-                        {/* Sezione Statistiche: Grid adattabile che non rompe il layout con numeri lunghi */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
                           <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
                             <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Cash</span>
@@ -310,8 +322,12 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
           </div>
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
-          <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className="px-10 py-3 font-black rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono">
-            {isRolling ? "Lancio..." : "Lancia Dadi"}
+          <button 
+            onClick={handleDiceRoll} 
+            disabled={isRolling || modalConfig.isOpen || currentPlayer.isBankrupt} 
+            className="px-10 py-3 font-black rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono disabled:opacity-50"
+          >
+            {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : "Lancia Dadi")}
           </button>
         </div>
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
@@ -343,19 +359,35 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
           const pVal = calculateValuation(p) || 0;
           const founderPart = (pVal * (p.equity || 100)) / 100;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+          const isNegative = p.cash < 0;
+
           return (
-            <div key={p.id} className={`p-4 rounded-2xl border transition-all ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
+            <div 
+              key={p.id} 
+              className={`p-4 rounded-2xl border transition-all duration-500 
+                ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'} 
+                ${p.isBankrupt ? 'grayscale opacity-50 bg-rose-950/20 border-rose-900/50' : ''}
+                ${isNegative && !p.isBankrupt ? 'animate-pulse border-rose-500 bg-rose-500/10' : ''}`}
+            >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-                  <span className="text-white font-bold text-xs uppercase">{p.name}</span>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.isBankrupt ? '#555' : p.color }} />
+                  <span className={`font-bold text-xs uppercase ${p.isBankrupt ? 'text-rose-500 line-through' : 'text-white'}`}>
+                    {p.name}
+                  </span>
                 </div>
-                <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(1) || 100}% EQ</span>
+                {p.isBankrupt ? (
+                   <span className="flex items-center gap-1 text-[8px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30">
+                    <Skull size={10} /> BANCAROTTA
+                   </span>
+                ) : (
+                  <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(1) || 100}% EQ</span>
+                )}
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
-                  <span className="text-white font-black">€{Number(p.cash).toLocaleString()}</span>
+                  <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(Number(p.cash)).toLocaleString()}</span>
                 </div>
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
