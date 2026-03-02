@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useCallback } from 'react';
-import { useGameLogic, ExtendedPlayer } from '@/hooks/useGameLogic';
+import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
 import { TILES } from '@/data/tiles';
@@ -8,7 +8,7 @@ import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, TrendingUp, DollarSign, Briefcase, Award } from 'lucide-react';
+import { Trophy, Award } from 'lucide-react';
 
 export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: { initialPlayers: any[], victoryTarget?: number }) {
   const { 
@@ -52,17 +52,20 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
     
     if (tile.id === 27) {
       const currentVal = calculateValuation(currentPlayer);
-      // Calcoliamo quanto incassa il founder in base alla sua equity attuale
-  const founderExitValue = (currentVal * currentPlayer.equity)
+      // NUOVA LOGICA: Il target viene verificato sulla quota del founder (Valutazione * Equity / 100)
+      const founderExitValue = (currentVal * (currentPlayer.equity || 100)) / 100;
       const canExit = founderExitValue >= victoryTarget && currentPlayer.equity > 0;
-    
+
       setModalConfig({
-        isOpen: true, type: canExit ? 'success' : 'danger',
+        isOpen: true, 
+        type: canExit ? 'success' : 'danger',
         title: "Tavolo delle Trattative Exit",
         description: canExit 
-          ? `Complimenti! Hai raggiunto il target di €${victoryTarget.toLocaleString()}. Vuoi vendere ora?` 
-          : `Ancora presto per la Exit! Il target è €${victoryTarget.toLocaleString()}.`,
-        impact: { details: `Valutazione attuale: €${currentVal.toLocaleString()} | Tua Quota (${currentPlayer.equity.toFixed(1)}%): €${founderExitValue.toLocaleString()}`` },
+          ? `Complimenti! La tua quota del ${currentPlayer.equity.toFixed(1)}% vale €${founderExitValue.toLocaleString()}, superando il tuo obiettivo personale di €${victoryTarget.toLocaleString()}.` 
+          : `Non puoi ancora vendere. La tua quota vale €${founderExitValue.toLocaleString()}, ma il tuo obiettivo di incasso personale è €${victoryTarget.toLocaleString()}.`,
+        impact: { 
+          details: `Valutazione Aziendale: €${currentVal.toLocaleString()} | Tua Quota (${currentPlayer.equity.toFixed(1)}%): €${founderExitValue.toLocaleString()}` 
+        },
         actionLabel: canExit ? "Vendi e Vinci" : "Rifiuta e continua",
         onAction: () => { if(canExit) attemptExit(); handleCloseModal(); },
         onClose: handleCloseModal
@@ -219,35 +222,24 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
             <motion.div 
               initial={{ scale: 0.8, y: 50 }}
               animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-4xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-10 shadow-[0_0_50px_rgba(59,130,246,0.2)] text-center relative overflow-hidden"
+              className="w-full max-w-4xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-10 shadow-[0_0_50px_rgba(59,130,246,0.2)] text-center relative"
             >
-              {/* Fuochi d'artificio simulati con framer-motion */}
-              {[...Array(6)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-                  animate={{
-                    y: [-20, -200],
-                    x: [0, (i - 3) * 100],
-                    opacity: [1, 0],
-                    scale: [1, 5]
-                  }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
-                  style={{ left: '50%', bottom: '20%' }}
-                />
-              ))}
-
               <div className="relative z-10">
-                <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/40">
+                <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
                   <Trophy size={48} className="text-white" />
                 </div>
                 <h2 className="text-5xl font-black italic uppercase tracking-tighter text-white mb-2">Vittoria Epica!</h2>
-                <p className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase mb-10">L'azienda è stata venduta con successo</p>
+                <p className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase mb-10">Exit completata con successo</p>
 
                 <div className="grid grid-cols-1 gap-4 mb-10">
-                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest text-left ml-2">Classifica Finale per Valutazione</p>
-                  {[...players].sort((a, b) => calculateValuation(b) - calculateValuation(a)).map((p, idx) => {
-                    const pVal = calculateValuation(p);
+                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest text-left ml-2">Classifica Finale (Valore Incassato dai Founder)</p>
+                  {[...players].sort((a, b) => {
+                    const valA = (calculateValuation(a) * (a.equity || 100)) / 100;
+                    const valB = (calculateValuation(b) * (b.equity || 100)) / 100;
+                    return valB - valA;
+                  }).map((p, idx) => {
+                    const totalVal = calculateValuation(p);
+                    const founderIncasso = (totalVal * (p.equity || 100)) / 100;
                     const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
                     const debt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
                     
@@ -257,7 +249,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: idx * 0.1 }}
-                        className={`flex flex-col md:flex-row items-center justify-between p-6 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-xl' : 'bg-white/5 border-white/10 opacity-60'}`}
+                        className={`flex flex-col md:flex-row items-center justify-between p-6 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500' : 'bg-white/5 border-white/10 opacity-60'}`}
                       >
                         <div className="flex items-center gap-4 mb-4 md:mb-0">
                           <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">
@@ -269,7 +261,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                               <span className="font-black text-white uppercase text-lg">{p.name}</span>
                               {idx === 0 && <Award size={18} className="text-yellow-400" />}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Equity: {p.equity?.toFixed(0)}%</span>
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Quota finale: {p.equity?.toFixed(1)}%</span>
                           </div>
                         </div>
 
@@ -283,12 +275,12 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                             <span className={`font-mono font-bold ${ebitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{(ebitda * 12).toLocaleString()}</span>
                           </div>
                           <div className="text-center md:text-right px-4 border-r border-white/5">
-                            <span className="block text-[8px] text-slate-500 uppercase font-black">Debiti</span>
+                            <span className="block text-[8px] text-slate-500 uppercase font-black">Debiti Totali</span>
                             <span className="text-rose-400 font-mono font-bold">€{debt.toLocaleString()}</span>
                           </div>
                           <div className="text-center md:text-right px-4">
-                            <span className="block text-[8px] text-blue-400 uppercase font-black italic">Net Valuation</span>
-                            <span className="text-blue-400 font-mono font-black text-xl">€{pVal.toLocaleString()}</span>
+                            <span className="block text-[8px] text-blue-400 uppercase font-black italic">Net Founder Exit</span>
+                            <span className="text-blue-400 font-mono font-black text-xl">€{founderIncasso.toLocaleString()}</span>
                           </div>
                         </div>
                       </motion.div>
@@ -318,7 +310,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
             {diceValue || '?'}
           </div>
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
-          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Valuation</span>
+          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
           <button onClick={handleDiceRoll} disabled={isRolling || modalConfig.isOpen} className="px-10 py-3 font-black rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono">
             {isRolling ? "Lancio..." : "Lancia Dadi"}
           </button>
@@ -350,6 +342,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
           const isTurn = p.id === currentPlayer.id;
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
+          const founderPart = (pVal * (p.equity || 100)) / 100;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
@@ -358,7 +351,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                   <span className="text-white font-bold text-xs uppercase">{p.name}</span>
                 </div>
-                <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(0) || 100}% EQ</span>
+                <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(1) || 100}% EQ</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
@@ -370,15 +363,21 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                   <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
                 <div className="bg-black/30 p-2 rounded-lg text-center">
-                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debts</span>
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
                   <span className={`font-black ${totalDebt > 0 ? 'text-rose-400' : 'text-amber-400'}`}>
-                    {totalDebt > 0 ? `€${totalDebt.toLocaleString()}` : 'NONE'}
+                    {totalDebt > 0 ? `€${totalDebt.toLocaleString()}` : '0'}
                   </span>
                 </div>
               </div>
-              <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
-                <span className="text-slate-500 uppercase font-black text-[7px]">Net Valuation</span>
-                <span className="text-blue-400 font-black text-xs italic">€{pVal.toLocaleString()}</span>
+              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 uppercase font-black text-[7px]">Company Val.</span>
+                  <span className="text-white font-black text-[10px]">€{pVal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
+                  <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
+                </div>
               </div>
             </div>
           );
