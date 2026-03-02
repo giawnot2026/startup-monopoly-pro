@@ -78,7 +78,6 @@ export default function ActionModal({
 
   if (badges && nextToBuy) {
     const nextCost = Number(badges[nextToBuy as keyof typeof badges].cost);
-    // FIX: Il confronto ora è puramente numerico per evitare l'errore 100k vs 10k
     canAfford = userCash >= nextCost;
     
     if (!canAfford) {
@@ -86,7 +85,6 @@ export default function ActionModal({
     }
   }
 
-  // Gestisce il click: se non ha soldi, il tasto chiude la modale invece di comprare
   const handleMainAction = () => {
     if (badges && nextToBuy && !canAfford) {
       if (onClose) onClose();
@@ -100,6 +98,8 @@ export default function ActionModal({
     { id: 'silver', label: 'ARGENTO', cost: badges.silver.cost, owned: badges.silver.owned },
     { id: 'gold', label: 'ORO', cost: badges.gold.cost, owned: badges.gold.owned },
   ] : [];
+
+  const isInsufficientFunds = !canAfford && nextToBuy;
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/80">
@@ -138,7 +138,7 @@ export default function ActionModal({
             </div>
           )}
 
-          {/* Sezione Badges con stili originali */}
+          {/* Sezione Badges */}
           {badges && (
             <div className="mb-8">
               <div className="grid grid-cols-3 gap-4 mb-6">
@@ -181,12 +181,13 @@ export default function ActionModal({
           <div className="flex flex-col gap-4 mt-4">
             <button
               onClick={handleMainAction}
-              className={`w-full py-5 ${(!canAfford && nextToBuy) ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}
+              className={`w-full py-5 ${isInsufficientFunds ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}
             >
               {finalActionLabel}
             </button>
             
-            {secondaryActionLabel && (
+            {/* Mostra il tasto secondario solo se i fondi sono sufficienti o se non stiamo gestendo un acquisto badge */}
+            {secondaryActionLabel && !isInsufficientFunds && (
               <button
                 onClick={onClose}
                 className="w-full py-4 bg-white/5 text-slate-500 font-black rounded-[1.5rem] hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em] text-[11px]"
