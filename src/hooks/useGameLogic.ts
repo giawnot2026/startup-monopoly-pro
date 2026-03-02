@@ -23,7 +23,7 @@ export interface ExtendedPlayer extends PlayerState {
   lastLoanRepaidAmount?: number;
 }
 
-export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
+export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: number = 20000000) => {
   const [players, setPlayers] = useState<ExtendedPlayer[]>(
     initialPlayers.map((p, i) => ({
       id: i,
@@ -52,13 +52,10 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
     const cash = Number(p.cash) || 0;
-    
     const monthlyEbitda = mrr - costs;
     const annualEbitda = monthlyEbitda * 12;
-    
     const operationalValue = annualEbitda > 0 ? annualEbitda * 10 : 0;
     const total = operationalValue + cash;
-    
     return !isNaN(total) ? total : 0;
   }, []);
 
@@ -107,24 +104,14 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
           let updatedDebts = [...p.debts];
           let newMonthlyCosts = Number(p.monthlyCosts);
 
-          // LOGICA PASSAGGIO DAL VIA / CHIUSURA ANNO FISCALE
           if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
             updatedLaps += 1;
-
             updatedDebts = updatedDebts.map(debt => {
-              // 1. Calcolo interesse sul debito residuo
               const annualInterest = Math.round(Number(debt.amount) * Number(debt.interestRate));
-              
-              // 2. Quota Capitale
               const capitalRepayment = Number(debt.capitalInstallment);
-              
-              // 3. FIX: Al cash viene sottratta SOLO la quota capitale
               updatedCash -= capitalRepayment;
               totalRepaidThisTurn += capitalRepayment;
-
-              // 4. L'interesse viene imputato come costo operativo all'EBITDA
               newMonthlyCosts += annualInterest; 
-
               return { 
                 ...debt, 
                 amount: Math.max(0, Number(debt.amount) - capitalRepayment),
@@ -153,7 +140,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
         if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
         return p;
       });
-      
       checkGameStatus(newState);
       return newState;
     });
@@ -198,7 +184,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
     const tile = TILES[tileId];
     if (!tile.badges) return false;
     let success = false;
-    
     setPlayers(prev => prev.map((p, idx) => {
       if (idx !== currentPlayerIndex) return p;
       const asset = p.assets.find(a => a.tileId === tileId);
@@ -240,12 +225,13 @@ export const useGameLogic = (initialPlayers: InitialPlayer[]) => {
   }, [currentPlayerIndex]);
 
   const attemptExit = useCallback(() => {
-    if (currentPlayer.equity > 0 && calculateValuation(currentPlayer) >= 1000000) {
+    const currentVal = calculateValuation(currentPlayer);
+    if (currentPlayer.equity > 0 && currentVal >= victoryTarget) {
       setGameWinner(currentPlayer);
       return true;
     }
     return false;
-  }, [currentPlayer, calculateValuation]);
+  }, [currentPlayer, calculateValuation, victoryTarget]);
 
   return { 
     players, currentPlayer, valuation, movePlayer, applyFunding, 
