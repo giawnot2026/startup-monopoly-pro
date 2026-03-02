@@ -6,9 +6,9 @@ import { Rocket, Play, Plus, Trash2, HelpCircle, X, BookOpen, Target } from 'luc
 
 const AVAILABLE_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 const VICTORY_TARGETS = [
+  { label: '5 Milioni', value: 5000000 },
   { label: '20 Milioni', value: 20000000 },
-  { label: '50 Milioni', value: 50000000 },
-  { label: '100 Milioni', value: 100000000 }
+  { label: '50 Milioni', value: 50000000 }
 ];
 
 export default function Home() {
