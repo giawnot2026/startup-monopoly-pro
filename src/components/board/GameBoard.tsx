@@ -14,27 +14,13 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
   const { 
     players, currentPlayer, valuation, 
     movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
-    gameWinner, attemptExit, calculateValuation
+    gameWinner, attemptExit, calculateValuation,
+    eliminatedPlayerName, setEliminatedPlayerName
   } = useGameLogic(initialPlayers, victoryTarget);
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
-
-  // Controllo per notifica Bancarotta
-  useEffect(() => {
-    if (currentPlayer.isBankrupt && !modalConfig.isOpen && !gameWinner) {
-      setModalConfig({
-        isOpen: true,
-        type: 'danger_event',
-        title: "Default Finanziario",
-        description: `La startup di ${currentPlayer.name} è ufficialmente fallita. Il cash negativo e l'EBITDA non sono stati sufficienti a garantire la continuità operativa.`,
-        impact: { details: "Liquidazione forzata | Rimozione dalla board" },
-        actionLabel: "Continua Partita",
-        onAction: () => { handleCloseModal(); }
-      });
-    }
-  }, [currentPlayer.isBankrupt]);
 
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
@@ -415,6 +401,41 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
         })}
       </div>
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
+
+      {/* POPUP BANCAROTTA GLOBALE - Appare solo quando un giocatore fallisce */}
+      <AnimatePresence>
+        {eliminatedPlayerName && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center shadow-[0_0_50px_rgba(239,68,68,0.3)]"
+            >
+              <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Skull size={32} className="text-white" />
+              </div>
+              <div className="text-red-500 text-5xl mb-2 font-black italic tracking-tighter uppercase">Default</div>
+              <h2 className="text-xl text-white font-bold mb-3 uppercase tracking-widest">
+                {eliminatedPlayerName} eliminato
+              </h2>
+              <p className="text-red-200/60 text-[11px] font-mono mb-8 leading-relaxed uppercase">
+                La startup ha esaurito la liquidità operativa. L'EBITDA non è stato sufficiente a coprire il rosso in cassa. Asset liquidati.
+              </p>
+              <button 
+                onClick={() => setEliminatedPlayerName(null)}
+                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest transition-all text-[10px] shadow-xl shadow-red-900/20"
+              >
+                Continua Partita
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
