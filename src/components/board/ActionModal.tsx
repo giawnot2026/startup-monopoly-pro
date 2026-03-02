@@ -56,7 +56,8 @@ export default function ActionModal({
   if (!isOpen) return null;
 
   const configs = {
-    opportunity: { bg: 'bg-emerald-950/98', border: 'border-emerald-500', text: 'text-emerald-400', accent: 'bg-emerald-500', label: 'OPPORTUNITÀ' },
+    // CAMBIATA LABEL DA OPPORTUNITÀ A PROBABILITÀ
+    opportunity: { bg: 'bg-emerald-950/98', border: 'border-emerald-500', text: 'text-emerald-400', accent: 'bg-emerald-500', label: 'PROBABILITÀ' },
     danger_event: { bg: 'bg-rose-950/98', border: 'border-rose-500', text: 'text-rose-400', accent: 'bg-rose-500', label: 'IMPREVISTO' },
     success: { bg: 'bg-slate-950/98', border: 'border-blue-600', text: 'text-blue-400', accent: 'bg-blue-600', label: 'INVESTIMENTO' },
     danger: { bg: 'bg-slate-900/98', border: 'border-red-500', text: 'text-red-400', accent: 'bg-red-500', label: 'ATTENZIONE' },
@@ -65,7 +66,6 @@ export default function ActionModal({
 
   const config = configs[type] || configs.info;
 
-  // --- LOGICA DI CONTROLLO CASH ---
   let finalActionLabel = actionLabel;
   let canAfford = true;
   const userCash = Number(currentPlayerCash);
@@ -79,7 +79,6 @@ export default function ActionModal({
   if (badges && nextToBuy) {
     const nextCost = Number(badges[nextToBuy as keyof typeof badges].cost);
     canAfford = userCash >= nextCost;
-    
     if (!canAfford) {
       finalActionLabel = "Fondi Insufficienti - Chiudi";
     }
@@ -104,8 +103,6 @@ export default function ActionModal({
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/80">
       <div className={`${config.bg} ${config.border} border-2 w-full max-w-xl rounded-[2.5rem] p-8 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
-        
-        {/* Badge Etichetta Superiore */}
         <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2 rounded-b-2xl shadow-lg z-10`}>
           <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">{config.label}</span>
         </div>
@@ -138,7 +135,6 @@ export default function ActionModal({
             </div>
           )}
 
-          {/* Sezione Badges */}
           {badges && (
             <div className="mb-8">
               <div className="grid grid-cols-3 gap-4 mb-6">
@@ -146,16 +142,7 @@ export default function ActionModal({
                   const isAvailable = b.id === nextToBuy;
                   const isActive = b.owned || isAvailable;
                   return (
-                    <div 
-                      key={b.id} 
-                      className={`relative p-5 rounded-[2.2rem] border-2 flex flex-col items-center justify-center transition-all duration-500 ${
-                        b.owned 
-                          ? 'bg-blue-600/10 border-blue-500/50 opacity-100 shadow-[0_0_15px_rgba(59,130,246,0.2)]' 
-                          : isAvailable 
-                            ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.4)] scale-105 z-10 ring-2 ring-blue-400/20' 
-                            : 'bg-slate-900/40 border-white/5 opacity-20 grayscale'
-                      }`}
-                    >
+                    <div key={b.id} className={`relative p-5 rounded-[2.2rem] border-2 flex flex-col items-center justify-center transition-all duration-500 ${b.owned ? 'bg-blue-600/10 border-blue-500/50 opacity-100 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : isAvailable ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_30px_rgba(37,99,235,0.4)] scale-105 z-10 ring-2 ring-blue-400/20' : 'bg-slate-900/40 border-white/5 opacity-20 grayscale'}`}>
                       <div className="mb-4">
                         <BadgeShape level={b.id} active={isActive} />
                       </div>
@@ -167,7 +154,6 @@ export default function ActionModal({
                   );
                 })}
               </div>
-
               {badgeCta && (
                 <div className="bg-blue-500/10 py-2.5 px-8 rounded-full inline-block border border-blue-500/20">
                   <p className="text-blue-400 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
@@ -179,19 +165,11 @@ export default function ActionModal({
           )}
 
           <div className="flex flex-col gap-4 mt-4">
-            <button
-              onClick={handleMainAction}
-              className={`w-full py-5 ${isInsufficientFunds ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}
-            >
+            <button onClick={handleMainAction} className={`w-full py-5 ${isInsufficientFunds ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}>
               {finalActionLabel}
             </button>
-            
-            {/* Mostra il tasto secondario solo se i fondi sono sufficienti o se non stiamo gestendo un acquisto badge */}
             {secondaryActionLabel && !isInsufficientFunds && (
-              <button
-                onClick={onClose}
-                className="w-full py-4 bg-white/5 text-slate-500 font-black rounded-[1.5rem] hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em] text-[11px]"
-              >
+              <button onClick={onClose} className="w-full py-4 bg-white/5 text-slate-500 font-black rounded-[1.5rem] hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em] text-[11px]">
                 {secondaryActionLabel}
               </button>
             )}
