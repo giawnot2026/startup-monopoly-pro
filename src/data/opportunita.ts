@@ -1,31 +1,7 @@
 export const OPPORTUNITA = [
   // --- 25 EVENTI POSITIVI (Incremento Cash) ---
   { id: 1, title: "Bando Digitalizzazione", cashEffect: 20000, insight: "I finanziamenti a fondo perduto sono il modo migliore per estendere il runway senza diluizione." },
-  { id: 2, title: "Investimento Business Angel", cashEffect: 40000, insight: "Gli angeli investono spesso nelle fasi iniziali basandosi sulla fiducia nel team." },
-  { id: 3, title: "Rimborso Fiscale R&D", cashEffect: 15000, insight: "Recuperare i costi della ricerca e sviluppo è un pilastro della strategia finanziaria tech." },
-  { id: 4, title: "Vincita Startup Competition", cashEffect: 10000, insight: "Oltre al cash, queste vittorie portano visibilità e validazione dal mercato." },
-  { id: 5, title: "Round Seed Chiuso", cashEffect: 60000, insight: "Un round seed permette di passare dal prototipo a un prodotto pronto per il mercato." },
-  { id: 6, title: "Incentivo Occupazione", cashEffect: 12000, insight: "Molte regioni offrono bonus cash per l'assunzione di profili tecnici under 35." },
-  { id: 7, title: "Liquidità Extra da Convertibile", cashEffect: 25000, insight: "I SAFE o i convertibili sono strumenti veloci per raccogliere cash senza fissare subito una valutazione." },
-  { id: 8, title: "Bonus Innovazione Green", cashEffect: 18000, insight: "La transizione ecologica offre enormi opportunità di finanziamento pubblico." },
-  { id: 9, title: "Cessione Asset Non Core", cashEffect: 14000, insight: "Vendere rami d'azienda non strategici è un ottimo modo per fare cassa rapidamente." },
-  { id: 10, title: "Vittoria Bando Europeo", cashEffect: 50000, insight: "L'Europa finanzia l'innovazione 'deep tech' con grant molto generosi." },
-  { id: 11, title: "Anticipo Crediti IVA", cashEffect: 9000, insight: "Sbloccare i crediti verso lo stato migliora immediatamente il cash flow." },
-  { id: 12, title: "Donazione Corporate Foundation", cashEffect: 7000, insight: "Le fondazioni d'impresa spesso supportano startup con impatto sociale." },
-  { id: 13, title: "Prestito Agevolato Statale", cashEffect: 35000, insight: "I prestiti garantiti dallo stato hanno tassi molto inferiori a quelli di mercato." },
-  { id: 14, title: "Sponsorship Evento Tech", cashEffect: 5000, insight: "Le partnership commerciali possono coprire i costi vivi di marketing." },
-  { id: 15, title: "Voucher Internazionalizzazione", cashEffect: 11000, insight: "Fondi dedicati per coprire le spese di espansione in mercati esteri." },
-  { id: 16, title: "Bonus Cloud Credits", cashEffect: 8000, insight: "Risparmiare sui costi infrastrutturali equivale a un'iniezione di cash fresco." },
-  { id: 17, title: "Equity Crowdfunding", cashEffect: 45000, insight: "Il crowdfunding permette di raccogliere capitali da centinaia di piccoli investitori." },
-  { id: 18, title: "Partnership Distribuzione", cashEffect: 13000, insight: "Un accordo di distribuzione può includere un pagamento anticipato (upfront)." },
-  { id: 19, title: "Vincita Grant Universitario", cashEffect: 6000, insight: "La collaborazione con la ricerca accademica apre canali di funding agevolato." },
-  { id: 20, title: "Exit Parziale Co-founder", cashEffect: 20000, insight: "Vendere una piccola quota a un investitore entrante genera liquidità immediata." },
-  { id: 21, title: "Bonus Transizione 4.0", cashEffect: 22000, insight: "Gli investimenti in software avanzato godono di forti incentivi in cassa." },
-  { id: 22, title: "Fondo Perduto Startup Innovative", cashEffect: 17000, insight: "Essere iscritti al registro delle startup innovative dà accesso a bandi riservati." },
-  { id: 23, title: "Premio per l'Imprenditoria", cashEffect: 5000, insight: "I premi in denaro sono piccoli ma non richiedono nessuna restituzione o equity." },
-  { id: 24, title: "Interessi su Deposito", cashEffect: 3000, insight: "Se la cassa è alta, anche un piccolo rendimento contribuisce al runway." },
-  { id: 25, title: "Cash-back su Investimenti", cashEffect: 10000, insight: "Alcuni fornitori offrono rimborsi per partnership di lungo periodo." },
-
+ 
   // --- 25 EVENTI NEGATIVI (Decremento Cash) ---
   { id: 26, title: "Multa GDPR", cashEffect: -50000, insight: "La non conformità sui dati può costare molto cara in termini di sanzioni immediate." },
   { id: 27, title: "Spese Legali Impreviste", cashEffect: -50000, insight: "Le dispute su IP o contratti richiedono avvocati costosi e pagamenti rapidi." },
