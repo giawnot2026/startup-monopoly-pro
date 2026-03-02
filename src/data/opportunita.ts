@@ -1,4 +1,5 @@
- // --- 25 EVENTI POSITIVI (Incremento Cash) ---
+export const OPPORTUNITA = [
+// --- 25 EVENTI POSITIVI (Incremento Cash) ---
   { id: 1, title: "Bando Digitalizzazione", cashEffect: 20000, insight: "I finanziamenti a fondo perduto sono il modo migliore per estendere il runway senza diluizione." },
   { id: 2, title: "Rimanenze Vendute", cashEffect: 15000, insight: "Liberare il magazzino trasforma asset improduttivi in liquidità immediata." },
   { id: 3, title: "Rimborso Fiscale IVA", cashEffect: 30000, insight: "I crediti d'imposta sono una boccata d'ossigeno per il cash flow operativo." },
