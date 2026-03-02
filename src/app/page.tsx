@@ -1,14 +1,20 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import GameBoard from '@/components/board/GameBoard';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rocket, Play, Plus, Trash2, HelpCircle, X, BookOpen } from 'lucide-react';
+import { Rocket, Play, Plus, Trash2, HelpCircle, X, BookOpen, Target } from 'lucide-react';
 
 const AVAILABLE_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
+const VICTORY_TARGETS = [
+  { label: '20 Milioni', value: 20000000 },
+  { label: '50 Milioni', value: 50000000 },
+  { label: '100 Milioni', value: 100000000 }
+];
 
 export default function Home() {
   const [gameStarted, setGameStarted] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [victoryTarget, setVictoryTarget] = useState(20000000); // Default 20M
   const [players, setPlayers] = useState([
     { name: "Founder 1", color: "#3b82f6" },
     { name: "Founder 2", color: "#ef4444" }
@@ -37,8 +43,7 @@ export default function Home() {
 
   if (!gameStarted) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        {/* Luci di background */}
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white">
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-900/20 blur-[120px] rounded-full" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/20 blur-[120px] rounded-full" />
@@ -49,7 +54,6 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="relative z-10 w-full max-w-xl bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl"
         >
-          {/* Header & Regole */}
           <div className="flex justify-between items-start mb-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -67,8 +71,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Lista Giocatori */}
-          <div className="space-y-4 mb-10">
+          <div className="space-y-4 mb-8">
             <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest ml-1">Configura i Founder</p>
             <AnimatePresence>
               {players.map((player, index) => (
@@ -115,6 +118,26 @@ export default function Home() {
             )}
           </div>
 
+          {/* BOX TARGET VALUTAZIONE */}
+          <div className="mb-10">
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest ml-1 mb-4">Valutazione Target per Vincere</p>
+            <div className="grid grid-cols-3 gap-3">
+              {VICTORY_TARGETS.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setVictoryTarget(t.value)}
+                  className={`py-3 px-2 rounded-2xl border text-xs font-black transition-all ${
+                    victoryTarget === t.value 
+                    ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' 
+                    : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             onClick={() => setGameStarted(true)}
             className="w-full group relative flex items-center justify-center gap-3 py-6 bg-blue-600 text-white font-black text-lg uppercase rounded-2xl transition-all hover:bg-blue-500 shadow-xl"
@@ -124,7 +147,7 @@ export default function Home() {
           </button>
         </motion.div>
 
-        {/* Modal Regole */}
+        {/* Modal Regole (Invariato) */}
         <AnimatePresence>
           {showRules && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
@@ -138,11 +161,10 @@ export default function Home() {
                 <div className="flex items-center gap-3 text-blue-400 mb-6 font-black uppercase tracking-widest text-sm">
                   <BookOpen size={20} /> Regolamento
                 </div>
-                <div className="space-y-4 text-slate-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
-                  <p><strong className="text-white">Obiettivo:</strong> Raggiungere la valutazione più alta investendo in asset tecnologici.</p>
+                <div className="space-y-4 text-slate-300 text-sm leading-relaxed max-h-[60vh] overflow-y-auto pr-2 text-white">
+                  <p><strong className="text-white">Obiettivo:</strong> Raggiungere la valutazione target selezionata e atterrare sulla casella EXIT per vendere l'azienda.</p>
                   <p><strong className="text-white">Valuation:</strong> Calcolata come (EBITDA * 12 * 10) + Cassa Liquida.</p>
-                  <p><strong className="text-white">Badge:</strong> Acquistare badge permette di riscuotere pedaggi (commissioni) dagli altri founder che atterrano sulla tua casella.</p>
-                  <p><strong className="text-white">Quarterly Review:</strong> Ogni volta che passi dal "Via", incassi il profitto trimestrale (MRR - Costi) x 3.</p>
+                  <p><strong className="text-white">Quarterly Review:</strong> Ogni volta che passi dal "Via", incassi i profitti e paghi le rate dei debiti.</p>
                 </div>
               </motion.div>
             </div>
@@ -154,7 +176,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-950 py-10 flex items-center justify-center">
-      <GameBoard initialPlayers={players} />
+      <GameBoard initialPlayers={players} victoryTarget={victoryTarget} />
     </main>
   );
 }
