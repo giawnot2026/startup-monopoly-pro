@@ -226,12 +226,15 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
   const attemptExit = useCallback(() => {
     const currentVal = calculateValuation(currentPlayer);
-    if (currentPlayer.equity > 0 && currentVal >= victoryTarget) {
-      setGameWinner(currentPlayer);
-      return true;
-    }
-    return false;
-  }, [currentPlayer, calculateValuation, victoryTarget]);
+    // CALCOLO EXIT: (Valutazione * Percentuale Equity) / 100
+  const founderExitValue = (currentVal * currentPlayer.equity);
+
+  if (currentPlayer.equity > 0 && founderExitValue >= victoryTarget) {
+    setGameWinner(currentPlayer);
+    return true;
+  }
+  return false;
+}, [currentPlayer, calculateValuation, victoryTarget]);
 
   return { 
     players, currentPlayer, valuation, movePlayer, applyFunding, 
