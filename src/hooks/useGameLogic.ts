@@ -69,17 +69,32 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   }, []);
 
   const nextTurn = useCallback(() => {
-    setPlayers(prev => prev.map((p, idx) => 
-      idx === currentPlayerIndex ? { ...p, lastLoanRepaidAmount: undefined } : p
-    ));
-    let nextIndex = (currentPlayerIndex + 1) % players.length;
+    let playersState = [...players];
+    const p = playersState[currentPlayerIndex];
+    const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
+
+    // LOGICA BANCAROTTA: Se Cash < 0 e EBITDA non copre il debito (Cash + EBITDA < 0)
+    if (p.cash < 0 && (p.cash + ebitda) < 0 && !p.isBankrupt) {
+      playersState = playersState.map((player, idx) => 
+        idx === currentPlayerIndex ? { ...player, isBankrupt: true, cash: 0, mrr: 0, assets: [] } : player
+      );
+      setPlayers(playersState);
+      checkGameStatus(playersState);
+    } else {
+      setPlayers(prev => prev.map((player, idx) => 
+        idx === currentPlayerIndex ? { ...player, lastLoanRepaidAmount: undefined } : player
+      ));
+    }
+
+    // Calcolo prossimo indice saltando i bancarotta
+    let nextIndex = (currentPlayerIndex + 1) % playersState.length;
     let attempts = 0;
-    while (players[nextIndex].isBankrupt && attempts < players.length) {
-      nextIndex = (nextIndex + 1) % players.length;
+    while (playersState[nextIndex].isBankrupt && attempts < playersState.length) {
+      nextIndex = (nextIndex + 1) % playersState.length;
       attempts++;
     }
     setCurrentPlayerIndex(nextIndex);
-  }, [players, currentPlayerIndex]);
+  }, [players, currentPlayerIndex, checkGameStatus]);
 
   const movePlayer = useCallback((steps: number) => {
     const nextPos = (currentPlayer.position + steps) % TILES.length;
@@ -133,18 +148,16 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
             monthlyCosts: Math.max(0, newMonthlyCosts + costMod),
             laps: updatedLaps,
             debts: updatedDebts,
-            isBankrupt: (updatedCash + cashMod < -50000 && updatedLaps >= 3),
             lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
           };
         }
         if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
         return p;
       });
-      checkGameStatus(newState);
       return newState;
     });
     return tile;
-  }, [currentPlayerIndex, currentPlayer.position, checkGameStatus]);
+  }, [currentPlayerIndex, currentPlayer.position]);
 
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
@@ -226,15 +239,14 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
   const attemptExit = useCallback(() => {
     const currentVal = calculateValuation(currentPlayer);
-    // CALCOLO EXIT: (Valutazione * Percentuale Equity) / 100
-  const founderExitValue = (currentVal * currentPlayer.equity);
+    const founderExitValue = (currentVal * currentPlayer.equity) / 100;
 
-  if (currentPlayer.equity > 0 && founderExitValue >= victoryTarget) {
-    setGameWinner(currentPlayer);
-    return true;
-  }
-  return false;
-}, [currentPlayer, calculateValuation, victoryTarget]);
+    if (currentPlayer.equity > 0 && founderExitValue >= victoryTarget) {
+      setGameWinner(currentPlayer);
+      return true;
+    }
+    return false;
+  }, [currentPlayer, calculateValuation, victoryTarget]);
 
   return { 
     players, currentPlayer, valuation, movePlayer, applyFunding, 
