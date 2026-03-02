@@ -52,7 +52,6 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
     
     if (tile.id === 27) {
       const currentVal = calculateValuation(currentPlayer);
-      // NUOVA LOGICA: Il target viene verificato sulla quota del founder (Valutazione * Equity / 100)
       const founderExitValue = (currentVal * (currentPlayer.equity || 100)) / 100;
       const canExit = founderExitValue >= victoryTarget && currentPlayer.equity > 0;
 
@@ -211,28 +210,26 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
       
-      {/* SCHERMATA DI VITTORIA */}
       <AnimatePresence>
         {gameWinner && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6 overflow-y-auto"
+            className="fixed inset-0 z-[300] bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto"
           >
             <motion.div 
-              initial={{ scale: 0.8, y: 50 }}
+              initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-4xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-10 shadow-[0_0_50px_rgba(59,130,246,0.2)] text-center relative"
+              className="w-full max-w-6xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-6 md:p-10 shadow-2xl text-center relative"
             >
               <div className="relative z-10">
-                <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                  <Trophy size={48} className="text-white" />
+                <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <Trophy size={40} className="text-white" />
                 </div>
-                <h2 className="text-5xl font-black italic uppercase tracking-tighter text-white mb-2">Vittoria Epica!</h2>
-                <p className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase mb-10">Exit completata con successo</p>
+                <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter text-white mb-1">Vittoria Epica!</h2>
+                <p className="text-blue-400 font-mono text-[10px] tracking-[0.3em] uppercase mb-8">Exit completata con successo</p>
 
-                <div className="grid grid-cols-1 gap-4 mb-10">
-                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest text-left ml-2">Classifica Finale (Valore Incassato dai Founder)</p>
+                <div className="space-y-3 mb-10 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
                   {[...players].sort((a, b) => {
                     const valA = (calculateValuation(a) * (a.equity || 100)) / 100;
                     const valB = (calculateValuation(b) * (b.equity || 100)) / 100;
@@ -249,38 +246,40 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: idx * 0.1 }}
-                        className={`flex flex-col md:flex-row items-center justify-between p-6 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500' : 'bg-white/5 border-white/10 opacity-60'}`}
+                        className={`flex flex-col lg:flex-row items-center gap-4 p-5 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-white/5 border-white/10 opacity-70'}`}
                       >
-                        <div className="flex items-center gap-4 mb-4 md:mb-0">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">
+                        {/* Sezione Nome e Rank: Spazio flessibile per nomi lunghi */}
+                        <div className="flex items-center gap-4 min-w-[200px] w-full lg:w-1/4">
+                          <div className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">
                             {idx + 1}
                           </div>
-                          <div className="text-left">
+                          <div className="text-left overflow-hidden">
                             <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
-                              <span className="font-black text-white uppercase text-lg">{p.name}</span>
-                              {idx === 0 && <Award size={18} className="text-yellow-400" />}
+                              <div className="w-3 h-3 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span className="font-black text-white uppercase text-base truncate">{p.name}</span>
+                              {idx === 0 && <Award size={18} className="text-yellow-400 flex-shrink-0" />}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Quota finale: {p.equity?.toFixed(1)}%</span>
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto">
-                          <div className="text-center md:text-right px-4 border-r border-white/5">
-                            <span className="block text-[8px] text-slate-500 uppercase font-black">Cash</span>
-                            <span className="text-white font-mono font-bold">€{Number(p.cash).toLocaleString()}</span>
+                        {/* Sezione Statistiche: Grid adattabile che non rompe il layout con numeri lunghi */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
+                          <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Cash</span>
+                            <span className="text-white font-mono font-bold text-sm block truncate">€{Math.floor(Number(p.cash)).toLocaleString()}</span>
                           </div>
-                          <div className="text-center md:text-right px-4 border-r border-white/5">
-                            <span className="block text-[8px] text-slate-500 uppercase font-black">EBITDA (Annuale)</span>
-                            <span className={`font-mono font-bold ${ebitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{(ebitda * 12).toLocaleString()}</span>
+                          <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">EBITDA (Year)</span>
+                            <span className={`font-mono font-bold text-sm block truncate ${ebitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{Math.floor(ebitda * 12).toLocaleString()}</span>
                           </div>
-                          <div className="text-center md:text-right px-4 border-r border-white/5">
-                            <span className="block text-[8px] text-slate-500 uppercase font-black">Debiti Totali</span>
-                            <span className="text-rose-400 font-mono font-bold">€{debt.toLocaleString()}</span>
+                          <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Debiti</span>
+                            <span className="text-rose-400 font-mono font-bold text-sm block truncate">€{Math.floor(debt).toLocaleString()}</span>
                           </div>
-                          <div className="text-center md:text-right px-4">
-                            <span className="block text-[8px] text-blue-400 uppercase font-black italic">Net Founder Exit</span>
-                            <span className="text-blue-400 font-mono font-black text-xl">€{founderIncasso.toLocaleString()}</span>
+                          <div className="text-center lg:text-right px-3 overflow-hidden">
+                            <span className="block text-[8px] text-blue-400 uppercase font-black italic mb-1">Net Founder Exit</span>
+                            <span className="text-blue-400 font-mono font-black text-lg block truncate">€{Math.floor(founderIncasso).toLocaleString()}</span>
                           </div>
                         </div>
                       </motion.div>
@@ -290,7 +289,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
 
                 <button 
                   onClick={() => window.location.reload()} 
-                  className="px-12 py-5 bg-white text-slate-900 font-black uppercase rounded-2xl hover:bg-blue-400 hover:text-white transition-all shadow-xl"
+                  className="px-10 py-4 bg-white text-slate-900 font-black uppercase rounded-2xl hover:bg-blue-400 hover:text-white transition-all shadow-xl text-sm"
                 >
                   Nuova Scalata
                 </button>
