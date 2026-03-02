@@ -56,7 +56,6 @@ export default function ActionModal({
   if (!isOpen) return null;
 
   const configs = {
-    // CAMBIATA LABEL DA OPPORTUNITÀ A PROBABILITÀ
     opportunity: { bg: 'bg-emerald-950/98', border: 'border-emerald-500', text: 'text-emerald-400', accent: 'bg-emerald-500', label: 'PROBABILITÀ' },
     danger_event: { bg: 'bg-rose-950/98', border: 'border-rose-500', text: 'text-rose-400', accent: 'bg-rose-500', label: 'IMPREVISTO' },
     success: { bg: 'bg-slate-950/98', border: 'border-blue-600', text: 'text-blue-400', accent: 'bg-blue-600', label: 'INVESTIMENTO' },
@@ -102,34 +101,37 @@ export default function ActionModal({
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 backdrop-blur-xl bg-black/80">
-      <div className={`${config.bg} ${config.border} border-2 w-full max-w-xl rounded-[2.5rem] p-8 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
+      {/* MODIFICA: max-w-4xl per la larghezza e py-6 per ridurre l'altezza */}
+      <div className={`${config.bg} ${config.border} border-2 w-full max-w-4xl rounded-[2.5rem] py-6 px-10 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all animate-in fade-in zoom-in duration-300`}>
+        
         <div className={`${config.accent} absolute top-0 left-1/2 -translate-x-1/2 px-8 py-2 rounded-b-2xl shadow-lg z-10`}>
           <span className="text-[11px] font-black text-white tracking-[0.3em] uppercase">{config.label}</span>
         </div>
 
-        <div className="text-center mt-6">
-          <h2 className={`text-4xl font-black ${config.text} uppercase tracking-tighter mb-6 italic leading-tight drop-shadow-sm`}>
+        <div className="text-center mt-4">
+          {/* MODIFICA: Margine inferiore ridotto (mb-4) e font-size leggermente scalato */}
+          <h2 className={`text-3xl md:text-4xl font-black ${config.text} uppercase tracking-tighter mb-4 italic leading-tight drop-shadow-sm`}>
             {title}
           </h2>
           
           {insight && (
-            <div className="mb-6 bg-white/5 rounded-2xl p-6 border border-white/10 shadow-inner">
+            <div className="mb-4 bg-white/5 rounded-2xl p-4 border border-white/10 shadow-inner">
               <p className="text-slate-200 text-sm md:text-base leading-relaxed italic text-center font-medium opacity-90">
                 “{insight}”
               </p>
             </div>
           )}
 
-          <p className="text-slate-400 text-sm md:text-base leading-snug mb-8 px-4 font-medium">
+          <p className="text-slate-400 text-sm md:text-base leading-snug mb-6 px-4 font-medium">
             {description}
           </p>
 
           {impact && (
-            <div className="bg-black/40 rounded-[2rem] p-5 mb-8 border border-white/5 shadow-2xl">
+            <div className="bg-black/40 rounded-[2rem] p-5 mb-6 border border-white/5 shadow-2xl">
                <p className="text-[10px] uppercase text-slate-500 font-black mb-2 tracking-[0.25em] italic opacity-60">
                  Startup Impact Analysis
                </p>
-               <div className="text-lg md:text-xl font-mono text-white font-bold tracking-tight">
+               <div className="text-base md:text-lg font-mono text-white font-bold tracking-tight">
                  {impact.details}
                </div>
             </div>
@@ -164,12 +166,12 @@ export default function ActionModal({
             </div>
           )}
 
-          <div className="flex flex-col gap-4 mt-4">
-            <button onClick={handleMainAction} className={`w-full py-5 ${isInsufficientFunds ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}>
+          <div className="flex flex-col gap-4 mt-2">
+            <button onClick={handleMainAction} className={`w-full py-4 ${isInsufficientFunds ? 'bg-slate-800 text-slate-400 border border-white/10' : config.accent + ' text-white'} font-black rounded-[1.8rem] hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.25em] text-sm shadow-2xl`}>
               {finalActionLabel}
             </button>
             {secondaryActionLabel && !isInsufficientFunds && (
-              <button onClick={onClose} className="w-full py-4 bg-white/5 text-slate-500 font-black rounded-[1.5rem] hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em] text-[11px]">
+              <button onClick={onClose} className="w-full py-3 bg-white/5 text-slate-500 font-black rounded-[1.5rem] hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em] text-[11px]">
                 {secondaryActionLabel}
               </button>
             )}
