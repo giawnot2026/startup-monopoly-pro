@@ -45,6 +45,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [gameWinner, setGameWinner] = useState<ExtendedPlayer | null>(null);
+  const [eliminatedPlayerName, setEliminatedPlayerName] = useState<string | null>(null);
 
   const currentPlayer = players[currentPlayerIndex];
 
@@ -75,6 +76,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
     // LOGICA BANCAROTTA: Se Cash < 0 e EBITDA non copre il debito (Cash + EBITDA < 0)
     if (p.cash < 0 && (p.cash + ebitda) < 0 && !p.isBankrupt) {
+      setEliminatedPlayerName(p.name);
       playersState = playersState.map((player, idx) => 
         idx === currentPlayerIndex ? { ...player, isBankrupt: true, cash: 0, mrr: 0, assets: [] } : player
       );
@@ -86,7 +88,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
       ));
     }
 
-    // Calcolo prossimo indice saltando i bancarotta
     let nextIndex = (currentPlayerIndex + 1) % playersState.length;
     let attempts = 0;
     while (playersState[nextIndex].isBankrupt && attempts < playersState.length) {
@@ -250,6 +251,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
   return { 
     players, currentPlayer, valuation, movePlayer, applyFunding, 
-    upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, calculateValuation 
+    upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, 
+    calculateValuation, eliminatedPlayerName, setEliminatedPlayerName
   };
 };
