@@ -50,6 +50,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   const currentPlayer = players[currentPlayerIndex];
 
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
+    if (!p) return 0;
     const mrr = Number(p.mrr) || 0;
     const costs = Number(p.monthlyCosts) || 0;
     const cash = Number(p.cash) || 0;
@@ -63,7 +64,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer, calculateValuation]);
 
   const checkGameStatus = useCallback((updatedPlayers: ExtendedPlayer[]) => {
-    const activePlayers = updatedPlayers.filter(p => !p.isBankrupt);
+    const activePlayers = updatedPlayers.filter(p => p && !p.isBankrupt);
     if (activePlayers.length === 1 && updatedPlayers.length > 1) {
       setGameWinner(activePlayers[0]);
     }
@@ -72,9 +73,10 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   const nextTurn = useCallback(() => {
     let playersState = [...players];
     const p = playersState[currentPlayerIndex];
+    if (!p) return;
+    
     const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
 
-    // LOGICA BANCAROTTA: Se Cash < 0 e EBITDA non copre il debito (Cash + EBITDA < 0)
     if (p.cash < 0 && (p.cash + ebitda) < 0 && !p.isBankrupt) {
       setEliminatedPlayerName(p.name);
       playersState = playersState.map((player, idx) => 
@@ -90,7 +92,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
     let nextIndex = (currentPlayerIndex + 1) % playersState.length;
     let attempts = 0;
-    while (playersState[nextIndex].isBankrupt && attempts < playersState.length) {
+    while (playersState[nextIndex]?.isBankrupt && attempts < playersState.length) {
       nextIndex = (nextIndex + 1) % playersState.length;
       attempts++;
     }
@@ -98,11 +100,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   }, [players, currentPlayerIndex, checkGameStatus]);
 
   const movePlayer = useCallback((steps: number) => {
+    if (!currentPlayer) return null;
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
 
     setPlayers(prevPlayers => {
-      const owner = prevPlayers.find(p => !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
+      const owner = prevPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
       const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
       let tollToPay = 0;
 
@@ -158,7 +161,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
       return newState;
     });
     return tile;
-  }, [currentPlayerIndex, currentPlayer.position]);
+  }, [currentPlayerIndex, currentPlayer?.position]);
 
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
@@ -226,7 +229,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
   const applyEvent = useCallback((event: any) => {
     setPlayers(prev => prev.map((p, idx) => {
-      if (idx !== currentPlayerIndex && !event.global) return p;
+      if (!p || (idx !== currentPlayerIndex && !event.global)) return p;
       const cashEff = Number(event.cashEffect) || 0;
       const cashPerc = Number(event.cashPercent) || 0;
       return { 
@@ -239,6 +242,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   }, [currentPlayerIndex]);
 
   const attemptExit = useCallback(() => {
+    if (!currentPlayer) return false;
     const currentVal = calculateValuation(currentPlayer);
     const founderExitValue = (currentVal * currentPlayer.equity) / 100;
 
@@ -252,6 +256,7 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   return { 
     players, currentPlayer, valuation, movePlayer, applyFunding, 
     upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, 
-    calculateValuation, eliminatedPlayerName, setEliminatedPlayerName
+    calculateValuation, eliminatedPlayerName, setEliminatedPlayerName,
+    setPlayers, setCurrentPlayerIndex
   };
 };
