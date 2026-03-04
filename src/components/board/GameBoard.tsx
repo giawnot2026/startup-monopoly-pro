@@ -35,14 +35,13 @@ export default function GameBoard({
   const [isSyncing, setIsSyncing] = useState(false);
 
   const lastSyncRef = useRef<string>("");
-  const lastUpdateIdRef = useRef<number>(0);
 
+  // Funzione per forzare i tipi corretti dai dati DB
   const sanitizeGameState = (state: any) => {
     if (!state || !state.players) return null;
     return {
       ...state,
       currentPlayerIndex: Number(state.currentPlayerIndex),
-      updateId: Number(state.updateId) || 0,
       players: state.players.map((p: any) => ({
         ...p,
         position: Number(p.position) || 0,
@@ -78,28 +77,23 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
+          // Se sto lanciando i dadi o sincronizzando, ignoro gli update esterni per evitare il "rimbalzo"
+          if (isSyncing || isRolling) return;
+
           const newState = sanitizeGameState(payload.new.game_state);
           if (!newState) return;
+          
+          const stateStr = JSON.stringify(newState);
+          if (stateStr === lastSyncRef.current) return;
 
-          // Filtro ID aggiornamento
-          if (newState.updateId === lastUpdateIdRef.current) return;
-
-          // MODIFICA: Aggiorniamo sempre se il numero di giocatori è cambiato (nuovo ingresso)
-          const playersCountChanged = newState.players.length !== players.length;
-
-          if (playersCountChanged || (!isSyncing && !isRolling)) {
-            const stateStr = JSON.stringify(newState);
-            if (stateStr === lastSyncRef.current) return;
-
-            const pIndex = newState.currentPlayerIndex;
-            const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
-            
-            if (!isMyTurnNow || newState.currentPlayerIndex !== players.indexOf(currentPlayer)) {
-              setPlayers(newState.players);
-              setCurrentPlayerIndex(newState.currentPlayerIndex);
-              if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
-              lastSyncRef.current = stateStr;
-            }
+          const pIndex = newState.currentPlayerIndex;
+          const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
+          
+          if (!isMyTurnNow || newState.currentPlayerIndex !== players.indexOf(currentPlayer)) {
+            setPlayers(newState.players);
+            setCurrentPlayerIndex(newState.currentPlayerIndex);
+            if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
+            lastSyncRef.current = stateStr;
           }
         })
         .subscribe();
@@ -110,32 +104,28 @@ export default function GameBoard({
     };
 
     fetchAndSubscribe();
-  }, [roomCode, localPlayerName, isSyncing, isRolling, players.length]); 
+  }, [roomCode, localPlayerName, isSyncing, isRolling]); 
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     setIsSyncing(true);
-    const updateId = Date.now();
-    lastUpdateIdRef.current = updateId;
-
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
       lastDiceValue: currentDice ?? diceValue,
-      victoryTarget: victoryTarget,
-      updateId: updateId
+      victoryTarget: victoryTarget 
     };
     
-    lastSyncRef.current = JSON.stringify(newState);
+    const stateStr = JSON.stringify(newState);
+    lastSyncRef.current = stateStr;
 
     await supabase
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
     
-    setTimeout(() => setIsSyncing(false), 500);
+    setTimeout(() => setIsSyncing(false), 500); // Rilascia il blocco dopo il salvataggio
   }, [roomCode, victoryTarget, diceValue]);
 
-  // MODIFICA: Spostata l'esecuzione di nextTurn per garantire la sincronizzazione
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
@@ -159,8 +149,11 @@ export default function GameBoard({
         setTimeout(() => {
           const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
+          
+          // Forza l'update locale immediato
           setPlayers([...updatedPlayers]);
           
+          // Sincronizza con DB (mantenendo lo stesso currentPlayerIndex per ora, cambierà alla chiusura del modal/evento)
           syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
 
           processTile(tile, updatedPlayers);
@@ -302,7 +295,7 @@ export default function GameBoard({
         } else {
           setModalConfig({
             isOpen: true, type: 'info', title: "Revisione dei Bilanci",
-            description: "L'anno fiscale si chiude in assenza di debiti finanziari. Il team contabile ha confermato la solidità dei flussi.",
+            description: "L'anno fiscale si chiude in assenza di debiti finanziari. Il team contabile ha confermato la solidità dei flussi e la corretta quadratura dei conti.",
             impact: { details: "Audit superato con successo | Nessun onere finanziario rilevato" },
             actionLabel: "Continua", onAction: handleCloseModal
           });
@@ -377,7 +370,7 @@ export default function GameBoard({
                   }).map((p, idx) => {
                     if (!p) return null;
                     const totalVal = calculateValuation(p);
-                    const founderIncasso = (totalVal * (Number(p.equity) || 100)) / 100;
+                    const founderIncasso = (totalVal * (p.equity || 100)) / 100;
                     const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
                     const debt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
                     
@@ -399,7 +392,7 @@ export default function GameBoard({
                               <span className="font-black text-white uppercase text-base truncate">{p.name}</span>
                               {idx === 0 && <Award size={18} className="text-yellow-400 flex-shrink-0" />}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {Number(p.equity).toFixed(1)}%</span>
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
@@ -504,9 +497,9 @@ export default function GameBoard({
             <div 
               key={p.id} 
               className={`p-4 rounded-2xl border transition-all duration-500 
-                ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} 
+                ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'} 
                 ${isMe ? 'ring-1 ring-white/20 shadow-lg' : ''}
-                ${p.isBankrupt ? 'grayscale opacity-50 bg-rose-950/20' : ''}
+                ${p.isBankrupt ? 'grayscale opacity-50 bg-rose-950/20 border-rose-900/50' : ''}
                 ${isNegative && !p.isBankrupt ? 'animate-pulse border-rose-500 bg-rose-500/10' : ''}`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -568,7 +561,7 @@ export default function GameBoard({
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center shadow-2xl"
+              className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center shadow-[0_0_50px_rgba(239,68,68,0.3)]"
             >
               <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Skull size={32} className="text-white" />
@@ -577,9 +570,12 @@ export default function GameBoard({
               <h2 className="text-xl text-white font-bold mb-3 uppercase tracking-widest">
                 {eliminatedPlayerName} eliminato
               </h2>
+              <p className="text-red-200/60 text-[11px] font-mono mb-8 leading-relaxed uppercase">
+                La startup ha esaurito la liquidità operativa. L'EBITDA non è stato sufficiente a coprire il rosso in cassa. Asset liquidati.
+              </p>
               <button 
                 onClick={() => setEliminatedPlayerName(null)}
-                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest transition-all text-[10px]"
+                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest transition-all text-[10px] shadow-xl shadow-red-900/20"
               >
                 Continua Partita
               </button>
@@ -591,12 +587,15 @@ export default function GameBoard({
       <div className="fixed bottom-6 right-6 z-[100]">
         <button 
           onClick={() => window.location.href = '/'} 
-          className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 p-2 pr-5 rounded-full transition-all"
+          className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-blue-500/50 p-2 pr-5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(59,130,246,0.2)]"
         >
           <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-colors">
             <Home size={18} className="text-white" />
           </div>
-          <span className="text-[10px] font-black text-white uppercase tracking-tighter">Exit to Home</span>
+          <div className="flex flex-col items-start">
+            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Exit to Home</span>
+            <span className="text-[7px] font-mono text-slate-500 uppercase tracking-widest">Abbandona Scalata</span>
+          </div>
         </button>
       </div>
     </div>
