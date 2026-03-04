@@ -63,20 +63,14 @@ export default function GameBoard({
           
           if (stateStr === lastSyncRef.current) return;
 
-          // LOGICA CHIRURGICA ANTI-RIMBALZO
           const pIndex = newState.currentPlayerIndex;
-          const isMyTurn = newState.players[pIndex]?.name === localPlayerName;
-          const isTurnChanged = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
-
-          if (newState.lastDiceValue !== undefined) {
-            setDiceValue(newState.lastDiceValue);
-          }
-
-          // Se è il mio turno, non sovrascrivo i 'players' dal DB (mi fido del mio stato locale)
-          // a meno che il turno non sia effettivamente passato ad altri.
-          if (!isMyTurn || isTurnChanged) {
+          const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
+          
+          // Se NON è il mio turno, o se il turno è appena cambiato, accetto l'update dal DB
+          if (!isMyTurnNow || newState.currentPlayerIndex !== players.indexOf(currentPlayer)) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
+            if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
             lastSyncRef.current = stateStr;
           }
         })
@@ -88,7 +82,7 @@ export default function GameBoard({
     };
 
     fetchAndSubscribe();
-  }, [roomCode, setPlayers, setCurrentPlayerIndex, localPlayerName, players, currentPlayer]);
+  }, [roomCode, localPlayerName]); // Ridotte dipendenze per evitare loop
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     const newState = { 
@@ -112,8 +106,6 @@ export default function GameBoard({
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    
-    // Sincronizziamo i players correnti prima del cambio turno
     syncGameState(players, nextIdx);
     nextTurn();
   }, [nextTurn, players, currentPlayer, syncGameState]);
@@ -132,23 +124,25 @@ export default function GameBoard({
         setDiceValue(steps);
         
         setTimeout(() => {
-          // MODIFICA CHIRURGICA: catturiamo updatedPlayers da movePlayer
           const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
           
-          // Sincronizziamo immediatamente usando i dati freschi appena calcolati
+          // AGGIORNAMENTO LOCALE IMMEDIATO
+          setPlayers([...updatedPlayers]);
+          
+          // SINCRONIZZAZIONE DB CON DATI FRESCHI
           syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
 
-          processTile(tile);
+          processTile(tile, updatedPlayers);
         }, 600);
       }
     }, 60);
   };
 
-  const processTile = (tile: any) => {
+  const processTile = (tile: any, currentPlayers: any[]) => {
     if (!tile) { 
-      const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-      syncGameState(players, nextIdx);
+      const nextIdx = (currentPlayers.indexOf(currentPlayer) + 1) % currentPlayers.length;
+      syncGameState(currentPlayers, nextIdx);
       nextTurn(); 
       return; 
     }
@@ -200,7 +194,7 @@ export default function GameBoard({
     }
 
     if (tile.type === 'asset') {
-      const owner = players.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
+      const owner = currentPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
       const revMod = tile.revenueModifier || 0;
@@ -212,7 +206,7 @@ export default function GameBoard({
         const toll = Number(tile.badges?.[level]?.toll) || 0;
         setModalConfig({ 
           isOpen: true, type: 'danger', title: "Tassa di Mercato", 
-          description: `Sei atterearato su un asset di ${owner.name}.`,
+          description: `Sei atterrato su un asset di ${owner.name}.`,
           insight: tile.insight,
           impact: { details: `${immediateImpact} | Royalty pagata (MRR): -€${toll.toLocaleString()}` }, 
           actionLabel: "Prosegui", onAction: handleCloseModal
@@ -255,8 +249,8 @@ export default function GameBoard({
       return;
     }
     
-    const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    syncGameState(players, nextIdx);
+    const nextIdx = (currentPlayers.indexOf(currentPlayer) + 1) % currentPlayers.length;
+    syncGameState(currentPlayers, nextIdx);
     nextTurn();
   };
 
@@ -450,13 +444,13 @@ export default function GameBoard({
             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
             else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
             else { col = 1; row = 8 - (tile.id - 21); }
-            const playersHere = players.filter(p => p && p.position === tile.id && !p.isBankrupt);
+            const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
             const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
                 <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
                 <div className="absolute bottom-1 left-1 flex gap-0.5 z-30">
-                  {playersHere.map(p => <div key={p.id} className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: p.color }} />)}
+                  {playersHere.map(p => <div key={p.id} className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: p.color }} />)}
                 </div>
               </div>
             );
