@@ -8,27 +8,104 @@ import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award, Skull, Home } from 'lucide-react'; // Aggiunta Home
+import { Trophy, Award, Skull, Home } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Importiamo supabase
 
-export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: { initialPlayers: any[], victoryTarget?: number }) {
+// Aggiungiamo roomCode e localPlayerName alle props
+export default function GameBoard({ 
+  roomCode, 
+  localPlayerName, 
+  victoryTarget = 20000000 
+}: { 
+  roomCode: string, 
+  localPlayerName: string, 
+  victoryTarget?: number 
+}) {
+  
+  // Inizializziamo la logica. Nota: i player reali verranno caricati dal sync
   const { 
     players, currentPlayer, valuation, 
     movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
     gameWinner, attemptExit, calculateValuation,
-    eliminatedPlayerName, setEliminatedPlayerName
-  } = useGameLogic(initialPlayers, victoryTarget);
+    eliminatedPlayerName, setEliminatedPlayerName,
+    setPlayers, setCurrentPlayerIndex // Esposti per il sync multiplayer
+  } = useGameLogic([], victoryTarget);
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
+  // --- LOGICA MULTIPLAYER REALTIME ---
+
+  // 1. Caricamento Iniziale e Sottoscrizione Realtime
+  useEffect(() => {
+    const fetchAndSubscribe = async () => {
+      // Carichiamo lo stato iniziale
+      const { data } = await supabase
+        .from('multiplayer_games')
+        .select('game_state')
+        .eq('room_code', roomCode)
+        .single();
+
+      if (data?.game_state) {
+        setPlayers(data.game_state.players);
+        setCurrentPlayerIndex(data.game_state.currentPlayerIndex);
+      }
+
+      // Sottoscrizione Realtime
+      const channel = supabase
+        .channel(`room-${roomCode}`)
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'multiplayer_games',
+          filter: `room_code=eq.${roomCode}`
+        }, (payload) => {
+          const newState = payload.new.game_state;
+          // Aggiorniamo lo stato locale solo se non siamo noi ad aver mosso 
+          // (per evitare loop o sovrascritture mentre lanciamo i dadi)
+          setPlayers(newState.players);
+          setCurrentPlayerIndex(newState.currentPlayerIndex);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    fetchAndSubscribe();
+  }, [roomCode, setPlayers, setCurrentPlayerIndex]);
+
+  // 2. Funzione per salvare lo stato su Supabase dopo ogni mossa
+  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number) => {
+    await supabase
+      .from('multiplayer_games')
+      .update({ 
+        game_state: { 
+          players: updatedPlayers, 
+          currentPlayerIndex: nextIndex,
+          victoryTarget: victoryTarget 
+        } 
+      })
+      .eq('room_code', roomCode);
+  }, [roomCode, victoryTarget]);
+
+  // --- FINE LOGICA MULTIPLAYER ---
+
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
+    const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
+    // Sincronizziamo il passaggio del turno
+    syncGameState(players, nextIdx);
     nextTurn();
-  }, [nextTurn]);
+  }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
+    // BLOCCO MULTIPLAYER: puoi tirare solo se è il TUO turno
+    if (currentPlayer.name !== localPlayerName) return;
     if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
+
     setIsRolling(true);
     let counter = 0;
     const shuffleInterval = setInterval(() => {
@@ -47,7 +124,12 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
   };
 
   const processTile = (tile: any) => {
-    if (!tile) { nextTurn(); return; }
+    if (!tile) { 
+      const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
+      syncGameState(players, nextIdx);
+      nextTurn(); 
+      return; 
+    }
     const corners = [0, 7, 14, 21];
     if (corners.includes(tile.id)) { handleCornerTile(tile); return; }
     
@@ -150,6 +232,9 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
       });
       return;
     }
+    
+    const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
+    syncGameState(players, nextIdx);
     nextTurn();
   };
 
@@ -211,6 +296,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
       
+      {/* SEZIONE VINCITORE (Invariata) */}
       <AnimatePresence>
         {gameWinner && (
           <motion.div 
@@ -298,24 +384,37 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
       </AnimatePresence>
 
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        {/* CENTER BOARD: Aggiunta indicazione del Turno e Stanza */}
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
+          <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+          
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">{currentPlayer.name}</span>
+            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+              {currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`}
+            </span>
           </div>
+          
           <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
+          
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
+          
           <button 
             onClick={handleDiceRoll} 
-            disabled={isRolling || modalConfig.isOpen || currentPlayer.isBankrupt} 
-            className="px-10 py-3 font-black rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono disabled:opacity-50"
+            disabled={isRolling || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+            className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
+              ${currentPlayer.name === localPlayerName 
+                ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' 
+                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
           >
-            {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : "Lancia Dadi")}
+            {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
           </button>
         </div>
+
+        {/* TILES (Invariato) */}
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
@@ -337,10 +436,12 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
         </div>
       </div>
 
+      {/* DASHBOARD (Invariata logica, aggiunto border evidenziatore local player) */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
-        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard</h3>
+        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
           const isTurn = p.id === currentPlayer.id;
+          const isMe = p.name === localPlayerName;
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
           const founderPart = (pVal * (p.equity || 100)) / 100;
@@ -352,6 +453,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
               key={p.id} 
               className={`p-4 rounded-2xl border transition-all duration-500 
                 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'} 
+                ${isMe ? 'ring-1 ring-white/20 shadow-lg' : ''}
                 ${p.isBankrupt ? 'grayscale opacity-50 bg-rose-950/20 border-rose-900/50' : ''}
                 ${isNegative && !p.isBankrupt ? 'animate-pulse border-rose-500 bg-rose-500/10' : ''}`}
             >
@@ -359,7 +461,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.isBankrupt ? '#555' : p.color }} />
                   <span className={`font-bold text-xs uppercase ${p.isBankrupt ? 'text-rose-500 line-through' : 'text-white'}`}>
-                    {p.name}
+                    {p.name} {isMe && "(TU)"}
                   </span>
                 </div>
                 {p.isBankrupt ? (
@@ -370,6 +472,7 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
                   <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(1) || 100}% EQ</span>
                 )}
               </div>
+              {/* Resto della Dashboard Invariato */}
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
@@ -400,9 +503,10 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
           );
         })}
       </div>
+      
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
 
-      {/* POPUP BANCAROTTA GLOBALE - Appare solo quando un giocatore fallisce */}
+      {/* POPUP BANCAROTTA (Invariato) */}
       <AnimatePresence>
         {eliminatedPlayerName && (
           <motion.div 
