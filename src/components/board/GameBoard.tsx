@@ -35,15 +35,13 @@ export default function GameBoard({
   const [isSyncing, setIsSyncing] = useState(false);
 
   const lastSyncRef = useRef<string>("");
-  // Riferimento per tracciare l'ultima versione dello stato processata
-  const lastUpdateIdRef = useRef<number>(0);
 
+  // Funzione per forzare i tipi corretti dai dati DB
   const sanitizeGameState = (state: any) => {
     if (!state || !state.players) return null;
     return {
       ...state,
       currentPlayerIndex: Number(state.currentPlayerIndex),
-      updateId: Number(state.updateId) || 0, // Recupero l'ID versione
       players: state.players.map((p: any) => ({
         ...p,
         position: Number(p.position) || 0,
@@ -69,7 +67,6 @@ export default function GameBoard({
         setCurrentPlayerIndex(initialState.currentPlayerIndex);
         if (initialState.lastDiceValue) setDiceValue(initialState.lastDiceValue);
         lastSyncRef.current = JSON.stringify(initialState);
-        lastUpdateIdRef.current = initialState.updateId || 0;
       }
 
       const channel = supabase
@@ -80,14 +77,12 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
-          const newState = sanitizeGameState(payload.new.game_state);
-          if (!newState) return;
-
-          // Se l'aggiornamento ricevuto è più vecchio di quello che ho già, lo scarto
-          if (newState.updateId <= lastUpdateIdRef.current) return;
-          
+          // Se sto lanciando i dadi o sincronizzando, ignoro gli update esterni per evitare il "rimbalzo"
           if (isSyncing || isRolling) return;
 
+          const newState = sanitizeGameState(payload.new.game_state);
+          if (!newState) return;
+          
           const stateStr = JSON.stringify(newState);
           if (stateStr === lastSyncRef.current) return;
 
@@ -95,8 +90,6 @@ export default function GameBoard({
           const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
           
           if (!isMyTurnNow || newState.currentPlayerIndex !== players.indexOf(currentPlayer)) {
-            // Aggiorno il counter locale prima del set state
-            lastUpdateIdRef.current = newState.updateId;
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
             if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
@@ -111,30 +104,26 @@ export default function GameBoard({
     };
 
     fetchAndSubscribe();
-  }, [roomCode, localPlayerName, isSyncing, isRolling, players.length]); 
+  }, [roomCode, localPlayerName, isSyncing, isRolling]); 
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     setIsSyncing(true);
-    // Genero un nuovo ID versione (timestamp)
-    const newUpdateId = Date.now();
-    lastUpdateIdRef.current = newUpdateId;
-
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
       lastDiceValue: currentDice ?? diceValue,
-      victoryTarget: victoryTarget,
-      updateId: newUpdateId // Invio la versione al DB
+      victoryTarget: victoryTarget 
     };
     
-    lastSyncRef.current = JSON.stringify(newState);
+    const stateStr = JSON.stringify(newState);
+    lastSyncRef.current = stateStr;
 
     await supabase
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
     
-    setTimeout(() => setIsSyncing(false), 500);
+    setTimeout(() => setIsSyncing(false), 500); // Rilascia il blocco dopo il salvataggio
   }, [roomCode, victoryTarget, diceValue]);
 
   const handleCloseModal = useCallback(() => {
@@ -160,8 +149,11 @@ export default function GameBoard({
         setTimeout(() => {
           const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
+          
+          // Forza l'update locale immediato
           setPlayers([...updatedPlayers]);
           
+          // Sincronizza con DB (mantenendo lo stesso currentPlayerIndex per ora, cambierà alla chiusura del modal/evento)
           syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
 
           processTile(tile, updatedPlayers);
@@ -350,6 +342,7 @@ export default function GameBoard({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
+      
       <AnimatePresence>
         {gameWinner && (
           <motion.div 
