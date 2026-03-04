@@ -66,11 +66,11 @@ export default function GameBoard({
           const isMyTurn = players[players.indexOf(currentPlayer)]?.name === localPlayerName;
           const isTurnChanged = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
 
-          // Sincronizza dadi anche se non è il mio turno per vedere l'animazione altrui
           if (newState.lastDiceValue !== undefined) {
             setDiceValue(newState.lastDiceValue);
           }
 
+          // CHIRURGICO: Se è il mio turno, non sovrascrivere i 'players' finché non cambio turno
           if (!isMyTurn || isTurnChanged) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
@@ -109,8 +109,10 @@ export default function GameBoard({
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    nextTurn();
+    
+    // CHIRURGICO: Assicuriamoci di mandare i players correnti prima del cambio turno
     syncGameState(players, nextIdx);
+    nextTurn();
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
@@ -130,7 +132,7 @@ export default function GameBoard({
           const tile = movePlayer(steps);
           setIsRolling(false);
           
-          // Sincronizziamo immediatamente posizione e dadi dopo il lancio
+          // CHIRURGICO: Usiamo il callback dello stato per catturare i dati aggiornati da movePlayer
           setPlayers(currentPlayers => {
             syncGameState(currentPlayers, players.indexOf(currentPlayer), steps);
             return currentPlayers;
@@ -145,8 +147,8 @@ export default function GameBoard({
   const processTile = (tile: any) => {
     if (!tile) { 
       const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-      nextTurn(); 
       syncGameState(players, nextIdx);
+      nextTurn(); 
       return; 
     }
     const corners = [0, 7, 14, 21];
@@ -253,8 +255,8 @@ export default function GameBoard({
     }
     
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    nextTurn();
     syncGameState(players, nextIdx);
+    nextTurn();
   };
 
   const handleCornerTile = (tile: any) => {
@@ -312,7 +314,6 @@ export default function GameBoard({
     }
   };
 
-  // ... Il resto del rendering (JSX) rimane invariato ...
   if (!players || players.length === 0 || !currentPlayer) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
