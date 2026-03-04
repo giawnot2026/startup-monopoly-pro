@@ -60,7 +60,16 @@ export default function GameBoard({
         }, (payload) => {
           const newState = payload.new.game_state;
           const stateStr = JSON.stringify(newState);
-          if (stateStr !== lastSyncRef.current) {
+          
+          // Se lo stato è identico a quello che abbiamo già (o appena inviato), ignoriamo
+          if (stateStr === lastSyncRef.current) return;
+
+          // DETERMINANTE: Se è il mio turno, non sovrascrivo i miei dati locali con quelli del DB 
+          // a meno che non sia cambiato il turno (segno che l'azione corrente è conclusa)
+          const isMyTurn = players[players.indexOf(currentPlayer)]?.name === localPlayerName;
+          const isTurnChanged = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
+
+          if (!isMyTurn || isTurnChanged) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
             lastSyncRef.current = stateStr;
@@ -74,19 +83,20 @@ export default function GameBoard({
     };
 
     fetchAndSubscribe();
-  }, [roomCode, setPlayers, setCurrentPlayerIndex]);
+  }, [roomCode, setPlayers, setCurrentPlayerIndex, localPlayerName, players, currentPlayer]);
 
-  // Funzione di sincronizzazione migliorata per riflettere lo stato attuale
+  // Funzione di sincronizzazione migliorata
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number) => {
-    // Non blocchiamo la sincronizzazione se è il turno del local player, 
-    // perché dobbiamo poter inviare i dati quando muoviamo.
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
       victoryTarget: victoryTarget 
     };
     
-    lastSyncRef.current = JSON.stringify(newState);
+    const stateStr = JSON.stringify(newState);
+    if (stateStr === lastSyncRef.current) return; 
+    
+    lastSyncRef.current = stateStr;
 
     await supabase
       .from('multiplayer_games')
@@ -98,10 +108,8 @@ export default function GameBoard({
 
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
-    // Calcoliamo il prossimo indice prima di passare il turno
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
     nextTurn();
-    // Sincronizziamo il passaggio del turno
     syncGameState(players, nextIdx);
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
@@ -122,8 +130,7 @@ export default function GameBoard({
           const tile = movePlayer(steps);
           setIsRolling(false);
           
-          // FIX: Sincronizziamo immediatamente la posizione sulla mappa per gli altri giocatori
-          // Usiamo setPlayers con callback per assicurarci di avere lo stato freschissimo
+          // Sincronizziamo immediatamente la posizione dopo il movimento
           setPlayers(currentPlayers => {
             syncGameState(currentPlayers, players.indexOf(currentPlayer));
             return currentPlayers;
@@ -202,7 +209,7 @@ export default function GameBoard({
         const toll = Number(tile.badges?.[level]?.toll) || 0;
         setModalConfig({ 
           isOpen: true, type: 'danger', title: "Tassa di Mercato", 
-          description: `Sei atterrato su un asset di ${owner.name}.`,
+          description: `Sei atterearato su un asset di ${owner.name}.`,
           insight: tile.insight,
           impact: { details: `${immediateImpact} | Royalty pagata (MRR): -€${toll.toLocaleString()}` }, 
           actionLabel: "Prosegui", onAction: handleCloseModal
@@ -304,8 +311,6 @@ export default function GameBoard({
         break;
     }
   };
-
-  // --- RENDERING ---
 
   if (!players || players.length === 0 || !currentPlayer) {
     return (
