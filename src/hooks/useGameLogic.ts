@@ -49,6 +49,13 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
 
   const currentPlayer = players[currentPlayerIndex];
 
+  // FUNZIONE AGGIUNTA PER SINCRONIZZAZIONE ESTERNA
+  const syncFromExternal = useCallback((externalPlayers: ExtendedPlayer[], nextIndex: number) => {
+    if (!externalPlayers || externalPlayers.length === 0) return;
+    setPlayers(externalPlayers);
+    setCurrentPlayerIndex(nextIndex);
+  }, []);
+
   const calculateValuation = useCallback((p: ExtendedPlayer) => {
     if (!p) return 0;
     const mrr = Number(p.mrr) || 0;
@@ -102,7 +109,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   const movePlayer = useCallback((steps: number) => {
     if (!currentPlayer) return { tile: null, updatedPlayers: players };
     
-    // FORZATURA NUMERICA POSIZIONE
     const currentPos = Number(currentPlayer.position) || 0;
     const nextPos = (currentPos + steps) % TILES.length;
     const tile = TILES[nextPos];
@@ -259,6 +265,6 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
     players, currentPlayer, valuation, movePlayer, applyFunding, 
     upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, 
     calculateValuation, eliminatedPlayerName, setEliminatedPlayerName,
-    setPlayers, setCurrentPlayerIndex
+    setPlayers, setCurrentPlayerIndex, syncFromExternal
   };
 };
