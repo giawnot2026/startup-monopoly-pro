@@ -33,13 +33,7 @@ export default function GameBoard({
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  // --- LOGICA MULTIPLAYER REALTIME (INTEGRATA) ---
   const lastSyncRef = useRef<string>("");
-  const isMyTurnRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    isMyTurnRef.current = currentPlayer?.name === localPlayerName;
-  }, [currentPlayer, localPlayerName]);
 
   useEffect(() => {
     const fetchAndSubscribe = async () => {
@@ -50,12 +44,10 @@ export default function GameBoard({
         .maybeSingle();
 
       if (data?.game_state) {
-        const state = data.game_state;
-        setPlayers(state.players);
-        setCurrentPlayerIndex(state.currentPlayerIndex);
-        if (state.diceValue !== undefined) setDiceValue(state.diceValue);
-        if (state.isRolling !== undefined) setIsRolling(state.isRolling);
-        lastSyncRef.current = JSON.stringify(state);
+        setPlayers(data.game_state.players);
+        setCurrentPlayerIndex(data.game_state.currentPlayerIndex);
+        if (data.game_state.lastDiceValue) setDiceValue(data.game_state.lastDiceValue);
+        lastSyncRef.current = JSON.stringify(data.game_state);
       }
 
       const channel = supabase
@@ -71,53 +63,54 @@ export default function GameBoard({
           
           if (stateStr === lastSyncRef.current) return;
 
-          const incomingCurrentPlayer = newState.players[newState.currentPlayerIndex];
-          const turnHasChanged = incomingCurrentPlayer?.name !== localPlayerName;
+          const isMyTurn = players[players.indexOf(currentPlayer)]?.name === localPlayerName;
+          const isTurnChanged = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
 
-          // Se non è il mio turno, o se il turno è appena passato a me/altri, aggiorno tutto
-          if (!isMyTurnRef.current || turnHasChanged) {
+          // Sincronizza dadi anche se non è il mio turno per vedere l'animazione altrui
+          if (newState.lastDiceValue !== undefined) {
+            setDiceValue(newState.lastDiceValue);
+          }
+
+          if (!isMyTurn || isTurnChanged) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
-            setDiceValue(newState.diceValue);
-            setIsRolling(newState.isRolling);
             lastSyncRef.current = stateStr;
           }
         })
         .subscribe();
 
-      return () => { supabase.removeChannel(channel); };
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
 
     fetchAndSubscribe();
-  }, [roomCode, setPlayers, setCurrentPlayerIndex, localPlayerName]);
+  }, [roomCode, setPlayers, setCurrentPlayerIndex, localPlayerName, players, currentPlayer]);
 
-  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice: number | null, rolling: boolean) => {
+  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
-      victoryTarget: victoryTarget,
-      diceValue: currentDice,
-      isRolling: rolling
+      lastDiceValue: currentDice ?? diceValue,
+      victoryTarget: victoryTarget 
     };
     
     const stateStr = JSON.stringify(newState);
     if (stateStr === lastSyncRef.current) return; 
+    
     lastSyncRef.current = stateStr;
 
     await supabase
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
-  }, [roomCode, victoryTarget]);
-
-  // --- LOGICA DI GIOCO ---
+  }, [roomCode, victoryTarget, diceValue]);
 
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
     nextTurn();
-    // Sincronizziamo il cambio turno e resettiamo i dadi per il prossimo
-    syncGameState(players, nextIdx, null, false);
+    syncGameState(players, nextIdx);
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
@@ -125,13 +118,9 @@ export default function GameBoard({
     if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
 
     setIsRolling(true);
-    // Notifichiamo agli altri che stiamo lanciando
-    syncGameState(players, players.indexOf(currentPlayer), null, true);
-
     let counter = 0;
     const shuffleInterval = setInterval(() => {
-      const tempDice = Math.floor(Math.random() * 6) + 1;
-      setDiceValue(tempDice);
+      setDiceValue(Math.floor(Math.random() * 6) + 1);
       if (++counter >= 12) {
         clearInterval(shuffleInterval);
         const steps = Math.floor(Math.random() * 6) + 1;
@@ -141,9 +130,9 @@ export default function GameBoard({
           const tile = movePlayer(steps);
           setIsRolling(false);
           
+          // Sincronizziamo immediatamente posizione e dadi dopo il lancio
           setPlayers(currentPlayers => {
-            const myIdx = currentPlayers.findIndex(p => p.name === localPlayerName);
-            syncGameState(currentPlayers, myIdx, steps, false);
+            syncGameState(currentPlayers, players.indexOf(currentPlayer), steps);
             return currentPlayers;
           });
 
@@ -157,7 +146,7 @@ export default function GameBoard({
     if (!tile) { 
       const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
       nextTurn(); 
-      syncGameState(players, nextIdx, null, false);
+      syncGameState(players, nextIdx);
       return; 
     }
     const corners = [0, 7, 14, 21];
@@ -265,7 +254,7 @@ export default function GameBoard({
     
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
     nextTurn();
-    syncGameState(players, nextIdx, null, false);
+    syncGameState(players, nextIdx);
   };
 
   const handleCornerTile = (tile: any) => {
@@ -323,6 +312,7 @@ export default function GameBoard({
     }
   };
 
+  // ... Il resto del rendering (JSX) rimane invariato ...
   if (!players || players.length === 0 || !currentPlayer) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
@@ -432,13 +422,9 @@ export default function GameBoard({
             </span>
           </div>
           
-          <motion.div 
-            animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [1, 1.1, 1] } : {}}
-            transition={isRolling ? { repeat: Infinity, duration: 0.4, ease: "linear" } : {}}
-            className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}
-          >
+          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
-          </motion.div>
+          </div>
           
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
@@ -468,9 +454,7 @@ export default function GameBoard({
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
                 <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
                 <div className="absolute bottom-1 left-1 flex gap-0.5 z-30">
-                  {playersHere.map(p => (
-                    <motion.div key={p.id} layoutId={`p-${p.id}`} className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: p.color }} />
-                  ))}
+                  {playersHere.map(p => <div key={p.id} className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: p.color }} />)}
                 </div>
               </div>
             );
