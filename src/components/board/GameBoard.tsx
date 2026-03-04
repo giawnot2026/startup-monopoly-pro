@@ -33,8 +33,13 @@ export default function GameBoard({
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  // --- LOGICA MULTIPLAYER REALTIME ---
+  // --- LOGICA MULTIPLAYER REALTIME (INTEGRATA) ---
   const lastSyncRef = useRef<string>("");
+  const isMyTurnRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    isMyTurnRef.current = currentPlayer?.name === localPlayerName;
+  }, [currentPlayer, localPlayerName]);
 
   useEffect(() => {
     const fetchAndSubscribe = async () => {
@@ -45,9 +50,12 @@ export default function GameBoard({
         .maybeSingle();
 
       if (data?.game_state) {
-        setPlayers(data.game_state.players);
-        setCurrentPlayerIndex(data.game_state.currentPlayerIndex);
-        lastSyncRef.current = JSON.stringify(data.game_state);
+        const state = data.game_state;
+        setPlayers(state.players);
+        setCurrentPlayerIndex(state.currentPlayerIndex);
+        if (state.diceValue !== undefined) setDiceValue(state.diceValue);
+        if (state.isRolling !== undefined) setIsRolling(state.isRolling);
+        lastSyncRef.current = JSON.stringify(state);
       }
 
       const channel = supabase
@@ -61,41 +69,39 @@ export default function GameBoard({
           const newState = payload.new.game_state;
           const stateStr = JSON.stringify(newState);
           
-          // Se lo stato è identico a quello che abbiamo già (o appena inviato), ignoriamo
           if (stateStr === lastSyncRef.current) return;
 
-          // DETERMINANTE: Se è il mio turno, non sovrascrivo i miei dati locali con quelli del DB 
-          // a meno che non sia cambiato il turno (segno che l'azione corrente è conclusa)
-          const isMyTurn = players[players.indexOf(currentPlayer)]?.name === localPlayerName;
-          const isTurnChanged = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
+          const incomingCurrentPlayer = newState.players[newState.currentPlayerIndex];
+          const turnHasChanged = incomingCurrentPlayer?.name !== localPlayerName;
 
-          if (!isMyTurn || isTurnChanged) {
+          // Se non è il mio turno, o se il turno è appena passato a me/altri, aggiorno tutto
+          if (!isMyTurnRef.current || turnHasChanged) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
+            setDiceValue(newState.diceValue);
+            setIsRolling(newState.isRolling);
             lastSyncRef.current = stateStr;
           }
         })
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
     };
 
     fetchAndSubscribe();
-  }, [roomCode, setPlayers, setCurrentPlayerIndex, localPlayerName, players, currentPlayer]);
+  }, [roomCode, setPlayers, setCurrentPlayerIndex, localPlayerName]);
 
-  // Funzione di sincronizzazione migliorata
-  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number) => {
+  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice: number | null, rolling: boolean) => {
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
-      victoryTarget: victoryTarget 
+      victoryTarget: victoryTarget,
+      diceValue: currentDice,
+      isRolling: rolling
     };
     
     const stateStr = JSON.stringify(newState);
     if (stateStr === lastSyncRef.current) return; 
-    
     lastSyncRef.current = stateStr;
 
     await supabase
@@ -110,7 +116,8 @@ export default function GameBoard({
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
     nextTurn();
-    syncGameState(players, nextIdx);
+    // Sincronizziamo il cambio turno e resettiamo i dadi per il prossimo
+    syncGameState(players, nextIdx, null, false);
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
@@ -118,9 +125,13 @@ export default function GameBoard({
     if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
 
     setIsRolling(true);
+    // Notifichiamo agli altri che stiamo lanciando
+    syncGameState(players, players.indexOf(currentPlayer), null, true);
+
     let counter = 0;
     const shuffleInterval = setInterval(() => {
-      setDiceValue(Math.floor(Math.random() * 6) + 1);
+      const tempDice = Math.floor(Math.random() * 6) + 1;
+      setDiceValue(tempDice);
       if (++counter >= 12) {
         clearInterval(shuffleInterval);
         const steps = Math.floor(Math.random() * 6) + 1;
@@ -130,9 +141,9 @@ export default function GameBoard({
           const tile = movePlayer(steps);
           setIsRolling(false);
           
-          // Sincronizziamo immediatamente la posizione dopo il movimento
           setPlayers(currentPlayers => {
-            syncGameState(currentPlayers, players.indexOf(currentPlayer));
+            const myIdx = currentPlayers.findIndex(p => p.name === localPlayerName);
+            syncGameState(currentPlayers, myIdx, steps, false);
             return currentPlayers;
           });
 
@@ -146,7 +157,7 @@ export default function GameBoard({
     if (!tile) { 
       const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
       nextTurn(); 
-      syncGameState(players, nextIdx);
+      syncGameState(players, nextIdx, null, false);
       return; 
     }
     const corners = [0, 7, 14, 21];
@@ -254,7 +265,7 @@ export default function GameBoard({
     
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
     nextTurn();
-    syncGameState(players, nextIdx);
+    syncGameState(players, nextIdx, null, false);
   };
 
   const handleCornerTile = (tile: any) => {
@@ -421,9 +432,13 @@ export default function GameBoard({
             </span>
           </div>
           
-          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
+          <motion.div 
+            animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [1, 1.1, 1] } : {}}
+            transition={isRolling ? { repeat: Infinity, duration: 0.4, ease: "linear" } : {}}
+            className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}
+          >
             {diceValue || '?'}
-          </div>
+          </motion.div>
           
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
@@ -453,7 +468,9 @@ export default function GameBoard({
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
                 <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
                 <div className="absolute bottom-1 left-1 flex gap-0.5 z-30">
-                  {playersHere.map(p => <div key={p.id} className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: p.color }} />)}
+                  {playersHere.map(p => (
+                    <motion.div key={p.id} layoutId={`p-${p.id}`} className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: p.color }} />
+                  ))}
                 </div>
               </div>
             );
