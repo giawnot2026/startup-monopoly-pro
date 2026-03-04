@@ -102,10 +102,11 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   const movePlayer = useCallback((steps: number) => {
     if (!currentPlayer) return { tile: null, updatedPlayers: players };
     
-    const nextPos = (currentPlayer.position + steps) % TILES.length;
+    // FORZATURA NUMERICA POSIZIONE
+    const currentPos = Number(currentPlayer.position) || 0;
+    const nextPos = (currentPos + steps) % TILES.length;
     const tile = TILES[nextPos];
 
-    // CALCOLO DETERMINISTICO IMMEDIATO
     const owner = players.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === nextPos));
     const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
     let tollToPay = 0;
@@ -119,12 +120,12 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
       if (idx === currentPlayerIndex) {
         let updatedMrr = Math.max(0, Number(p.mrr) - tollToPay);
         let updatedCash = Number(p.cash);
-        let updatedLaps = p.laps;
+        let updatedLaps = Number(p.laps) || 0;
         let totalRepaidThisTurn = 0;
         let updatedDebts = [...p.debts];
         let newMonthlyCosts = Number(p.monthlyCosts);
 
-        if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
+        if (nextPos < currentPos || (currentPos !== 0 && nextPos === 0)) {
           updatedLaps += 1;
           updatedDebts = updatedDebts.map(debt => {
             const annualInterest = Math.round(Number(debt.amount) * Number(debt.interestRate));
