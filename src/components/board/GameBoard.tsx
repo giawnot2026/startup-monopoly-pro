@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useGameLogic, ExtendedPlayer } from '@/hooks/useGameLogic';
+import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
 import { TILES } from '@/data/tiles';
@@ -8,7 +8,7 @@ import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award, Skull, Home, CheckCircle2 } from 'lucide-react';
+import { Trophy, Award, Skull, Home, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function GameBoard({ 
@@ -26,20 +26,21 @@ export default function GameBoard({
     movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
     gameWinner, attemptExit, calculateValuation,
     eliminatedPlayerName, setEliminatedPlayerName,
-    setPlayers, setCurrentPlayerIndex, syncFromExternal 
+    setPlayers, setCurrentPlayerIndex 
   } = useGameLogic([], victoryTarget);
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [turnComplete, setTurnComplete] = useState(false); // Nuovo stato per il tasto "Termina Turno"
+  
+  // NUOVO STATO: Gestisce se il giocatore locale ha già mosso in questo turno
+  const [hasMoved, setHasMoved] = useState(false);
 
   const lastSyncRef = useRef<string>("");
-  const isInitialLoad = useRef(true);
 
   const sanitizeGameState = (state: any) => {
-    if (!state || !state.players || state.players.length === 0) return null;
+    if (!state || !state.players) return null;
     return {
       ...state,
       currentPlayerIndex: Number(state.currentPlayerIndex),
@@ -54,7 +55,6 @@ export default function GameBoard({
     };
   };
 
-  // Caricamento Iniziale e Sottoscrizione
   useEffect(() => {
     const fetchAndSubscribe = async () => {
       const { data } = await supabase
@@ -64,12 +64,11 @@ export default function GameBoard({
         .maybeSingle();
 
       const initialState = sanitizeGameState(data?.game_state);
-      if (initialState && isInitialLoad.current) {
+      if (initialState) {
         setPlayers(initialState.players);
         setCurrentPlayerIndex(initialState.currentPlayerIndex);
         if (initialState.lastDiceValue) setDiceValue(initialState.lastDiceValue);
         lastSyncRef.current = JSON.stringify(initialState);
-        isInitialLoad.current = false;
       }
 
       const channel = supabase
@@ -88,91 +87,74 @@ export default function GameBoard({
           const stateStr = JSON.stringify(newState);
           if (stateStr === lastSyncRef.current) return;
 
-          // PROTEZIONE: Se il DB manda meno giocatori di quelli che ho, ignoro (pacchetto corrotto)
-          if (players.length > 0 && newState.players.length < players.length) return;
-
           const pIndex = newState.currentPlayerIndex;
           const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
           
-          // Aggiorno lo stato se non è il mio turno o se i dati sono diversi
           if (!isMyTurnNow || newState.currentPlayerIndex !== players.indexOf(currentPlayer)) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
             if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
             lastSyncRef.current = stateStr;
-            setTurnComplete(false); // Resetta il tasto per il nuovo turno
+            
+            // Se il turno è passato a me, resetto la possibilità di muovere
+            if (isMyTurnNow) setHasMoved(false);
           }
         })
         .subscribe();
 
-      return () => { supabase.removeChannel(channel); };
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
 
     fetchAndSubscribe();
-  }, [roomCode, localPlayerName, isSyncing, isRolling, players.length, currentPlayer]); 
+  }, [roomCode, localPlayerName, isSyncing, isRolling, players, currentPlayer, setCurrentPlayerIndex, setPlayers]); 
 
-  // Funzione di Sincronizzazione Atomica
-  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number, eventType: string = 'MOVE') => {
-    if (!updatedPlayers || updatedPlayers.length === 0) return;
-
+  const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     setIsSyncing(true);
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
       lastDiceValue: currentDice ?? diceValue,
-      victoryTarget: victoryTarget,
-      lastUpdate: Date.now()
+      victoryTarget: victoryTarget 
     };
     
     const stateStr = JSON.stringify(newState);
     lastSyncRef.current = stateStr;
 
-    // 1. Aggiorna lo stato principale
     await supabase
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
-
-    // 2. Storicizza l'evento nella nuova tabella
-    await supabase
-      .from('game_events')
-      .insert({
-        room_code: roomCode,
-        player_id: players.indexOf(currentPlayer),
-        event_type: eventType,
-        payload: { dice: currentDice, nextIndex }
-      });
     
     setTimeout(() => setIsSyncing(false), 500);
-  }, [roomCode, victoryTarget, diceValue, players, currentPlayer]);
+  }, [roomCode, victoryTarget, diceValue]);
 
-  // Gestione Fine Turno Esplicita
-  const handleEndTurn = useCallback(() => {
-    const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    // Salta i giocatori in bancarotta
-    let finalNextIdx = nextIdx;
-    let attempts = 0;
-    while (players[finalNextIdx]?.isBankrupt && attempts < players.length) {
-      finalNextIdx = (finalNextIdx + 1) % players.length;
-      attempts++;
-    }
-
-    syncGameState(players, finalNextIdx, diceValue || 0, 'TURN_NEXT');
-    nextTurn();
-    setTurnComplete(false);
-  }, [players, currentPlayer, diceValue, syncGameState, nextTurn]);
-
+  // LOGICA CHIUSURA MODAL: Ora NON passa il turno, lo chiude e basta
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
-    // Invece di passare il turno qui, abilitiamo il tasto "Termina Turno"
-    setTurnComplete(true);
-    // Sincronizziamo lo stato attuale degli asset/soldi prima di chiudere
-    syncGameState(players, players.indexOf(currentPlayer), diceValue || 0, 'ACTION_COMPLETE');
-  }, [players, currentPlayer, diceValue, syncGameState]);
+    // Sincronizziamo lo stato degli asset/denaro ma restiamo sullo stesso giocatore
+    syncGameState(players, players.indexOf(currentPlayer));
+  }, [players, currentPlayer, syncGameState]);
+
+  // FUNZIONE PER PASSARE IL TURNO MANUALMENTE
+  const handleEndTurn = useCallback(() => {
+    const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
+    let finalNextIdx = nextIdx;
+    
+    // Salta eventuali giocatori in bancarotta
+    while (players[finalNextIdx].isBankrupt && finalNextIdx !== players.indexOf(currentPlayer)) {
+      finalNextIdx = (finalNextIdx + 1) % players.length;
+    }
+
+    setHasMoved(false);
+    nextTurn(); // Aggiorna stato locale
+    syncGameState(players, finalNextIdx); // Aggiorna DB
+  }, [players, currentPlayer, nextTurn, syncGameState]);
 
   const handleDiceRoll = () => {
-    if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
-    if (modalConfig.isOpen || isRolling || isSyncing || currentPlayer.isBankrupt || turnComplete) return;
+    if (!currentPlayer || currentPlayer.name !== localPlayerName || hasMoved) return;
+    if (modalConfig.isOpen || isRolling || isSyncing || currentPlayer.isBankrupt) return;
 
     setIsRolling(true);
     let counter = 0;
@@ -186,10 +168,13 @@ export default function GameBoard({
         setTimeout(() => {
           const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
+          setHasMoved(true); // SEGNA CHE IL GIOCATORE HA MOSSO
+          
           setPlayers([...updatedPlayers]);
           
-          // Sincronizza il movimento ma mantieni il turno attivo
-          syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps, 'MOVE');
+          // Sincronizza il movimento ma MANTIENE il turno corrente
+          syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
+
           processTile(tile, updatedPlayers);
         }, 600);
       }
@@ -197,10 +182,8 @@ export default function GameBoard({
   };
 
   const processTile = (tile: any, currentPlayers: any[]) => {
-    if (!tile) { 
-      setTurnComplete(true);
-      return; 
-    }
+    if (!tile) return; 
+
     const corners = [0, 7, 14, 21];
     if (corners.includes(tile.id)) { handleCornerTile(tile); return; }
     
@@ -303,22 +286,31 @@ export default function GameBoard({
       });
       return;
     }
-    
-    setTurnComplete(true);
   };
 
   const handleCornerTile = (tile: any) => {
     switch (tile.id) {
       case 0:
         const totalDebtAmount = (currentPlayer.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-        setModalConfig({
-          isOpen: true, type: 'info', title: totalDebtAmount > 0 ? "Chiusura Anno Fiscale" : "Revisione dei Bilanci",
-          description: totalDebtAmount > 0 
-            ? "Rendicontazione annuale completata. Pagate quote capitale e interessi del debito."
-            : "L'anno fiscale si chiude in assenza di debiti finanziari. Audit superato con successo.",
-          impact: { details: totalDebtAmount > 0 ? "Ammortamento debito eseguito" : "Nessun onere finanziario" },
-          actionLabel: "Continua", onAction: handleCloseModal
-        });
+        if (totalDebtAmount > 0) {
+          const totalCapital = (currentPlayer.debts || []).reduce((acc, d) => acc + Number(d.capitalInstallment), 0);
+          const totalInterest = (currentPlayer.debts || []).reduce((acc, d) => {
+             return acc + Math.round((Number(d.amount) + Number(d.capitalInstallment)) * Number(d.interestRate));
+          }, 0);
+          setModalConfig({
+            isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
+            description: `Rendicontazione annuale completata. Pagata quota capitale del debito: €${totalCapital.toLocaleString()} e relativa quota di interesse di €${totalInterest.toLocaleString()}`,
+            impact: { details: `Ammortamento: -€${totalCapital.toLocaleString()} (Cash) | Interessi: -€${totalInterest.toLocaleString()} (EBITDA)` },
+            actionLabel: "Continua", onAction: handleCloseModal
+          });
+        } else {
+          setModalConfig({
+            isOpen: true, type: 'info', title: "Revisione dei Bilanci",
+            description: "L'anno fiscale si chiude in assenza di debiti finanziari. Il team contabile ha confermato la solidità dei flussi e la corretta quadratura dei conti.",
+            impact: { details: "Audit superato con successo | Nessun onere finanziario rilevato" },
+            actionLabel: "Continua", onAction: handleCloseModal
+          });
+        }
         break;
       case 7:
       case 14:
@@ -327,9 +319,22 @@ export default function GameBoard({
         const isValuable = currentVal > 120000;
         const availableOffers = FUNDING_OFFERS.filter(o => o.type === 'EQUITY' ? (isValuable && currentPlayer.laps > 0) : true);
         const offer = { ...availableOffers[Math.floor(Math.random() * availableOffers.length)] };
+        let details = "";
+        if (offer.type === 'EQUITY') {
+          const cash = (currentVal * 15) / 100;
+          details = `Iniezione Cash: €${cash.toLocaleString()} | Cessione: 15% Equity`;
+          offer.actualDilution = 15;
+        } else if (offer.type === 'BANK') {
+          const amount = (Number(offer.fixedAmount) || 50000).toLocaleString();
+          const rate = (Number(offer.interestRate) * 100).toFixed(1);
+          const duration = offer.durationYears || 3;
+          details = `Erogazione: €${amount} | Tasso: ${rate}% | Durata: ${duration} giri`;
+        } else if (offer.type === 'GRANT') {
+          details = `Capitale a fondo perduto: +€${(Number(offer.fixedAmount) || 25000).toLocaleString()}`;
+        }
         setModalConfig({
           isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
-          description: offer.description, impact: { details: "Analisi offerta finanziaria" },
+          description: offer.description, impact: { details },
           actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
           onAction: () => { applyFunding(offer); handleCloseModal(); },
           onClose: handleCloseModal
@@ -341,7 +346,7 @@ export default function GameBoard({
   if (!players || players.length === 0 || !currentPlayer) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
-        Caricamento Startup...
+        Inizializzazione startup...
       </div>
     );
   }
@@ -349,17 +354,90 @@ export default function GameBoard({
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
       
-      {/* SEZIONE VINCITORE (Invariata) */}
       <AnimatePresence>
         {gameWinner && (
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
-             {/* ... contenuto modal vittoria identico al tuo ... */}
-             <div className="text-center">
-                <Trophy size={60} className="text-yellow-400 mx-auto mb-4" />
-                <h2 className="text-4xl font-black mb-8 italic uppercase">Vittoria Epica per {gameWinner.name}!</h2>
-                <button onClick={() => window.location.reload()} className="px-10 py-4 bg-blue-600 rounded-2xl font-black uppercase">Nuova Scalata</button>
-             </div>
-           </motion.div>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[300] bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-6xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-6 md:p-10 shadow-2xl text-center relative"
+            >
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <Trophy size={40} className="text-white" />
+                </div>
+                <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter text-white mb-1">Vittoria Epica!</h2>
+                <p className="text-blue-400 font-mono text-[10px] tracking-[0.3em] uppercase mb-8">Exit completata con successo</p>
+
+                <div className="space-y-3 mb-10 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {[...players].sort((a, b) => {
+                    const valA = (calculateValuation(a) * (a.equity || 100)) / 100;
+                    const valB = (calculateValuation(b) * (b.equity || 100)) / 100;
+                    return valB - valA;
+                  }).map((p, idx) => {
+                    if (!p) return null;
+                    const totalVal = calculateValuation(p);
+                    const founderIncasso = (totalVal * (p.equity || 100)) / 100;
+                    const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
+                    const debt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+                    
+                    return (
+                      <motion.div 
+                        key={p.id}
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className={`flex flex-col lg:flex-row items-center gap-4 p-5 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-white/5 border-white/10 opacity-70'}`}
+                      >
+                        <div className="flex items-center gap-4 min-w-[200px] w-full lg:w-1/4">
+                          <div className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">
+                            {idx + 1}
+                          </div>
+                          <div className="text-left overflow-hidden">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span className="font-black text-white uppercase text-base truncate">{p.name}</span>
+                              {idx === 0 && <Award size={18} className="text-yellow-400 flex-shrink-0" />}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
+                          <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Cash</span>
+                            <span className="text-white font-mono font-bold text-sm block truncate">€{Math.floor(Number(p.cash)).toLocaleString()}</span>
+                          </div>
+                          <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">EBITDA (Year)</span>
+                            <span className={`font-mono font-bold text-sm block truncate ${ebitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{Math.floor(ebitda * 12).toLocaleString()}</span>
+                          </div>
+                          <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                            <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Debiti</span>
+                            <span className="text-rose-400 font-mono font-bold text-sm block truncate">€{Math.floor(debt).toLocaleString()}</span>
+                          </div>
+                          <div className="text-center lg:text-right px-3 overflow-hidden">
+                            <span className="block text-[8px] text-blue-400 uppercase font-black italic mb-1">Net Founder Exit</span>
+                            <span className="text-blue-400 font-mono font-black text-lg block truncate">€{Math.floor(founderIncasso).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="px-10 py-4 bg-white text-slate-900 font-black uppercase rounded-2xl hover:bg-blue-400 hover:text-white transition-all shadow-xl text-sm"
+                >
+                  Nuova Scalata
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -381,31 +459,27 @@ export default function GameBoard({
           <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
           <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
           
-          <div className="flex flex-col gap-2 w-full px-4">
+          {!hasMoved ? (
             <button 
-                onClick={handleDiceRoll} 
-                disabled={isRolling || isSyncing || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName || turnComplete} 
-                className={`w-full py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
-                ${currentPlayer.name === localPlayerName && !turnComplete
-                    ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' 
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
+              onClick={handleDiceRoll} 
+              disabled={isRolling || isSyncing || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+              className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
+                ${currentPlayer.name === localPlayerName 
+                  ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' 
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
             >
-                {isRolling ? "Lancio..." : "Lancia Dadi"}
+              {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
             </button>
-
-            {/* TASTO TERMINA TURNO - Fondamentale per la sincronizzazione */}
-            {currentPlayer.name === localPlayerName && turnComplete && (
-                <button 
-                onClick={handleEndTurn}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-[10px] font-mono shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 animate-bounce"
-                >
-                <CheckCircle2 size={14} /> Termina Turno
-                </button>
-            )}
-          </div>
+          ) : (
+            <button 
+              onClick={handleEndTurn}
+              className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 animate-bounce"
+            >
+              <ArrowRight size={14} /> TERMINA TURNO
+            </button>
+          )}
         </div>
 
-        {/* TABELLONE (Invariato) */}
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
@@ -427,7 +501,6 @@ export default function GameBoard({
         </div>
       </div>
 
-      {/* DASHBOARD LATERALE (Invariata) */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
@@ -436,16 +509,60 @@ export default function GameBoard({
           const isMe = p.name === localPlayerName;
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
+          const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
+          const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+          const isNegative = (Number(p.cash) || 0) < 0;
+
           return (
-            <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500' : 'bg-slate-900/50 border-white/5 opacity-80'}`}>
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-white uppercase">{p.name} {isMe && "(TU)"}</span>
-                    <span className="text-[10px] text-blue-400 font-black">{p.equity.toFixed(1)}% EQ</span>
+            <div 
+              key={p.id} 
+              className={`p-4 rounded-2xl border transition-all duration-500 
+                ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'bg-slate-900/50 border-white/5 opacity-80'} 
+                ${isMe ? 'ring-1 ring-white/20 shadow-lg' : ''}
+                ${p.isBankrupt ? 'grayscale opacity-50 bg-rose-950/20 border-rose-900/50' : ''}
+                ${isNegative && !p.isBankrupt ? 'animate-pulse border-rose-500 bg-rose-500/10' : ''}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.isBankrupt ? '#555' : p.color }} />
+                  <span className={`font-bold text-xs uppercase ${p.isBankrupt ? 'text-rose-500 line-through' : 'text-white'}`}>
+                    {p.name} {isMe && "(TU)"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[9px]">
-                    <div className="bg-black/40 p-2 rounded">CASH: €{Math.floor(p.cash).toLocaleString()}</div>
-                    <div className="bg-black/40 p-2 rounded">EBITDA: €{currentEbitda.toLocaleString()}</div>
+                {p.isBankrupt ? (
+                   <span className="flex items-center gap-1 text-[8px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30">
+                    <Skull size={10} /> BANCAROTTA
+                   </span>
+                ) : (
+                  <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 text-[9px]">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
+                  <span className={`font-black ${ (Number(p.cash) || 0) < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(Number(p.cash || 0)).toLocaleString()}</span>
                 </div>
+                <div className="bg-black/30 p-2 rounded-lg text-center">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
+                  <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
+                </div>
+                <div className="bg-black/30 p-2 rounded-lg text-center">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
+                  <span className={`font-black ${totalDebt > 0 ? 'text-rose-400' : 'text-amber-400'}`}>
+                    {totalDebt > 0 ? `€${totalDebt.toLocaleString()}` : '0'}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 uppercase font-black text-[7px]">Company Val.</span>
+                  <span className="text-white font-black text-[10px]">€{pVal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
+                  <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
+                </div>
+              </div>
             </div>
           );
         })}
@@ -453,23 +570,52 @@ export default function GameBoard({
       
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
 
-      {/* MODAL ELIMINAZIONE (Invariato) */}
       <AnimatePresence>
         {eliminatedPlayerName && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <div className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center">
-              <Skull size={40} className="text-white mx-auto mb-4" />
-              <h2 className="text-xl text-white font-bold mb-4 uppercase">{eliminatedPlayerName} Eliminato</h2>
-              <button onClick={() => setEliminatedPlayerName(null)} className="w-full bg-red-600 py-4 rounded-2xl uppercase">Continua</button>
-            </div>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center shadow-[0_0_50px_rgba(239,68,68,0.3)]"
+            >
+              <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Skull size={32} className="text-white" />
+              </div>
+              <div className="text-red-500 text-5xl mb-2 font-black italic tracking-tighter uppercase">Default</div>
+              <h2 className="text-xl text-white font-bold mb-3 uppercase tracking-widest">
+                {eliminatedPlayerName} eliminato
+              </h2>
+              <p className="text-red-200/60 text-[11px] font-mono mb-8 leading-relaxed uppercase">
+                La startup ha esaurito la liquidità operativa. L'EBITDA non è stato sufficiente a coprire il rosso in cassa. Asset liquidati.
+              </p>
+              <button 
+                onClick={() => setEliminatedPlayerName(null)}
+                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest transition-all text-[10px] shadow-xl shadow-red-900/20"
+              >
+                Continua Partita
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="fixed bottom-6 right-6 z-[100]">
-        <button onClick={() => window.location.href = '/'} className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-blue-500/50 p-2 pr-5 rounded-full transition-all">
-          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600"><Home size={18} /></div>
-          <span className="text-[10px] font-black text-white uppercase">Home</span>
+        <button 
+          onClick={() => window.location.href = '/'} 
+          className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-blue-500/50 p-2 pr-5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(59,130,246,0.2)]"
+        >
+          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+            <Home size={18} className="text-white" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Exit to Home</span>
+            <span className="text-[7px] font-mono text-slate-500 uppercase tracking-widest">Abbandona Scalata</span>
+          </div>
         </button>
       </div>
     </div>
