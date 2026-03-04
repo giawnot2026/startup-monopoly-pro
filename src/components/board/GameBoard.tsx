@@ -32,8 +32,26 @@ export default function GameBoard({
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const lastSyncRef = useRef<string>("");
+
+  // Funzione per forzare i tipi corretti dai dati DB
+  const sanitizeGameState = (state: any) => {
+    if (!state || !state.players) return null;
+    return {
+      ...state,
+      currentPlayerIndex: Number(state.currentPlayerIndex),
+      players: state.players.map((p: any) => ({
+        ...p,
+        position: Number(p.position) || 0,
+        cash: Number(p.cash),
+        mrr: Number(p.mrr),
+        laps: Number(p.laps) || 0,
+        equity: Number(p.equity)
+      }))
+    };
+  };
 
   useEffect(() => {
     const fetchAndSubscribe = async () => {
@@ -43,11 +61,12 @@ export default function GameBoard({
         .eq('room_code', roomCode)
         .maybeSingle();
 
-      if (data?.game_state) {
-        setPlayers(data.game_state.players);
-        setCurrentPlayerIndex(data.game_state.currentPlayerIndex);
-        if (data.game_state.lastDiceValue) setDiceValue(data.game_state.lastDiceValue);
-        lastSyncRef.current = JSON.stringify(data.game_state);
+      const initialState = sanitizeGameState(data?.game_state);
+      if (initialState) {
+        setPlayers(initialState.players);
+        setCurrentPlayerIndex(initialState.currentPlayerIndex);
+        if (initialState.lastDiceValue) setDiceValue(initialState.lastDiceValue);
+        lastSyncRef.current = JSON.stringify(initialState);
       }
 
       const channel = supabase
@@ -58,15 +77,18 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
-          const newState = payload.new.game_state;
-          const stateStr = JSON.stringify(newState);
+          // Se sto lanciando i dadi o sincronizzando, ignoro gli update esterni per evitare il "rimbalzo"
+          if (isSyncing || isRolling) return;
+
+          const newState = sanitizeGameState(payload.new.game_state);
+          if (!newState) return;
           
+          const stateStr = JSON.stringify(newState);
           if (stateStr === lastSyncRef.current) return;
 
           const pIndex = newState.currentPlayerIndex;
           const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
           
-          // Se NON è il mio turno, o se il turno è appena cambiato, accetto l'update dal DB
           if (!isMyTurnNow || newState.currentPlayerIndex !== players.indexOf(currentPlayer)) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
@@ -82,9 +104,10 @@ export default function GameBoard({
     };
 
     fetchAndSubscribe();
-  }, [roomCode, localPlayerName]); // Ridotte dipendenze per evitare loop
+  }, [roomCode, localPlayerName, isSyncing, isRolling]); 
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
+    setIsSyncing(true);
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
@@ -93,14 +116,14 @@ export default function GameBoard({
     };
     
     const stateStr = JSON.stringify(newState);
-    if (stateStr === lastSyncRef.current) return; 
-    
     lastSyncRef.current = stateStr;
 
     await supabase
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
+    
+    setTimeout(() => setIsSyncing(false), 500); // Rilascia il blocco dopo il salvataggio
   }, [roomCode, victoryTarget, diceValue]);
 
   const handleCloseModal = useCallback(() => {
@@ -112,7 +135,7 @@ export default function GameBoard({
 
   const handleDiceRoll = () => {
     if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
-    if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
+    if (modalConfig.isOpen || isRolling || isSyncing || currentPlayer.isBankrupt) return;
 
     setIsRolling(true);
     let counter = 0;
@@ -127,10 +150,10 @@ export default function GameBoard({
           const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
           
-          // AGGIORNAMENTO LOCALE IMMEDIATO
+          // Forza l'update locale immediato
           setPlayers([...updatedPlayers]);
           
-          // SINCRONIZZAZIONE DB CON DATI FRESCHI
+          // Sincronizza con DB (mantenendo lo stesso currentPlayerIndex per ora, cambierà alla chiusura del modal/evento)
           syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
 
           processTile(tile, updatedPlayers);
@@ -427,7 +450,7 @@ export default function GameBoard({
           
           <button 
             onClick={handleDiceRoll} 
-            disabled={isRolling || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+            disabled={isRolling || isSyncing || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
             className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
               ${currentPlayer.name === localPlayerName 
                 ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' 
@@ -466,9 +489,9 @@ export default function GameBoard({
           const isMe = p.name === localPlayerName;
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
-          const founderPart = (pVal * (p.equity || 100)) / 100;
+          const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-          const isNegative = (p.cash || 0) < 0;
+          const isNegative = (Number(p.cash) || 0) < 0;
 
           return (
             <div 
@@ -491,13 +514,13 @@ export default function GameBoard({
                     <Skull size={10} /> BANCAROTTA
                    </span>
                 ) : (
-                  <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(1) || 100}% EQ</span>
+                  <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>
                 )}
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
-                  <span className={`font-black ${ (p.cash || 0) < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(Number(p.cash || 0)).toLocaleString()}</span>
+                  <span className={`font-black ${ (Number(p.cash) || 0) < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(Number(p.cash || 0)).toLocaleString()}</span>
                 </div>
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
