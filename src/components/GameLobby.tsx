@@ -1,33 +1,37 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rocket, Users, Target, ArrowRight } from 'lucide-react';
+import { Rocket, Play, Plus, HelpCircle, Target, ArrowLeft } from 'lucide-react';
 
 interface LobbyProps {
   onJoinGame: (roomCode: string, playerName: string, victoryTarget: number) => void;
 }
 
+const AVAILABLE_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
+const VICTORY_TARGETS = [
+  { label: '5 Milioni', value: 5000000 },
+  { label: '20 Milioni', value: 20000000 },
+  { label: '50 Milioni', value: 50000000 }
+];
+
 export default function GameLobby({ onJoinGame }: LobbyProps) {
   const [roomCode, setRoomCode] = useState('');
   const [playerName, setPlayerName] = useState('');
-  const [victoryTarget, setVictoryTarget] = useState(20000000); // Default 20M
+  const [victoryTarget, setVictoryTarget] = useState(20000000);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Funzione per creare o unirsi a una stanza
   const handleStart = async (mode: 'create' | 'join') => {
     if (!roomCode || !playerName) {
       setError("Inserisci codice stanza e il tuo nome.");
       return;
     }
-
     setLoading(true);
     setError(null);
 
-    // 1. Controlliamo se la stanza esiste già
-    const { data: room, error: fetchError } = await supabase
+    const { data: room } = await supabase
       .from('multiplayer_games')
       .select('*')
       .eq('room_code', roomCode.toUpperCase())
@@ -35,17 +39,16 @@ export default function GameLobby({ onJoinGame }: LobbyProps) {
 
     if (mode === 'create') {
       if (room) {
-        setError("Questa stanza esiste già. Scegli un altro codice o clicca Partecipa.");
+        setError("Codice già in uso.");
         setLoading(false);
         return;
       }
 
-      // Crea nuova stanza con lo stato iniziale
       const initialState = {
         players: [{
           id: 1,
           name: playerName,
-          color: '#3b82f6', // Blu per il primo
+          color: AVAILABLE_COLORS[0],
           position: 0,
           cash: 100000,
           mrr: 5000,
@@ -61,153 +64,133 @@ export default function GameLobby({ onJoinGame }: LobbyProps) {
         status: 'waiting'
       };
 
-      const { error: insertError } = await supabase
-        .from('multiplayer_games')
-        .insert([{ 
-          room_code: roomCode.toUpperCase(), 
-          game_state: initialState 
-        }]);
-
-      if (insertError) {
-        setError("Errore nella creazione della stanza.");
-      } else {
-        localStorage.setItem('my_founder_name', playerName);
-        onJoinGame(roomCode.toUpperCase(), playerName, victoryTarget);
-      }
+      await supabase.from('multiplayer_games').insert([{ 
+        room_code: roomCode.toUpperCase(), 
+        game_state: initialState 
+      }]);
+      
+      onJoinGame(roomCode.toUpperCase(), playerName, victoryTarget);
     } else {
-      // Modalità JOIN
       if (!room) {
         setError("Stanza non trovata.");
         setLoading(false);
         return;
       }
-
       const state = room.game_state;
-      // Controllo se il nome è già preso
       if (state.players.some((p: any) => p.name.toLowerCase() === playerName.toLowerCase())) {
-        setError("Questo nome è già occupato in questa stanza.");
+        setError("Nome già preso.");
         setLoading(false);
         return;
       }
 
-      // Aggiunge il nuovo giocatore allo stato
-      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-      const newPlayer = {
-        id: state.players.length + 1,
-        name: playerName,
-        color: colors[state.players.length % colors.length],
-        position: 0,
-        cash: 100000,
-        mrr: 5000,
-        monthlyCosts: 3000,
-        equity: 100,
-        assets: [],
-        debts: [],
-        laps: 0,
-        isBankrupt: false
-      };
-
       const updatedState = {
         ...state,
-        players: [...state.players, newPlayer]
+        players: [...state.players, {
+          id: state.players.length + 1,
+          name: playerName,
+          color: AVAILABLE_COLORS[state.players.length % AVAILABLE_COLORS.length],
+          position: 0,
+          cash: 100000,
+          mrr: 5000,
+          monthlyCosts: 3000,
+          equity: 100,
+          assets: [],
+          debts: [],
+          laps: 0,
+          isBankrupt: false
+        }]
       };
 
-      const { error: updateError } = await supabase
-        .from('multiplayer_games')
-        .update({ game_state: updatedState })
-        .eq('room_code', roomCode.toUpperCase());
-
-      if (updateError) {
-        setError("Errore durante l'accesso alla stanza.");
-      } else {
-        localStorage.setItem('my_founder_name', playerName);
-        onJoinGame(roomCode.toUpperCase(), playerName, state.victoryTarget);
-      }
+      await supabase.from('multiplayer_games').update({ game_state: updatedState }).eq('room_code', roomCode.toUpperCase());
+      onJoinGame(roomCode.toUpperCase(), playerName, state.victoryTarget);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-            <Rocket className="text-white" size={32} />
-          </div>
-          <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">Startup Scalata</h1>
-          <p className="text-slate-500 text-[10px] font-mono uppercase tracking-[0.2em] mt-2">Multiplayer Engine</p>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative z-10 w-full max-w-xl bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl"
+    >
+      <div className="flex items-center gap-4 mb-8">
+        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <Rocket className="text-white" size={24} />
         </div>
+        <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+          Startup <span className="text-blue-500 not-italic">Tycoon</span>
+        </h1>
+      </div>
 
-        <div className="space-y-6">
-          <div>
-            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 block ml-1">Codice Stanza</label>
+      <div className="space-y-6">
+        {/* INPUT CODICE E NOME */}
+        <div className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/5">
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Codice Stanza</p>
             <input 
               type="text" 
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              placeholder="ES: UNICORN2026"
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-blue-500 outline-none transition-all"
+              placeholder="ES: UNICORN"
+              className="w-full bg-transparent border-none text-white font-bold focus:ring-0 text-xl"
             />
           </div>
 
-          <div>
-            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 block ml-1">Tuo Nome Founder</label>
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/5">
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Tuo Nome Founder</p>
             <input 
               type="text" 
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Inserisci il tuo nome"
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-blue-500 outline-none transition-all"
+              placeholder="Inserisci nome..."
+              className="w-full bg-transparent border-none text-white font-bold focus:ring-0 text-xl"
             />
           </div>
-
-          {!isCreating ? (
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => handleStart('join')}
-                disabled={loading}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black py-4 rounded-xl uppercase text-[10px] tracking-widest transition-all"
-              >
-                Partecipa
-              </button>
-              <button 
-                onClick={() => setIsCreating(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-blue-500/20"
-              >
-                Crea Nuova
-              </button>
-            </div>
-          ) : (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div>
-                <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 block ml-1">Obiettivo Exit (EUR)</label>
-                <input 
-                  type="number" 
-                  value={victoryTarget}
-                  onChange={(e) => setVictoryTarget(Number(e.target.value))}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-emerald-500 outline-none transition-all"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setIsCreating(false)} className="flex-1 bg-white/5 text-white font-black py-4 rounded-xl uppercase text-[10px] tracking-widest">Indietro</button>
-                <button 
-                  onClick={() => handleStart('create')}
-                  disabled={loading}
-                  className="flex-[2] bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl uppercase text-[10px] tracking-widest transition-all"
-                >
-                  Inizia Scalata
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {error && (
-            <p className="text-rose-500 text-[10px] font-mono uppercase text-center bg-rose-500/10 py-2 rounded-lg border border-rose-500/20">
-              {error}
-            </p>
-          )}
         </div>
+
+        {isCreating ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <div>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest ml-1 mb-4">Valutazione Target</p>
+              <div className="grid grid-cols-3 gap-3">
+                {VICTORY_TARGETS.map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setVictoryTarget(t.value)}
+                    className={`py-3 px-2 rounded-2xl border text-xs font-black transition-all ${
+                      victoryTarget === t.value 
+                      ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' 
+                      : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setIsCreating(false)} className="flex-1 py-4 bg-white/5 rounded-2xl font-black uppercase text-[10px] tracking-widest"><ArrowLeft size={16} className="inline mr-2"/> Indietro</button>
+              <button onClick={() => handleStart('create')} className="flex-[2] py-4 bg-emerald-600 rounded-2xl font-black uppercase text-sm shadow-xl shadow-emerald-500/20">Crea Partita</button>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              onClick={() => handleStart('join')}
+              className="py-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black uppercase tracking-widest text-sm transition-all"
+            >
+              Partecipa
+            </button>
+            <button 
+              onClick={() => setIsCreating(true)}
+              className="py-6 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-blue-500/20"
+            >
+              Crea Nuova
+            </button>
+          </div>
+        )}
+
+        {error && <p className="text-red-400 text-[10px] font-black uppercase text-center">{error}</p>}
       </div>
-    </div>
+    </motion.div>
   );
 }
