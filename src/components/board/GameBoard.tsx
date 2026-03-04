@@ -8,7 +8,7 @@ import { OPPORTUNITA } from '@/data/opportunita';
 import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award, Skull } from 'lucide-react';
+import { Trophy, Award, Skull, Home } from 'lucide-react'; // Aggiunta Home
 
 export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: { initialPlayers: any[], victoryTarget?: number }) {
   const { 
@@ -436,6 +436,22 @@ export default function GameBoard({ initialPlayers, victoryTarget = 20000000 }: 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* TASTO RITORNA ALLA HOME */}
+      <div className="fixed bottom-6 right-6 z-[100]">
+        <button 
+          onClick={() => window.location.href = '/'} 
+          className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-blue-500/50 p-2 pr-5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(59,130,246,0.2)]"
+        >
+          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+            <Home size={18} className="text-white" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Exit to Home</span>
+            <span className="text-[7px] font-mono text-slate-500 uppercase tracking-widest">Abbandona Scalata</span>
+          </div>
+        </button>
+      </div>
     </div>
   );
 }
