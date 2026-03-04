@@ -100,9 +100,11 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   }, [players, currentPlayerIndex, checkGameStatus]);
 
   const movePlayer = useCallback((steps: number) => {
-    if (!currentPlayer) return null;
+    if (!currentPlayer) return { tile: null, updatedPlayers: players };
+    
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
+    let updatedPlayersState: ExtendedPlayer[] = [];
 
     setPlayers(prevPlayers => {
       const owner = prevPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
@@ -158,10 +160,13 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
         if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
         return p;
       });
+      
+      updatedPlayersState = newState;
       return newState;
     });
-    return tile;
-  }, [currentPlayerIndex, currentPlayer?.position]);
+
+    return { tile, updatedPlayers: updatedPlayersState.length > 0 ? updatedPlayersState : players };
+  }, [currentPlayerIndex, currentPlayer?.position, players]);
 
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
