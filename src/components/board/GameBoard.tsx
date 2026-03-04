@@ -76,9 +76,10 @@ export default function GameBoard({
     fetchAndSubscribe();
   }, [roomCode, setPlayers, setCurrentPlayerIndex]);
 
+  // Funzione di sincronizzazione migliorata per riflettere lo stato attuale
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number) => {
-    if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
-
+    // Non blocchiamo la sincronizzazione se è il turno del local player, 
+    // perché dobbiamo poter inviare i dati quando muoviamo.
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
@@ -91,15 +92,17 @@ export default function GameBoard({
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
-  }, [roomCode, victoryTarget, currentPlayer, localPlayerName]);
+  }, [roomCode, victoryTarget]);
 
   // --- LOGICA DI GIOCO ---
 
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
+    // Calcoliamo il prossimo indice prima di passare il turno
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    syncGameState(players, nextIdx);
     nextTurn();
+    // Sincronizziamo il passaggio del turno
+    syncGameState(players, nextIdx);
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
@@ -114,9 +117,18 @@ export default function GameBoard({
         clearInterval(shuffleInterval);
         const steps = Math.floor(Math.random() * 6) + 1;
         setDiceValue(steps);
+        
         setTimeout(() => {
           const tile = movePlayer(steps);
           setIsRolling(false);
+          
+          // FIX: Sincronizziamo immediatamente la posizione sulla mappa per gli altri giocatori
+          // Usiamo setPlayers con callback per assicurarci di avere lo stato freschissimo
+          setPlayers(currentPlayers => {
+            syncGameState(currentPlayers, players.indexOf(currentPlayer));
+            return currentPlayers;
+          });
+
           processTile(tile);
         }, 600);
       }
@@ -126,8 +138,8 @@ export default function GameBoard({
   const processTile = (tile: any) => {
     if (!tile) { 
       const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-      syncGameState(players, nextIdx);
       nextTurn(); 
+      syncGameState(players, nextIdx);
       return; 
     }
     const corners = [0, 7, 14, 21];
@@ -178,7 +190,7 @@ export default function GameBoard({
     }
 
     if (tile.type === 'asset') {
-      const owner = players.find(p => !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
+      const owner = players.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
       const revMod = tile.revenueModifier || 0;
@@ -234,8 +246,8 @@ export default function GameBoard({
     }
     
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    syncGameState(players, nextIdx);
     nextTurn();
+    syncGameState(players, nextIdx);
   };
 
   const handleCornerTile = (tile: any) => {
