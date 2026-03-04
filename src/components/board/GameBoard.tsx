@@ -35,6 +35,7 @@ export default function GameBoard({
   const [isSyncing, setIsSyncing] = useState(false);
 
   const lastSyncRef = useRef<string>("");
+  const lastUpdateIdRef = useRef<number>(0); // Riferimento per l'ID dell'ultimo aggiornamento inviato da noi
 
   // Funzione per forzare i tipi corretti dai dati DB
   const sanitizeGameState = (state: any) => {
@@ -42,6 +43,7 @@ export default function GameBoard({
     return {
       ...state,
       currentPlayerIndex: Number(state.currentPlayerIndex),
+      updateId: Number(state.updateId) || 0, // Recuperiamo l'ID dal DB
       players: state.players.map((p: any) => ({
         ...p,
         position: Number(p.position) || 0,
@@ -77,11 +79,15 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
-          // Se sto lanciando i dadi o sincronizzando, ignoro gli update esterni per evitare il "rimbalzo"
-          if (isSyncing || isRolling) return;
-
           const newState = sanitizeGameState(payload.new.game_state);
           if (!newState) return;
+
+          // LOGICA FILTRO: Se l'Update ID è lo stesso che abbiamo appena mandato noi, ignoriamo l'aggiornamento
+          if (newState.updateId === lastUpdateIdRef.current) {
+            return; 
+          }
+
+          if (isSyncing || isRolling) return;
           
           const stateStr = JSON.stringify(newState);
           if (stateStr === lastSyncRef.current) return;
@@ -108,11 +114,15 @@ export default function GameBoard({
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     setIsSyncing(true);
+    const updateId = Date.now(); // Generiamo un ID univoco
+    lastUpdateIdRef.current = updateId;
+
     const newState = { 
       players: updatedPlayers, 
       currentPlayerIndex: nextIndex,
       lastDiceValue: currentDice ?? diceValue,
-      victoryTarget: victoryTarget 
+      victoryTarget: victoryTarget,
+      updateId: updateId // Lo inviamo al DB
     };
     
     const stateStr = JSON.stringify(newState);
@@ -123,7 +133,7 @@ export default function GameBoard({
       .update({ game_state: newState })
       .eq('room_code', roomCode);
     
-    setTimeout(() => setIsSyncing(false), 500); // Rilascia il blocco dopo il salvataggio
+    setTimeout(() => setIsSyncing(false), 500);
   }, [roomCode, victoryTarget, diceValue]);
 
   const handleCloseModal = useCallback(() => {
@@ -150,10 +160,9 @@ export default function GameBoard({
           const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
           
-          // Forza l'update locale immediato
           setPlayers([...updatedPlayers]);
           
-          // Sincronizza con DB (mantenendo lo stesso currentPlayerIndex per ora, cambierà alla chiusura del modal/evento)
+          // Sincronizza con DB includendo il nuovo Update ID
           syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
 
           processTile(tile, updatedPlayers);
@@ -370,7 +379,7 @@ export default function GameBoard({
                   }).map((p, idx) => {
                     if (!p) return null;
                     const totalVal = calculateValuation(p);
-                    const founderIncasso = (totalVal * (p.equity || 100)) / 100;
+                    const founderIncasso = (totalVal * (Number(p.equity) || 100)) / 100;
                     const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
                     const debt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
                     
@@ -392,7 +401,7 @@ export default function GameBoard({
                               <span className="font-black text-white uppercase text-base truncate">{p.name}</span>
                               {idx === 0 && <Award size={18} className="text-yellow-400 flex-shrink-0" />}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {Number(p.equity).toFixed(1)}%</span>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
