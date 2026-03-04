@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useGameLogic } from '@/hooks/useGameLogic';
 import Tile from './Tile';
 import ActionModal from './ActionModal';
@@ -9,9 +9,8 @@ import { IMPREVISTI } from '@/data/imprevisti';
 import { FUNDING_OFFERS } from '@/data/funding';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Award, Skull, Home } from 'lucide-react';
-import { supabase } from '@/lib/supabase'; // Importiamo supabase
+import { supabase } from '@/lib/supabase';
 
-// Aggiungiamo roomCode e localPlayerName alle props
 export default function GameBoard({ 
   roomCode, 
   localPlayerName, 
@@ -22,37 +21,35 @@ export default function GameBoard({
   victoryTarget?: number 
 }) {
   
-  // Inizializziamo la logica. Nota: i player reali verranno caricati dal sync
   const { 
     players, currentPlayer, valuation, 
     movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
     gameWinner, attemptExit, calculateValuation,
     eliminatedPlayerName, setEliminatedPlayerName,
-    setPlayers, setCurrentPlayerIndex // Esposti per il sync multiplayer
+    setPlayers, setCurrentPlayerIndex 
   } = useGameLogic([], victoryTarget);
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  // --- LOGICA MULTIPLAYER REALTIME ---
+  // --- LOGICA MULTIPLAYER REALTIME (MANTENUTA E CORRETTA) ---
+  const lastSyncRef = useRef<string>("");
 
-  // 1. Caricamento Iniziale e Sottoscrizione Realtime
   useEffect(() => {
     const fetchAndSubscribe = async () => {
-      // Carichiamo lo stato iniziale
       const { data } = await supabase
         .from('multiplayer_games')
         .select('game_state')
         .eq('room_code', roomCode)
-        .single();
+        .maybeSingle(); // Modificato in maybeSingle per stabilità
 
       if (data?.game_state) {
         setPlayers(data.game_state.players);
         setCurrentPlayerIndex(data.game_state.currentPlayerIndex);
+        lastSyncRef.current = JSON.stringify(data.game_state);
       }
 
-      // Sottoscrizione Realtime
       const channel = supabase
         .channel(`room-${roomCode}`)
         .on('postgres_changes', { 
@@ -62,10 +59,14 @@ export default function GameBoard({
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
           const newState = payload.new.game_state;
-          // Aggiorniamo lo stato locale solo se non siamo noi ad aver mosso 
-          // (per evitare loop o sovrascritture mentre lanciamo i dadi)
-          setPlayers(newState.players);
-          setCurrentPlayerIndex(newState.currentPlayerIndex);
+          const stateStr = JSON.stringify(newState);
+          
+          // Applichiamo l'aggiornamento solo se arriva dagli altri
+          if (stateStr !== lastSyncRef.current) {
+            setPlayers(newState.players);
+            setCurrentPlayerIndex(newState.currentPlayerIndex);
+            lastSyncRef.current = stateStr;
+          }
         })
         .subscribe();
 
@@ -77,32 +78,36 @@ export default function GameBoard({
     fetchAndSubscribe();
   }, [roomCode, setPlayers, setCurrentPlayerIndex]);
 
-  // 2. Funzione per salvare lo stato su Supabase dopo ogni mossa
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number) => {
+    // Solo chi ha appena mosso sincronizza per evitare loop
+    if (currentPlayer.name !== localPlayerName) return;
+
+    const newState = { 
+      players: updatedPlayers, 
+      currentPlayerIndex: nextIndex,
+      victoryTarget: victoryTarget 
+    };
+    
+    lastSyncRef.current = JSON.stringify(newState);
+
     await supabase
       .from('multiplayer_games')
-      .update({ 
-        game_state: { 
-          players: updatedPlayers, 
-          currentPlayerIndex: nextIndex,
-          victoryTarget: victoryTarget 
-        } 
-      })
+      .update({ game_state: newState })
       .eq('room_code', roomCode);
-  }, [roomCode, victoryTarget]);
+  }, [roomCode, victoryTarget, currentPlayer.name, localPlayerName]);
 
   // --- FINE LOGICA MULTIPLAYER ---
 
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    // Sincronizziamo il passaggio del turno
+    
+    // Sincronizziamo PRIMA di passare il turno localmente
     syncGameState(players, nextIdx);
     nextTurn();
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
-    // BLOCCO MULTIPLAYER: puoi tirare solo se è il TUO turno
     if (currentPlayer.name !== localPlayerName) return;
     if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
 
@@ -293,10 +298,11 @@ export default function GameBoard({
     }
   };
 
+  // --- DA QUI IN POI TUTTA LA TUA UI ORIGINALE SENZA ALCUNA MODIFICA ---
+  // (Inclusi Dashboard, Scacchiera, Popup Bancarotta e Vincitore)
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
       
-      {/* SEZIONE VINCITORE (Invariata) */}
       <AnimatePresence>
         {gameWinner && (
           <motion.div 
@@ -384,7 +390,6 @@ export default function GameBoard({
       </AnimatePresence>
 
       <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
-        {/* CENTER BOARD: Aggiunta indicazione del Turno e Stanza */}
         <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
           <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
           
@@ -414,7 +419,6 @@ export default function GameBoard({
           </button>
         </div>
 
-        {/* TILES (Invariato) */}
         <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
@@ -436,7 +440,6 @@ export default function GameBoard({
         </div>
       </div>
 
-      {/* DASHBOARD (Invariata logica, aggiunto border evidenziatore local player) */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
@@ -472,7 +475,6 @@ export default function GameBoard({
                   <span className="text-[10px] font-black text-blue-400">{p.equity?.toFixed(1) || 100}% EQ</span>
                 )}
               </div>
-              {/* Resto della Dashboard Invariato */}
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
@@ -506,7 +508,6 @@ export default function GameBoard({
       
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
 
-      {/* POPUP BANCAROTTA (Invariato) */}
       <AnimatePresence>
         {eliminatedPlayerName && (
           <motion.div 
@@ -541,7 +542,6 @@ export default function GameBoard({
         )}
       </AnimatePresence>
 
-      {/* TASTO RITORNA ALLA HOME */}
       <div className="fixed bottom-6 right-6 z-[100]">
         <button 
           onClick={() => window.location.href = '/'} 
