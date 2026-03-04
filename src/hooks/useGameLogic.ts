@@ -104,69 +104,65 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
     
     const nextPos = (currentPlayer.position + steps) % TILES.length;
     const tile = TILES[nextPos];
-    let updatedPlayersState: ExtendedPlayer[] = [];
 
-    setPlayers(prevPlayers => {
-      const owner = prevPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayerIndex && p.assets.some(a => a.tileId === nextPos));
-      const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
-      let tollToPay = 0;
+    // CALCOLO DETERMINISTICO IMMEDIATO
+    const owner = players.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === nextPos));
+    const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
+    let tollToPay = 0;
 
-      if (owner && ownerAsset && tile.badges) {
-        const level = ownerAsset.level as keyof typeof tile.badges;
-        tollToPay = Number(tile.badges[level]?.toll) || 0;
-      }
+    if (owner && ownerAsset && tile.badges) {
+      const level = ownerAsset.level as keyof typeof tile.badges;
+      tollToPay = Number(tile.badges[level]?.toll) || 0;
+    }
 
-      const newState = prevPlayers.map((p, idx) => {
-        if (idx === currentPlayerIndex) {
-          let updatedMrr = Math.max(0, Number(p.mrr) - tollToPay);
-          let updatedCash = Number(p.cash);
-          let updatedLaps = p.laps;
-          let totalRepaidThisTurn = 0;
-          let updatedDebts = [...p.debts];
-          let newMonthlyCosts = Number(p.monthlyCosts);
+    const newState = players.map((p, idx) => {
+      if (idx === currentPlayerIndex) {
+        let updatedMrr = Math.max(0, Number(p.mrr) - tollToPay);
+        let updatedCash = Number(p.cash);
+        let updatedLaps = p.laps;
+        let totalRepaidThisTurn = 0;
+        let updatedDebts = [...p.debts];
+        let newMonthlyCosts = Number(p.monthlyCosts);
 
-          if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
-            updatedLaps += 1;
-            updatedDebts = updatedDebts.map(debt => {
-              const annualInterest = Math.round(Number(debt.amount) * Number(debt.interestRate));
-              const capitalRepayment = Number(debt.capitalInstallment);
-              updatedCash -= capitalRepayment;
-              totalRepaidThisTurn += capitalRepayment;
-              newMonthlyCosts += annualInterest; 
-              return { 
-                ...debt, 
-                amount: Math.max(0, Number(debt.amount) - capitalRepayment),
-                remainingYears: debt.remainingYears - 1 
-              };
-            }).filter(d => d.remainingYears > 0 && d.amount > 0);
-          }
-
-          const isSpecial = tile.type === 'special' || [7, 14, 21].includes(tile.id);
-          const revMod = !isSpecial ? (Number(tile.revenueModifier) || 0) : 0;
-          const costMod = !isSpecial ? (Number(tile.costModifier) || 0) : 0;
-          const cashMod = !isSpecial ? (Number(tile.cashEffect) || 0) : 0;
-
-          return { 
-            ...p, 
-            position: nextPos, 
-            cash: updatedCash + cashMod,
-            mrr: Math.max(0, updatedMrr + revMod),
-            monthlyCosts: Math.max(0, newMonthlyCosts + costMod),
-            laps: updatedLaps,
-            debts: updatedDebts,
-            lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
-          };
+        if (nextPos < p.position || (p.position !== 0 && nextPos === 0)) {
+          updatedLaps += 1;
+          updatedDebts = updatedDebts.map(debt => {
+            const annualInterest = Math.round(Number(debt.amount) * Number(debt.interestRate));
+            const capitalRepayment = Number(debt.capitalInstallment);
+            updatedCash -= capitalRepayment;
+            totalRepaidThisTurn += capitalRepayment;
+            newMonthlyCosts += annualInterest; 
+            return { 
+              ...debt, 
+              amount: Math.max(0, Number(debt.amount) - capitalRepayment),
+              remainingYears: debt.remainingYears - 1 
+            };
+          }).filter(d => d.remainingYears > 0 && d.amount > 0);
         }
-        if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
-        return p;
-      });
-      
-      updatedPlayersState = newState;
-      return newState;
+
+        const isSpecial = tile.type === 'special' || [7, 14, 21].includes(tile.id);
+        const revMod = !isSpecial ? (Number(tile.revenueModifier) || 0) : 0;
+        const costMod = !isSpecial ? (Number(tile.costModifier) || 0) : 0;
+        const cashMod = !isSpecial ? (Number(tile.cashEffect) || 0) : 0;
+
+        return { 
+          ...p, 
+          position: nextPos, 
+          cash: updatedCash + cashMod,
+          mrr: Math.max(0, updatedMrr + revMod),
+          monthlyCosts: Math.max(0, newMonthlyCosts + costMod),
+          laps: updatedLaps,
+          debts: updatedDebts,
+          lastLoanRepaidAmount: totalRepaidThisTurn > 0 ? totalRepaidThisTurn : undefined
+        };
+      }
+      if (owner && idx === owner.id) return { ...p, mrr: Number(p.mrr) + tollToPay };
+      return p;
     });
 
-    return { tile, updatedPlayers: updatedPlayersState.length > 0 ? updatedPlayersState : players };
-  }, [currentPlayerIndex, currentPlayer?.position, players]);
+    setPlayers(newState);
+    return { tile, updatedPlayers: newState };
+  }, [currentPlayerIndex, currentPlayer, players]);
 
   const applyFunding = useCallback((offer: any) => {
     setPlayers(prev => prev.map((p, idx) => {
