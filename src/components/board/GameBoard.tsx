@@ -33,7 +33,7 @@ export default function GameBoard({
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  // --- LOGICA MULTIPLAYER REALTIME (MANTENUTA E CORRETTA) ---
+  // --- LOGICA MULTIPLAYER REALTIME ---
   const lastSyncRef = useRef<string>("");
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function GameBoard({
         .from('multiplayer_games')
         .select('game_state')
         .eq('room_code', roomCode)
-        .maybeSingle(); // Modificato in maybeSingle per stabilità
+        .maybeSingle();
 
       if (data?.game_state) {
         setPlayers(data.game_state.players);
@@ -60,8 +60,6 @@ export default function GameBoard({
         }, (payload) => {
           const newState = payload.new.game_state;
           const stateStr = JSON.stringify(newState);
-          
-          // Applichiamo l'aggiornamento solo se arriva dagli altri
           if (stateStr !== lastSyncRef.current) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
@@ -79,8 +77,7 @@ export default function GameBoard({
   }, [roomCode, setPlayers, setCurrentPlayerIndex]);
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number) => {
-    // Solo chi ha appena mosso sincronizza per evitare loop
-    if (currentPlayer.name !== localPlayerName) return;
+    if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
 
     const newState = { 
       players: updatedPlayers, 
@@ -94,21 +91,19 @@ export default function GameBoard({
       .from('multiplayer_games')
       .update({ game_state: newState })
       .eq('room_code', roomCode);
-  }, [roomCode, victoryTarget, currentPlayer.name, localPlayerName]);
+  }, [roomCode, victoryTarget, currentPlayer, localPlayerName]);
 
-  // --- FINE LOGICA MULTIPLAYER ---
+  // --- LOGICA DI GIOCO ---
 
   const handleCloseModal = useCallback(() => {
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
-    
-    // Sincronizziamo PRIMA di passare il turno localmente
     syncGameState(players, nextIdx);
     nextTurn();
   }, [nextTurn, players, currentPlayer, syncGameState]);
 
   const handleDiceRoll = () => {
-    if (currentPlayer.name !== localPlayerName) return;
+    if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
     if (modalConfig.isOpen || isRolling || currentPlayer.isBankrupt) return;
 
     setIsRolling(true);
@@ -298,8 +293,16 @@ export default function GameBoard({
     }
   };
 
-  // --- DA QUI IN POI TUTTA LA TUA UI ORIGINALE SENZA ALCUNA MODIFICA ---
-  // (Inclusi Dashboard, Scacchiera, Popup Bancarotta e Vincitore)
+  // --- RENDERING ---
+
+  if (!players || players.length === 0 || !currentPlayer) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
+        Inizializzazione startup...
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
       
@@ -328,6 +331,7 @@ export default function GameBoard({
                     const valB = (calculateValuation(b) * (b.equity || 100)) / 100;
                     return valB - valA;
                   }).map((p, idx) => {
+                    if (!p) return null;
                     const totalVal = calculateValuation(p);
                     const founderIncasso = (totalVal * (p.equity || 100)) / 100;
                     const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
@@ -426,8 +430,8 @@ export default function GameBoard({
             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
             else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
             else { col = 1; row = 8 - (tile.id - 21); }
-            const playersHere = players.filter(p => p.position === tile.id && !p.isBankrupt);
-            const tileOwner = players.find(p => p.assets.some(a => a.tileId === tile.id));
+            const playersHere = players.filter(p => p && p.position === tile.id && !p.isBankrupt);
+            const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
                 <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
@@ -443,13 +447,14 @@ export default function GameBoard({
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
+          if (!p) return null;
           const isTurn = p.id === currentPlayer.id;
           const isMe = p.name === localPlayerName;
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
           const founderPart = (pVal * (p.equity || 100)) / 100;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-          const isNegative = p.cash < 0;
+          const isNegative = (p.cash || 0) < 0;
 
           return (
             <div 
@@ -478,7 +483,7 @@ export default function GameBoard({
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
-                  <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(Number(p.cash)).toLocaleString()}</span>
+                  <span className={`font-black ${ (p.cash || 0) < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(Number(p.cash || 0)).toLocaleString()}</span>
                 </div>
                 <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
@@ -506,7 +511,7 @@ export default function GameBoard({
         })}
       </div>
       
-      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer.cash} />
+      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
 
       <AnimatePresence>
         {eliminatedPlayerName && (
