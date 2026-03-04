@@ -63,14 +63,17 @@ export default function GameBoard({
           
           if (stateStr === lastSyncRef.current) return;
 
-          const isMyTurn = players[players.indexOf(currentPlayer)]?.name === localPlayerName;
+          // LOGICA CHIRURGICA ANTI-RIMBALZO
+          const pIndex = newState.currentPlayerIndex;
+          const isMyTurn = newState.players[pIndex]?.name === localPlayerName;
           const isTurnChanged = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
 
           if (newState.lastDiceValue !== undefined) {
             setDiceValue(newState.lastDiceValue);
           }
 
-          // CHIRURGICO: Se è il mio turno, non sovrascrivere i 'players' finché non cambio turno
+          // Se è il mio turno, non sovrascrivo i 'players' dal DB (mi fido del mio stato locale)
+          // a meno che il turno non sia effettivamente passato ad altri.
           if (!isMyTurn || isTurnChanged) {
             setPlayers(newState.players);
             setCurrentPlayerIndex(newState.currentPlayerIndex);
@@ -110,7 +113,7 @@ export default function GameBoard({
     setModalConfig({ isOpen: false });
     const nextIdx = (players.indexOf(currentPlayer) + 1) % players.length;
     
-    // CHIRURGICO: Assicuriamoci di mandare i players correnti prima del cambio turno
+    // Sincronizziamo i players correnti prima del cambio turno
     syncGameState(players, nextIdx);
     nextTurn();
   }, [nextTurn, players, currentPlayer, syncGameState]);
@@ -129,14 +132,12 @@ export default function GameBoard({
         setDiceValue(steps);
         
         setTimeout(() => {
-          const tile = movePlayer(steps);
+          // MODIFICA CHIRURGICA: catturiamo updatedPlayers da movePlayer
+          const { tile, updatedPlayers } = movePlayer(steps);
           setIsRolling(false);
           
-          // CHIRURGICO: Usiamo il callback dello stato per catturare i dati aggiornati da movePlayer
-          setPlayers(currentPlayers => {
-            syncGameState(currentPlayers, players.indexOf(currentPlayer), steps);
-            return currentPlayers;
-          });
+          // Sincronizziamo immediatamente usando i dati freschi appena calcolati
+          syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
 
           processTile(tile);
         }, 600);
