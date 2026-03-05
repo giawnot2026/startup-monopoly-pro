@@ -112,7 +112,6 @@ export default function GameBoard({
           if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
           lastSyncRef.current = stateStr;
 
-          if (isMyTurnNow) setHasMovedThisTurn(false);
         })
         .subscribe();
 
@@ -181,7 +180,8 @@ export default function GameBoard({
           setIsRolling(false);
           setHasMovedThisTurn(true);
           setPlayers([...updatedPlayers]);
-          syncGameState(updatedPlayers, players.indexOf(currentPlayer), steps);
+          const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
+syncGameState(updatedPlayers, currentIndex, steps);
           processTile(tile, updatedPlayers);
         }, 600);
       }
