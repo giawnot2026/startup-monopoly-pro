@@ -342,17 +342,44 @@ syncGameState(updatedPlayers, currentIndex, steps);
         }
         break;
       default:
-        const currentVal = calculateValuation(currentPlayer);
-        const offer = { ...FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)] };
-        let details = offer.type === 'EQUITY' ? `Iniezione Cash: €${((currentVal * 15) / 100).toLocaleString()} | 15% Equity` : `Prestito: €${offer.fixedAmount?.toLocaleString()}`;
-        setModalConfig({
-          isOpen: true, type: 'info', title: `Round: ${offer.investor}`, 
-          description: offer.description, impact: { details },
-          actionLabel: "Accetta", secondaryActionLabel: "Rifiuta",
-          onAction: () => { applyFunding(offer); handleCloseModal(); },
-          onClose: handleCloseModal
-        });
-        break;
+  const currentVal = calculateValuation(currentPlayer);
+  // Prendiamo un'offerta casuale
+  const offer = { ...FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)] };
+  
+  let details = "";
+  
+  if (offer.type === 'EQUITY') {
+    const cashAmount = (currentVal * 15) / 100;
+    details = `Iniezione Cash: €${cashAmount.toLocaleString()} | Cessione: 15% Equity`;
+  } 
+  else if (offer.type === 'BANK') {
+    // Coerente con useGameLogic: usiamo fixedAmount, interestRate e durationYears
+    const amount = Number(offer.fixedAmount) || 0;
+    const rate = (Number(offer.interestRate) * 100).toFixed(1);
+    const duration = offer.durationYears || 3;
+    const installment = amount / duration; // Calcolo locale per il modale
+    
+    details = `Prestito: €${amount.toLocaleString()} | Tasso: ${rate}% | Rata: €${installment.toLocaleString()} | Durata: ${duration} giri`;
+  } 
+  else if (offer.type === 'GRANT') {
+    details = `Capitale a fondo perduto: +€${(Number(offer.fixedAmount) || 25000).toLocaleString()}`;
+  }
+
+  setModalConfig({
+    isOpen: true, 
+    type: 'info', 
+    title: `Round: ${offer.investor}`, 
+    description: offer.description, 
+    impact: { details }, // Ora mostrerà correttamente i dati del prestito
+    actionLabel: "Accetta", 
+    secondaryActionLabel: "Rifiuta",
+    onAction: () => { 
+      applyFunding(offer); 
+      handleCloseModal(); 
+    },
+    onClose: handleCloseModal
+  });
+  break;
     }
   };
 
