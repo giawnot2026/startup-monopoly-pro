@@ -92,9 +92,17 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
-          if (isLocalUpdate.current) return;
-
           const newState = sanitizeGameState(payload.new.game_state);
+          if (!newState) return;
+
+          // Se il turno nel DB è diverso dal nostro attuale, ignoriamo il blocco locale
+          // perché il cambio turno è l'evento più importante per evitare lo stallo.
+          const isTurnChange = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
+
+          if (isLocalUpdate.current && !isTurnChange) return;
+          
+          const stateStr = JSON.stringify(newState);
+          if (stateStr === lastSyncRef.current) return;
           if (!newState) return;
           
           const stateStr = JSON.stringify(newState);
@@ -142,12 +150,22 @@ export default function GameBoard({
     setModalConfig({ isOpen: false });
   }, []);
 
-  const handlePassTurn = () => {
-    const currentIndex = players.indexOf(currentPlayer);
+  const handlePassTurn = useCallback(async () => {
+    // Calcoliamo il prossimo indice basandoci sullo stato attuale
+    const currentIndex = players.findIndex(p => p.id === currentPlayer.id);
     const nextIdx = (currentIndex + 1) % players.length;
-    nextTurn();
-    syncGameState(players, nextIdx);
+    
+    // Resettiamo subito lo stato locale del movimento
     setHasMovedThisTurn(false);
+    
+    // Eseguiamo il passaggio turno nel database inviando i players correnti.
+    // Usiamo direttamente players perché nextTurn() verrebbe comunque processato 
+    // dal listener sugli altri client.
+    await syncGameState(players, nextIdx);
+    
+    // Chiamiamo nextTurn() localmente per aggiornare l'UI immediata
+    nextTurn();
+  }, [players, currentPlayer, nextTurn, syncGameState]);
   };
 
   const handleDiceRoll = () => {
