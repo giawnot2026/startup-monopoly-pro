@@ -262,7 +262,6 @@ syncGameState(updatedPlayers, currentIndex, steps);
       });
       return;
     }
-    }
 
     if (tile.type === 'asset') {
       const owner = currentPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
