@@ -103,10 +103,6 @@ export default function GameBoard({
           
           const stateStr = JSON.stringify(newState);
           if (stateStr === lastSyncRef.current) return;
-          if (!newState) return;
-          
-          const stateStr = JSON.stringify(newState);
-          if (stateStr === lastSyncRef.current) return;
 
           const pIndex = newState.currentPlayerIndex;
           const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
@@ -166,7 +162,6 @@ export default function GameBoard({
     // Chiamiamo nextTurn() localmente per aggiornare l'UI immediata
     nextTurn();
   }, [players, currentPlayer, nextTurn, syncGameState]);
-  };
 
   const handleDiceRoll = () => {
     if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
