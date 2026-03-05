@@ -212,25 +212,56 @@ syncGameState(updatedPlayers, currentIndex, steps);
       return;
     }
 
-    if (tile.type === 'special') {
+  if (tile.type === 'special') {
+      // 1. Identifica il tipo di casella (Probabilità/Opportunità vs Imprevisti/Risk)
       const isOpp = tile.name?.toLowerCase().includes("probabilità") || [3, 15, 22].includes(tile.id);
-      const deck = dbEvents.length > 0 ? dbEvents.filter(e => e.type === (isOpp ? 'OPPORTUNITY' : 'RISK')) : (isOpp ? OPPORTUNITA : IMPREVISTI);
-      const event = deck[Math.floor(Math.random() * deck.length)];
-      const impactDetails = [];
-      if (event.cashEffect) impactDetails.push(`${event.cashEffect > 0 ? '+' : ''}€${event.cashEffect.toLocaleString()} Cash`);
-      if (event.revenueModifier) impactDetails.push(`${event.revenueModifier > 0 ? '+' : ''}€${event.revenueModifier.toLocaleString()} MRR`);
+      
+      // 2. Filtra gli eventi caricati dal Database (dbEvents deve essere lo stato che contiene i dati di Supabase)
+      const deck = dbEvents.filter(e => e.type === (isOpp ? 'OPPORTUNITY' : 'RISK'));
+      
+      // 3. Controllo di sicurezza: se il DB non ha risposto, usciamo per evitare crash
+      if (deck.length === 0) {
+        console.warn("Mazzo eventi vuoto sul DB! Controlla la connessione a Supabase.");
+        return;
+      }
 
+      // 4. Estrazione casuale dell'evento dal mazzo filtrato
+      const event = deck[Math.floor(Math.random() * deck.length)];
+
+      // 5. Preparazione della stringa dei dettagli per l'interfaccia (il modale)
+      const impactDetails = [];
+      if (Number(event.cash_effect) !== 0) {
+        impactDetails.push(`${event.cash_effect > 0 ? '+' : ''}€${Number(event.cash_effect).toLocaleString()} Cash`);
+      }
+      if (Number(event.revenue_modifier) !== 0) {
+        impactDetails.push(`${event.revenue_modifier > 0 ? '+' : ''}€${Number(event.revenue_modifier).toLocaleString()} MRR`);
+      }
+      if (Number(event.cost_modifier) !== 0) {
+        impactDetails.push(`${event.cost_modifier > 0 ? '+' : ''}€${Number(event.cost_modifier).toLocaleString()} Costi`);
+      }
+
+      // 6. Apertura del Modale con i dati del DB
       setModalConfig({ 
         isOpen: true, 
         type: isOpp ? 'opportunity' : 'danger_event', 
         title: event.title, 
-        description: event.effect || event.description,
+        description: event.description, // Usiamo la colonna 'description' del DB
         insight: event.insight,
-        impact: { details: impactDetails.join(' | ') || "Variazione flussi operativi" },
+        impact: { details: impactDetails.join(' | ') || "Variazione operativa" },
         actionLabel: "Ricevuto", 
-        onAction: () => { applyEvent(event); handleCloseModal(); } 
+        onAction: () => { 
+            // 7. Applichiamo l'evento traducendo i nomi dal DB (snake_case) ai nomi della logica (camelCase)
+            applyEvent({
+                ...event,
+                cashEffect: Number(event.cash_effect) || 0,
+                revenueModifier: Number(event.revenue_modifier) || 0,
+                costModifier: Number(event.cost_modifier) || 0
+            }); 
+            handleCloseModal(); 
+        } 
       });
       return;
+    }
     }
 
     if (tile.type === 'asset') {
