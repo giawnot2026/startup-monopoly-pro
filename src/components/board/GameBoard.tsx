@@ -249,33 +249,15 @@ syncGameState(updatedPlayers, currentIndex, steps);
         insight: event.insight,
         impact: { details: impactDetails.join(' | ') || "Variazione operativa" },
         actionLabel: "Ricevuto", 
-        onAction: () => {
-    // 1. Applichiamo l'effetto localmente
-    const updatedEvent = {
-        ...event,
+        onAction: () => { 
+    applyEvent({
+        ...event, // Passa tutto l'oggetto del DB
+        // TRADUZIONE OBBLIGATORIA:
         cashEffect: Number(event.cash_effect) || 0,
         revenueModifier: Number(event.revenue_modifier) || 0,
         costModifier: Number(event.cost_modifier) || 0
-    };
-    applyEvent(updatedEvent);
-
-    // 2. Sincronizziamo immediatamente con Supabase
-    // Dobbiamo calcolare lo stato aggiornato dei player
-    const updatedPlayers = players.map(p => 
-        p.id === currentPlayer.id 
-        ? { 
-            ...p, 
-            cash: p.cash + updatedEvent.cashEffect,
-            mrr: p.mrr + updatedEvent.revenueModifier,
-            monthlyCosts: p.monthlyCosts + updatedEvent.costModifier
-          } 
-        : p
-    );
-    
-    const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
-    syncGameState(updatedPlayers, currentIndex);
-
-    handleCloseModal();
+    }); 
+    handleCloseModal(); 
 }
       });
       return;
