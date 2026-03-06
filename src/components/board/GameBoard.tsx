@@ -576,37 +576,38 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
                   <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
                 </div>
-                {/* --- INIZIO TASTI AZIONE RIMOZIONE --- */}
-<div className="mt-3 flex flex-col gap-2">
-  {/* Tasto ABBANDONA: lo vedo solo sulla mia card se è il mio turno */}
-  {isMe && isTurn && !p.isBankrupt && (
-    <button 
-      onClick={() => {
-        if(confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
-          handleRemovePlayer(p.id);
-        }
-      }}
-      className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all"
-    >
-      Abbandona Partita
-    </button>
-  )}
+               {/* --- INIZIO TASTI AZIONE RIMOZIONE AGGIORNATI --- */}
+              <div className="mt-3 flex flex-col gap-2">
+                
+                {/* Tasto ABBANDONA: Visibile sempre all'utente sulla propria card */}
+                {isMe && !p.isBankrupt && (
+                  <button 
+                    onClick={() => {
+                      if(confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
+                        handleRemovePlayer(p.id);
+                      }
+                    }}
+                    className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
+                  >
+                    Abbandona Partita
+                  </button>
+                )}
 
-  {/* Tasto RIMUOVI INATTIVO: lo vede solo il Creatore (ID 0) sulle card degli altri (se è il loro turno) */}
-  {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
-    <button 
-      onClick={() => {
-        if(confirm(`Rimuovere ${p.name} per inattività?`)) {
-          handleRemovePlayer(p.id);
-        }
-      }}
-      className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase animate-pulse hover:animate-none transition-all"
-    >
-      Rimuovi Inattivo
-    </button>
-  )}
-</div>
-{/* --- FINE TASTI AZIONE RIMOZIONE --- */}
+                {/* Tasto RIMUOVI INATTIVO: Visibile solo all'Host (players[0]) sulle card degli altri quando è il loro turno */}
+                {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
+                  <button 
+                    onClick={() => {
+                      if(confirm(`Rimuovere ${p.name} per inattività?`)) {
+                        handleRemovePlayer(p.id);
+                      }
+                    }}
+                    className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase animate-pulse hover:animate-none transition-all"
+                  >
+                    Rimuovi Inattivo
+                  </button>
+                )}
+              </div>
+              {/* --- FINE TASTI AZIONE RIMOZIONE --- */}
               </div>
             </div>
           );
