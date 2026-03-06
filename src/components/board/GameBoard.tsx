@@ -329,7 +329,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
           setModalConfig({
             isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
             description: `Rendicontazione annuale completata. Pagata quota capitale: €${totalCapital.toLocaleString()}`,
-            impact: { details: `Ammortamento: -€${totalCapital.toLocaleString()} (Cash)` },
+            impact: { details: `Rata: -€${totalCapital.toLocaleString()} (Cash)` },
             actionLabel: "Continua", onAction: handleCloseModal
           });
         } else {
