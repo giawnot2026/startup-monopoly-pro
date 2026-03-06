@@ -109,6 +109,9 @@ export default function GameBoard({
           
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
+          if (isTurnChange) {
+            setHasMovedThisTurn(false);
+          }
 
 if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
 lastSyncRef.current = stateStr;
