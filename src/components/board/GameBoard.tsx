@@ -22,12 +22,13 @@ export default function GameBoard({
 }) {
   
   const { 
-    players, currentPlayer, valuation, 
-    movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
-    gameWinner, attemptExit, calculateValuation,
-    eliminatedPlayerName, setEliminatedPlayerName,
-    setPlayers, setCurrentPlayerIndex 
-  } = useGameLogic([], victoryTarget);
+  players, currentPlayer, currentPlayerIndex, // <--- AGGIUNTO!
+  valuation, 
+  movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
+  gameWinner, attemptExit, calculateValuation,
+  eliminatedPlayerName, setEliminatedPlayerName,
+  setPlayers, setCurrentPlayerIndex 
+} = useGameLogic([], victoryTarget);
 
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
