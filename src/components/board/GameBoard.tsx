@@ -108,11 +108,7 @@ export default function GameBoard({
           // Applichiamo gli aggiornamenti
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
-
-          // Se il turno è cambiato (passaggio manuale o rimozione), sblocchiamo il movimento
-          if (isTurnChange) {
-            setHasMovedThisTurn(false);
-          }
+      
 
           if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
           
@@ -127,6 +123,15 @@ export default function GameBoard({
 
     fetchAndSubscribe();
   }, [roomCode, localPlayerName, setPlayers, setCurrentPlayerIndex]); 
+
+  useEffect(() => {
+    // Ogni volta che l'ID del giocatore corrente cambia (es. per un kick o un passa turno),
+    // forziamo il reset del movimento locale. Questo sblocca i dadi istantaneamente.
+    if (currentPlayer?.id) {
+      setHasMovedThisTurn(false);
+    }
+  }, [currentPlayer?.id]); // Reagisce al cambio dell'ID del giocatore di turno
+  // ------------------------------------------------------------
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
     isLocalUpdate.current = true;
