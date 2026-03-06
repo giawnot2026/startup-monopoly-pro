@@ -70,7 +70,10 @@ export default function GameBoard({
 
   // --- 2. GESTIONE REALTIME ---
   useEffect(() => {
+    if (!roomCode) return;
+
     const fetchAndSubscribe = async () => {
+      // Fetch iniziale per allineare lo stato al caricamento
       const { data } = await supabase
         .from('multiplayer_games')
         .select('game_state')
@@ -85,6 +88,7 @@ export default function GameBoard({
         lastSyncRef.current = JSON.stringify(initialState);
       }
 
+      // Sottoscrizione ai cambiamenti in tempo reale
       const channel = supabase
         .channel(`room-${roomCode}`)
         .on('postgres_changes', { 
@@ -93,43 +97,55 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
-         const newState = sanitizeGameState(payload.new.game_state);
+          const newState = sanitizeGameState(payload.new.game_state);
           if (!newState) return;
 
           const stateStr = JSON.stringify(newState);
+          // Se lo stato è identico all'ultimo processato, ignoriamo (evita loop)
           if (stateStr === lastSyncRef.current) return;
 
-          // Recuperiamo l'indice che avevamo salvato nell'ultimo sync
           const lastState = lastSyncRef.current ? JSON.parse(lastSyncRef.current) : null;
           const lastIndex = lastState ? lastState.currentPlayerIndex : null;
 
-          // Il turno è cambiato se l'indice nel DB è diverso da quello dell'ultimo aggiornamento
+          // LOGICA DI SBLOCCO DADI
+          // Il turno è cambiato se l'indice nel DB è diverso da quello che avevamo
           const isTurnChange = lastIndex !== null && newState.currentPlayerIndex !== lastIndex;
+          
+          // Verifichiamo se il nuovo giocatore di turno è quello locale
+          const newCurrentPlayer = newState.players[newState.currentPlayerIndex];
+          const isMyTurnNow = newCurrentPlayer?.name === localPlayerName;
 
-          if (isTurnChange) {
-  console.log("Turno cambiato nel DB: sblocco i dadi localmente.");
-  setHasMovedThisTurn(false);
-  setIsRolling(false); // Sblocca anche eventuali animazioni rimaste "appese"
-}
+          if (isTurnChange && isMyTurnNow) {
+            console.log("Turno cambiato: tocca a te. Sblocco dadi.");
+            setHasMovedThisTurn(false);
+            setIsRolling(false);
+          }
 
-          // Applichiamo gli aggiornamenti
+          // Applichiamo gli aggiornamenti allo stato
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
-      
-
-          if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
           
-          // Aggiorniamo il riferimento dell'ultimo sync con il nuovo stato
+          if (newState.lastDiceValue !== undefined) {
+            setDiceValue(newState.lastDiceValue);
+          }
+          
+          // Aggiorniamo il riferimento per il prossimo confronto
           lastSyncRef.current = stateStr;
-
         })
         .subscribe();
 
-      return () => { supabase.removeChannel(channel); };
+      return channel;
     };
 
-    fetchAndSubscribe();
-  }, [roomCode, localPlayerName, setPlayers, setCurrentPlayerIndex]); 
+    const channelPromise = fetchAndSubscribe();
+
+    return () => {
+      channelPromise.then(channel => {
+        if (channel) supabase.removeChannel(channel);
+      });
+    };
+    // Aggiunto currentPlayerIndex tra le dipendenze per garantire confronti precisi
+  }, [roomCode, localPlayerName, currentPlayerIndex, setPlayers, setCurrentPlayerIndex]);
 
 // --- RESET AUTOMATICO DEL MOVIMENTO ---
   // Questo effetto "osserva" l'indice del giocatore di turno.
