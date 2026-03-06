@@ -92,29 +92,32 @@ export default function GameBoard({
           table: 'multiplayer_games',
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
-          const newState = sanitizeGameState(payload.new.game_state);
+         const newState = sanitizeGameState(payload.new.game_state);
           if (!newState) return;
 
-          // Se il turno nel DB è diverso dal nostro attuale, ignoriamo il blocco locale
-          // perché il cambio turno è l'evento più importante per evitare lo stallo.
-          const isTurnChange = newState.currentPlayerIndex !== players.indexOf(currentPlayer);
-
-          if (isLocalUpdate.current && !isTurnChange) return;
-          
           const stateStr = JSON.stringify(newState);
           if (stateStr === lastSyncRef.current) return;
 
-          const pIndex = newState.currentPlayerIndex;
-          const isMyTurnNow = newState.players[pIndex]?.name === localPlayerName;
-          
+          // Recuperiamo l'indice che avevamo salvato nell'ultimo sync
+          const lastState = lastSyncRef.current ? JSON.parse(lastSyncRef.current) : null;
+          const lastIndex = lastState ? lastState.currentPlayerIndex : null;
+
+          // Il turno è cambiato se l'indice nel DB è diverso da quello dell'ultimo aggiornamento
+          const isTurnChange = lastIndex !== null && newState.currentPlayerIndex !== lastIndex;
+
+          // Applichiamo gli aggiornamenti
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
+
+          // Se il turno è cambiato (passaggio manuale o rimozione), sblocchiamo il movimento
           if (isTurnChange) {
             setHasMovedThisTurn(false);
           }
 
-if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
-lastSyncRef.current = stateStr;
+          if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
+          
+          // Aggiorniamo il riferimento dell'ultimo sync con il nuovo stato
+          lastSyncRef.current = stateStr;
 
         })
         .subscribe();
