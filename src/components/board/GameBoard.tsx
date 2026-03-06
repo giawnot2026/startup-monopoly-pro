@@ -162,6 +162,36 @@ export default function GameBoard({
     nextTurn();
   }, [players, currentPlayer, nextTurn, syncGameState]);
 
+  // --- FUNZIONE AGGIUNTA PER RIMOZIONE/ABBANDONO ---
+const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
+  // 1. Creiamo il nuovo stato dei giocatori: chi viene rimosso va in bancarotta
+  const updatedPlayers = players.map(p => 
+    p.id === playerToRemoveId 
+      ? { ...p, isBankrupt: true, cash: 0, mrr: 0, assets: [], debts: [] } 
+      : p
+  );
+
+  // 2. Calcoliamo chi deve giocare ora. 
+  // Se il rimosso era il giocatore di turno, passiamo al prossimo.
+  let nextIdx = players.findIndex(p => p.id === currentPlayer.id);
+  
+  if (playerToRemoveId === currentPlayer.id) {
+    nextIdx = (nextIdx + 1) % updatedPlayers.length;
+    // Saltiamo eventuali altri giocatori già falliti
+    while (updatedPlayers[nextIdx].isBankrupt && updatedPlayers.filter(pl => !pl.isBankrupt).length > 0) {
+      nextIdx = (nextIdx + 1) % updatedPlayers.length;
+    }
+  }
+
+  // 3. Sincronizziamo globalmente
+  await syncGameState(updatedPlayers, nextIdx);
+  
+  // 4. Se ero io ad abbandonare, torno alla home
+  if (players.find(p => p.id === playerToRemoveId)?.name === localPlayerName) {
+    window.location.href = '/';
+  }
+}, [players, currentPlayer, syncGameState, localPlayerName]);
+
   const handleDiceRoll = () => {
     if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
     if (modalConfig.isOpen || isRolling || isLocalUpdate.current || currentPlayer.isBankrupt || hasMovedThisTurn) return;
@@ -546,6 +576,37 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
                   <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
                 </div>
+                {/* --- INIZIO TASTI AZIONE RIMOZIONE --- */}
+<div className="mt-3 flex flex-col gap-2">
+  {/* Tasto ABBANDONA: lo vedo solo sulla mia card se è il mio turno */}
+  {isMe && isTurn && !p.isBankrupt && (
+    <button 
+      onClick={() => {
+        if(confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
+          handleRemovePlayer(p.id);
+        }
+      }}
+      className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all"
+    >
+      Abbandona Partita
+    </button>
+  )}
+
+  {/* Tasto RIMUOVI INATTIVO: lo vede solo il Creatore (ID 0) sulle card degli altri (se è il loro turno) */}
+  {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
+    <button 
+      onClick={() => {
+        if(confirm(`Rimuovere ${p.name} per inattività?`)) {
+          handleRemovePlayer(p.id);
+        }
+      }}
+      className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase animate-pulse hover:animate-none transition-all"
+    >
+      Rimuovi Inattivo
+    </button>
+  )}
+</div>
+{/* --- FINE TASTI AZIONE RIMOZIONE --- */}
               </div>
             </div>
           );
