@@ -78,32 +78,47 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
   }, []);
 
   const nextTurn = useCallback(() => {
-    let playersState = [...players];
-    const p = playersState[currentPlayerIndex];
+    // 1. Creiamo una copia dello stato attuale per calcolare il prossimo giocatore
+    let updatedPlayersState = [...players];
+    const p = updatedPlayersState[currentPlayerIndex];
     if (!p) return;
-    
+
     const ebitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
 
+    // 2. Gestione Bancarotta: se il giocatore è in rosso profondo, lo eliminiamo
     if (p.cash < 0 && (p.cash + ebitda) < 0 && !p.isBankrupt) {
       setEliminatedPlayerName(p.name);
-      playersState = playersState.map((player, idx) => 
-        idx === currentPlayerIndex ? { ...player, isBankrupt: true, cash: 0, mrr: 0, assets: [] } : player
+      updatedPlayersState = updatedPlayersState.map((player, idx) =>
+        idx === currentPlayerIndex 
+          ? { ...player, isBankrupt: true, cash: 0, mrr: 0, assets: [], lastLoanRepaidAmount: undefined } 
+          : player
       );
-      setPlayers(playersState);
-      checkGameStatus(playersState);
+      // Aggiorniamo lo stato dei giocatori
+      setPlayers(updatedPlayersState);
+      checkGameStatus(updatedPlayersState);
     } else {
-      setPlayers(prev => prev.map((player, idx) => 
+      // Se non è fallito, puliamo solo i metadati del prestito
+      updatedPlayersState = updatedPlayersState.map((player, idx) =>
         idx === currentPlayerIndex ? { ...player, lastLoanRepaidAmount: undefined } : player
-      ));
+      );
+      setPlayers(updatedPlayersState);
     }
 
-    let nextIndex = (currentPlayerIndex + 1) % playersState.length;
+    // 3. LOGICA DI SALTO: Trova il prossimo giocatore attivo
+    // Usiamo updatedPlayersState per essere sicuri di vedere se qualcuno è appena fallito
+    let nextIndex = (currentPlayerIndex + 1) % updatedPlayersState.length;
     let attempts = 0;
-    while (playersState[nextIndex]?.isBankrupt && attempts < playersState.length) {
-      nextIndex = (nextIndex + 1) % playersState.length;
+
+    // Continua a cercare finché non trovi un giocatore non fallito
+    while (updatedPlayersState[nextIndex]?.isBankrupt && attempts < updatedPlayersState.length) {
+      nextIndex = (nextIndex + 1) % updatedPlayersState.length;
       attempts++;
     }
+
+    // 4. Aggiorniamo l'indice del turno
     setCurrentPlayerIndex(nextIndex);
+
+    console.log(`Turno passato da ${currentPlayerIndex} a ${nextIndex}. Tentativi salto: ${attempts}`);
   }, [players, currentPlayerIndex, checkGameStatus]);
 
   const movePlayer = useCallback((steps: number) => {
