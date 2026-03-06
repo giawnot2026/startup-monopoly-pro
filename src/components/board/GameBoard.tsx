@@ -124,13 +124,18 @@ export default function GameBoard({
     fetchAndSubscribe();
   }, [roomCode, localPlayerName, setPlayers, setCurrentPlayerIndex]); 
 
+// --- RESET AUTOMATICO DEL MOVIMENTO ---
+  // Questo effetto "osserva" l'indice del giocatore di turno.
+  // Appena cambia (per passaggio turno o per rimozione host), 
+  // sblocca i dadi per il nuovo giocatore.
   useEffect(() => {
-    // Ogni volta che l'ID del giocatore corrente cambia (es. per un kick o un passa turno),
-    // forziamo il reset del movimento locale. Questo sblocca i dadi istantaneamente.
-    if (currentPlayer?.id) {
+    if (currentPlayerIndex !== undefined) {
+      console.log("Cambio turno rilevato, sblocco i dadi per l'indice:", currentPlayerIndex);
       setHasMovedThisTurn(false);
     }
-  }, [currentPlayer?.id]); // Reagisce al cambio dell'ID del giocatore di turno
+  }, [currentPlayerIndex]); 
+  // Usiamo currentPlayerIndex come dipendenza perché è il valore primitivo 
+  // che cambia sempre quando il turno ruota.
   // ------------------------------------------------------------
 
   const syncGameState = useCallback(async (updatedPlayers: any[], nextIndex: number, currentDice?: number) => {
