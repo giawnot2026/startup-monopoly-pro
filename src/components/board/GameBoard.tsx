@@ -109,8 +109,6 @@ export default function GameBoard({
           
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
-          // AGGIUNTA CHIRURGICA: Resetta il blocco del movimento quando il turno cambia nel DB
-setHasMovedThisTurn(false); 
 
 if (newState.lastDiceValue !== undefined) setDiceValue(newState.lastDiceValue);
 lastSyncRef.current = stateStr;
