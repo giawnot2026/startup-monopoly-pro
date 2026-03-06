@@ -106,6 +106,12 @@ export default function GameBoard({
           // Il turno è cambiato se l'indice nel DB è diverso da quello dell'ultimo aggiornamento
           const isTurnChange = lastIndex !== null && newState.currentPlayerIndex !== lastIndex;
 
+          if (isTurnChange) {
+  console.log("Turno cambiato nel DB: sblocco i dadi localmente.");
+  setHasMovedThisTurn(false);
+  setIsRolling(false); // Sblocca anche eventuali animazioni rimaste "appese"
+}
+
           // Applichiamo gli aggiornamenti
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
@@ -164,20 +170,34 @@ export default function GameBoard({
   }, []);
 
   const handlePassTurn = useCallback(async () => {
-    // Calcoliamo il prossimo indice basandoci sullo stato attuale
+    if (!players || players.length === 0) return;
+
+    // 1. Troviamo l'indice del giocatore attuale
     const currentIndex = players.findIndex(p => p.id === currentPlayer.id);
-    const nextIdx = (currentIndex + 1) % players.length;
     
-    // Resettiamo subito lo stato locale del movimento
+    // 2. Calcoliamo il prossimo indice saltando i giocatori rimossi/bancarotti
+    let nextIdx = (currentIndex + 1) % players.length;
+    let safetyCounter = 0;
+
+    // Finchè il giocatore all'indice nextIdx è in bancarotta, passa al successivo
+    while (players[nextIdx].isBankrupt && safetyCounter < players.length) {
+      nextIdx = (nextIdx + 1) % players.length;
+      safetyCounter++;
+    }
+
+    // 3. Reset immediato dello stato locale per evitare glitch grafici
     setHasMovedThisTurn(false);
+    setIsRolling(false); // Sicurezza extra: sblocca i dadi se erano rimasti appesi
     
-    // Eseguiamo il passaggio turno nel database inviando i players correnti.
-    // Usiamo direttamente players perché nextTurn() verrebbe comunque processato 
-    // dal listener sugli altri client.
+    // 4. Sincronizziamo il Database con l'indice "pulito" (quello del giocatore attivo)
+    // Questo è il passaggio chiave: il DB non saprà mai che esisteva il turno del rimosso
     await syncGameState(players, nextIdx);
     
-    // Chiamiamo nextTurn() localmente per aggiornare l'UI immediata
+    // 5. Aggiorniamo l'hook locale
+    // Assicurati che il tuo nextTurn() nell'hook usi la stessa logica di salto
     nextTurn();
+
+    console.log(`Turno passato da ${currentIndex} a ${nextIdx} (saltando eventuali rimossi)`);
   }, [players, currentPlayer, nextTurn, syncGameState]);
 
   // --- FUNZIONE AGGIUNTA PER RIMOZIONE/ABBANDONO ---
@@ -212,6 +232,7 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
 
   const handleDiceRoll = () => {
     if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
+    if (modalConfig.isOpen || isRolling || hasMovedThisTurn) return;
     if (modalConfig.isOpen || isRolling || isLocalUpdate.current || currentPlayer.isBankrupt || hasMovedThisTurn) return;
 
     setIsRolling(true);
