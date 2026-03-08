@@ -549,8 +549,12 @@ syncGameState(updatedPlayers, currentIndex, steps);
   }
 
   return (
-  <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-transparent font-sans text-white relative">
-      
+<div className="flex flex-col lg:flex-row gap-6 p-4 min-h-screen items-start font-sans text-white relative overflow-hidden"
+     style={{ backgroundColor: '#020617' }}> 
+     
+     {/* AGGIUNGI QUESTO SUBITO DOPO L'APERTURA DEL DIV PER IL BAGLIORE AMBIENTALE */}
+     <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at center, rgba(30, 41, 59, 0.3) 0%, #020617 100%)' }} />      
       {/* --- VITTORIA MODAL (INTEGRALE) --- */}
       <AnimatePresence>
         {gameWinner && (
