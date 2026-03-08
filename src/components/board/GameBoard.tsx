@@ -29,11 +29,11 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotat
   const level = getTrailLevel(valuation);
 
   return (
-    <motion.div 
-      animate={{ rotate: rotation }} 
-      transition={{ type: "spring", stiffness: 60 }}
-      className="relative w-10 h-10 flex items-center justify-center"
-    >
+    motion.div 
+  animate={{ rotate: rotation }} 
+  transition={{ type: "spring", stiffness: 60 }}
+  className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center" // <-- Più piccolo
+>
       <svg viewBox="0 0 100 100" className="w-full h-full" style={{ overflow: 'visible' }}>
         <defs>
           <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
