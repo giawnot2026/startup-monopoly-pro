@@ -688,51 +688,45 @@ syncGameState(updatedPlayers, currentIndex, steps);
           })}
         </div>
       </div>
-{/* --- DASHBOARD LATERALE --- */}
+
+      {/* --- DASHBOARD LATERALE --- */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
           if (!p) return null;
           const isTurn = p.id === currentPlayer.id;
           const isMe = p.name === localPlayerName;
-          
-          // Definiamo l'Host (il primo della lista è il creatore)
-          const isHost = players[0]?.name === localPlayerName;
-
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
           const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-          
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 flex-shrink-0 scale-[0.65] origin-center">
-                    <RocketToken color={p.color} valuation={pVal} rotation={0} />
-                  </div>
-                  <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
-                    {p.name} {isMe && "(TU)"}
-                  </span>
-                </div>
+  <div className="w-6 h-6 flex-shrink-0">
+     <RocketToken color={p.color} valuation={calculateValuation(p)} />
+  </div>
+  <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
+    {p.name} {isMe && "(TU)"}
+  </span>
+</div>
                 {!p.isBankrupt && <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>}
               </div>
-
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
                   <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(p.cash).toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
                   <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
                   <span className="text-rose-400 font-black">€{totalDebt.toLocaleString()}</span>
                 </div>
               </div>
-
               <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 uppercase font-black text-[7px]">Company Val.</span>
@@ -742,49 +736,46 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
                   <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
                 </div>
+               {/* --- INIZIO TASTI AZIONE RIMOZIONE AGGIORNATI --- */}
+              <div className="mt-3 flex flex-col gap-2">
+                
+                {/* Tasto ABBANDONA: Visibile sempre all'utente sulla propria card */}
+                {isMe && !p.isBankrupt && (
+                  <button 
+                    onClick={() => {
+                      if(confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
+                        handleRemovePlayer(p.id);
+                      }
+                    }}
+                    className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
+                  >
+                    Abbandona Partita
+                  </button>
+                )}
 
-                {/* --- SEZIONE TASTI DINAMICA --- */}
-                <div className="mt-3 flex flex-col gap-2">
-                  
-                  {/* 1. PASSA TURNO: Logica Rinforzata */}
-                  {isMe && isTurn && !isRolling && !modalConfig.isOpen && (
-                    <button 
-                      onClick={handlePassTurn}
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[8px] font-black uppercase shadow-lg animate-pulse flex items-center justify-center gap-2 border border-emerald-400/30"
-                    >
-                      Concludi Turno <ArrowRight size={12} />
-                    </button>
-                  )}
-
-                  {/* 2. ABBANDONA: Sempre per ME */}
-                  {isMe && !p.isBankrupt && (
-                    <button 
-                      onClick={() => {
-                        if(window.confirm("Vuoi abbandonare la partita?")) handleRemovePlayer(p.id);
-                      }}
-                      className="w-full py-2 bg-white/5 hover:bg-rose-950/30 border border-white/10 text-slate-400 hover:text-rose-400 rounded-xl text-[8px] font-black uppercase transition-all"
-                    >
-                      Abbandona
-                    </button>
-                  )}
-
-                  {/* 3. RIMUOVI INATTIVO: Solo per Host su ALTRI giocatori */}
-                  {isHost && !isMe && !p.isBankrupt && (
-                    <button 
-                      onClick={() => {
-                        if(window.confirm(`Rimuovere ${p.name}?`)) handleRemovePlayer(p.id);
-                      }}
-                      className="w-full py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all"
-                    >
-                      Rimuovi Inattivo
-                    </button>
-                  )}
-                </div>
+                {/* Tasto RIMUOVI INATTIVO: Visibile solo all'Host (players[0]) sulle card degli altri quando è il loro turno */}
+                {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
+                  <button 
+                    onClick={() => {
+                      if(confirm(`Rimuovere ${p.name} per inattività?`)) {
+                        handleRemovePlayer(p.id);
+                      }
+                    }}
+                    className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase animate-pulse hover:animate-none transition-all"
+                  >
+                    Rimuovi Inattivo
+                  </button>
+                )}
+              </div>
+              {/* --- FINE TASTI AZIONE RIMOZIONE --- */}
               </div>
             </div>
           );
         })}
       </div>
+      
+      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
+
       {/* --- BANCAROTTA --- */}
       <AnimatePresence>
         {eliminatedPlayerName && (
