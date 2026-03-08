@@ -691,7 +691,10 @@ syncGameState(updatedPlayers, currentIndex, steps);
 
       {/* --- DASHBOARD LATERALE --- */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
-        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
+        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">
+          Dashboard {localPlayerName}
+        </h3>
+        
         {players.map((p) => {
           if (!p) return null;
           const isTurn = p.id === currentPlayer.id;
@@ -703,62 +706,63 @@ syncGameState(updatedPlayers, currentIndex, steps);
 
           return (
             <div key={p.id} className={`relative p-3 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/10 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
+              
+              {/* Razzo Watermark */}
               <div className="absolute top-2 right-2 w-8 h-8 opacity-30 pointer-events-none">
                 <RocketToken color={p.color} valuation={pVal} rotation={0} />
               </div>
-              {/* ... (resto del contenuto della card che hai già) */}
+
+              {/* Header Giocatore */}
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
                 <span className={`font-black text-[10px] uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
                   {p.name} {isMe && "(TU)"}
                 </span>
+                {!p.isBankrupt && (
+                  <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">
+                    {Number(p.equity || 0).toFixed(1)}% EQ
+                  </span>
+                )}
               </div>
-              {/* Chiudi correttamente i div della card */}
-            </div>
-          );
-        })}
-      </div>
-      
-      {/* Griglia Dati Operativi */}
-      <div className="grid grid-cols-3 gap-1 mb-3">
-        <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
-          <span className="text-slate-500 block text-[5px] uppercase font-black">Cash</span>
-          <span className={`text-[9px] font-black font-mono ${p.cash < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-            €{Math.floor(p.cash).toLocaleString()}
-          </span>
-        </div>
-        <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
-          <span className="text-slate-500 block text-[5px] uppercase font-black">EBITDA</span>
-          <span className={`text-[9px] font-black font-mono ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            €{currentEbitda.toLocaleString()}
-          </span>
-        </div>
-        <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
-          <span className="text-slate-500 block text-[5px] uppercase font-black">Debiti</span>
-          <span className="text-rose-400 text-[9px] font-black font-mono">
-            €{totalDebt.toLocaleString()}
-          </span>
-        </div>
-      </div>
 
-      {/* Valutazioni e Progress */}
-      <div className="space-y-1.5 border-t border-white/5 pt-2">
-        <div className="flex justify-between items-center text-[7px] font-black">
-          <span className="text-slate-500 uppercase tracking-tighter">Exit Goal Progress</span>
-          <span className="text-white">€{founderPart.toLocaleString()} / €{victoryTarget.toLocaleString()}</span>
-        </div>
-        
-        {/* Progress Bar Dinamica */}
-        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min((founderPart / victoryTarget) * 100, 100)}%` }}
-            className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-          />
-        </div>
-      </div>
+              {/* Griglia Dati Operativi (DENTRO il loop) */}
+              <div className="grid grid-cols-3 gap-1 mb-3">
+                <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
+                  <span className="text-slate-500 block text-[5px] uppercase font-black">Cash</span>
+                  <span className={`text-[9px] font-black font-mono ${p.cash < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    €{Math.floor(p.cash).toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
+                  <span className="text-slate-500 block text-[5px] uppercase font-black">EBITDA</span>
+                  <span className={`text-[9px] font-black font-mono ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    €{currentEbitda.toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
+                  <span className="text-slate-500 block text-[5px] uppercase font-black">Debiti</span>
+                  <span className="text-rose-400 text-[9px] font-black font-mono">
+                    €{totalDebt.toLocaleString()}
+                  </span>
+                </div>
+              </div>
 
-      {/* --- TASTI AZIONE --- */}
+              {/* Valutazioni e Progress (DENTRO il loop) */}
+              <div className="space-y-1.5 border-t border-white/5 pt-2">
+                <div className="flex justify-between items-center text-[7px] font-black">
+                  <span className="text-slate-500 uppercase tracking-tighter">Exit Goal Progress</span>
+                  <span className="text-white">€{founderPart.toLocaleString()} / €{victoryTarget.toLocaleString()}</span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((founderPart / victoryTarget) * 100, 100)}%` }}
+                    className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                  />
+                </div>
+              </div>
+
+              {/* Tasti Azione (DENTRO il loop) */}
               <div className="mt-3 flex gap-2">
                 {isMe && !p.isBankrupt && (
                   <button 
@@ -776,15 +780,13 @@ syncGameState(updatedPlayers, currentIndex, steps);
                     Rimuovi
                   </button>
                 )}
-              </div> {/* Fine Tasti Azione */}
-
-            </div> // Fine Card Giocatore (corrisponde al div con key={p.id})
+              </div>
+            </div> // Fine card
           );
         })}
-      </div>
-      
-      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
+      </div> {/* Fine colonna dashboard */}
 
+      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
       {/* --- BANCAROTTA --- */}
       <AnimatePresence>
         {eliminatedPlayerName && (
