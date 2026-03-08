@@ -640,7 +640,6 @@ syncGameState(updatedPlayers, currentIndex, steps);
     </div>
   </div>
 </div>
-              </div>
             );
           })}
         </div>
