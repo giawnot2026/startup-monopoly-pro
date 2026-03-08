@@ -12,7 +12,7 @@ import { Trophy, Award, Skull, Home, ArrowRight, Zap, TrendingUp, Users, DollarS
 import { supabase } from '@/lib/supabase';
 
 const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false }) => {
-  const getTrailLevel = (val: number) => {
+  const getTrailLevel = (val) => {
     if (val <= 500000) return 1;
     if (val <= 1000000) return 2;
     if (val <= 2500000) return 3;
@@ -20,33 +20,36 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false }) => 
     return 5;
   };
   const level = getTrailLevel(valuation);
+
   return (
-    <div className={`w-8 h-8 flex items-center justify-center transition-all duration-300 ${isMoving ? 'scale-125' : 'scale-100'}`}>
-      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-45" style={{ overflow: 'visible' }}>
+    <div className={`transition-all duration-500 ${isMoving ? 'scale-125 brightness-110' : 'scale-100'}`}>
+      <svg viewBox="0 0 100 100" className="w-8 h-8 transform rotate-45" style={{ overflow: 'visible' }}>
         <defs>
-          <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <linearGradient id={`grad-${color}`} x1="0%" y1="100%" x2="0%" y2="0%">
             <stop offset="0%" stopColor={color} />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* Scia Evolutiva */}
-        {level >= 1 && <path d="M50 70 Q50 90 50 95" stroke={`url(#grad-${color})`} strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.8" />}
-        {level >= 3 && <g><path d="M42 72 L42 90" stroke={color} strokeWidth="2" opacity="0.6" /><path d="M58 72 L58 90" stroke={color} strokeWidth="2" opacity="0.6" /></g>}
-        {level >= 5 && <circle cx="50" cy="85" r="10" fill={color} opacity="0.2"><animate attributeName="r" values="8;12;8" dur="0.5s" repeatCount="indefinite" /></circle>}
         
-        {/* Corpo Razzo */}
+        {/* Scia Evolutiva - Ora punta verso il basso-sinistra rispetto al razzo */}
+        <g transform="translate(0, 10)">
+          {level >= 1 && <path d="M50 70 Q50 95 50 100" stroke={`url(#grad-${color})`} strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.8" />}
+          {level >= 3 && <g opacity="0.6"><path d="M40 75 L35 95" stroke={color} strokeWidth="3" /><path d="M60 75 L65 95" stroke={color} strokeWidth="3" /></g>}
+          {level >= 5 && <circle cx="50" cy="85" r="12" fill={color} opacity="0.3"><animate attributeName="r" values="10;15;10" dur="0.4s" repeatCount="indefinite" /></circle>}
+        </g>
+
+        {/* Corpo Razzo (Design Identico) */}
         <g stroke="black" strokeWidth="3" strokeLinejoin="round">
-          <path d="M35 65 L25 75 L35 75 Z" fill={color} />
-          <path d="M65 65 L75 75 L65 75 Z" fill={color} />
-          <path d="M50 15 C40 15 35 40 35 60 L65 60 C65 40 60 15 50 15 Z" fill="white" />
-          <path d="M50 15 C45 15 40 25 40 30 L60 30 C60 25 55 15 50 15 Z" fill={color} />
-          <circle cx="50" cy="45" r="4" fill="white" stroke="black" strokeWidth="2" />
+          <path d="M35 65 L25 78 L35 75 Z" fill={color} />
+          <path d="M65 65 L75 78 L65 75 Z" fill={color} />
+          <path d="M50 10 C40 10 35 35 35 60 L65 60 C65 35 60 10 50 10 Z" fill="white" />
+          <path d="M50 10 C45 10 40 20 40 25 L60 25 C60 20 55 10 50 10 Z" fill={color} />
+          <circle cx="50" cy="40" r="4" fill="white" stroke="black" strokeWidth="2" />
         </g>
       </svg>
     </div>
   );
 };
-
 export default function GameBoard({ 
   roomCode, 
   localPlayerName, 
@@ -614,23 +617,27 @@ syncGameState(updatedPlayers, currentIndex, steps);
             const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
-                <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-  <div className="flex gap-[-10px] items-center justify-center">
-    {playersHere.map(p => (
-      <motion.div
-        key={p.id}
-        initial={{ scale: 0, rotate: -45 }}
-        animate={{ scale: 1, rotate: -45 }}
-        className="relative"
-      >
-        <RocketToken 
-          color={p.color} 
-          valuation={calculateValuation(p)} 
-          isMoving={isRolling && p.id === currentPlayer.id}
-        />
-      </motion.div>
-    ))}
+  {/* Casella base */}
+  <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
+  
+  {/* AREA TOKEN: Posizionata sotto il titolo della casella */}
+  <div className="absolute inset-0 flex items-end justify-center pb-2 pointer-events-none z-30">
+    <div className="flex -space-x-3 items-center justify-center">
+      {playersHere.map(p => (
+        <motion.div
+          key={p.id}
+          layoutId={`player-${p.id}`} // Questo abilita il movimento fluido tra caselle
+          transition={{ type: "spring", stiffness: 100, damping: 20 }}
+          className="relative"
+        >
+          <RocketToken 
+            color={p.color} 
+            valuation={calculateValuation(p)} 
+            isMoving={isRolling && p.id === currentPlayer.id}
+          />
+        </motion.div>
+      ))}
+    </div>
   </div>
 </div>
               </div>
