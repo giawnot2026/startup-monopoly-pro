@@ -12,14 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Award, Skull, Home, ArrowRight, Zap, TrendingUp, Users, DollarSign, BarChart3, PieChart, Activity, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const getRocketRotation = (tileId) => {
-  if (tileId >= 0 && tileId <= 7) return 90;   // Ore 3 (Destra)
-  if (tileId >= 8 && tileId <= 14) return 180; // Ore 6 (Giù)
-  if (tileId >= 15 && tileId <= 21) return 270; // Ore 9 (Sinistra)
-  return 0;                                    // Ore 12 (Su)
-};
-
 const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotation = 0 }) => {
+  // Mantieni la tua logica dei livelli esistente
   const getTrailLevel = (val) => {
     if (val <= 500000) return 1;
     if (val <= 1000000) return 2;
@@ -29,13 +23,16 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotat
   };
   const level = getTrailLevel(valuation);
 
+  // --- MODIFICA CHIRURGICA: DIMENSIONE E VIEWBOX ---
   return (
     <motion.div 
       animate={{ rotate: rotation }} 
       transition={{ type: "spring", stiffness: 60 }}
-      className="relative w-10 h-10 flex items-center justify-center"
+      // Rimpicciolito drasticamente da w-10 a w-5
+      className="relative w-5 h-5 flex items-center justify-center"
     >
-      <svg viewBox="0 0 100 100" className="w-full h-full" style={{ overflow: 'visible' }}>
+      {/* ViewBox modificato per 'centrare' il razzo rimpicciolito */}
+      <svg viewBox="-20 -20 140 140" className="w-full h-full" style={{ overflow: 'visible' }}>
         <defs>
           <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor={color} />
@@ -43,41 +40,25 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotat
           </linearGradient>
         </defs>
 
-        {/* SCIA DINAMICA (Sotto il razzo) */}
+        {/* --- LOGICA SCIA (Semplificata per mini-razzo) --- */}
         <motion.g 
-          animate={isMoving ? { opacity: [0.4, 1, 0.4], y: [0, 5, 0] } : {}} 
+          animate={isMoving ? { opacity: [0.4, 1, 0.4], y: [0, 3, 0] } : {}} 
           transition={{ repeat: Infinity, duration: 0.2 }}
         >
-          {/* Base Scia */}
           <path 
-            d={isMoving ? "M40 70 L50 110 L60 70" : "M45 70 L50 85 L55 70"} 
+            d={isMoving ? "M40 70 L50 100 L60 70" : "M45 70 L50 80 L55 70"} 
             fill={`url(#grad-${color})`} 
-            opacity={level >= 2 ? 0.7 : 0.4} 
+            opacity={level >= 2 ? 0.6 : 0.3} 
           />
-          
-          {/* Livelli avanzati: Scie extra durante il movimento */}
-          {level >= 3 && (
-            <g opacity={isMoving ? 1 : 0.5}>
-              <path d="M35 70 L30 100" stroke={color} strokeWidth="2" strokeDasharray="4 2" />
-              <path d="M65 70 L70 100" stroke={color} strokeWidth="2" strokeDasharray="4 2" />
-            </g>
-          )}
-
-          {/* Livello 5: Bagliore di spinta massima */}
-          {level >= 5 && isMoving && (
-            <circle cx="50" cy="80" r="15" fill={color} opacity="0.2">
-              <animate attributeName="r" values="10;20;10" dur="0.3s" repeatCount="indefinite" />
-            </circle>
-          )}
         </motion.g>
 
-        {/* CORPO RAZZO */}
-        <g stroke="black" strokeWidth="3" strokeLinejoin="round">
-          <path d="M35 65 L25 78 L35 75 Z" fill={color} /> {/* Pinna SX */}
-          <path d="M65 65 L75 78 L65 75 Z" fill={color} /> {/* Pinna DX */}
+        {/* CORPO RAZZO (Stessi d, ma con stroke proporzionato) */}
+        <g stroke="black" strokeWidth="4" strokeLinejoin="round">
+          <path d="M35 65 L25 78 L35 75 Z" fill={color} />
+          <path d="M65 65 L75 78 L65 75 Z" fill={color} />
           <path d="M50 10 C40 10 35 35 35 60 L65 60 C65 35 60 10 50 10 Z" fill="white" />
           <path d="M50 10 C45 10 40 20 40 25 L60 25 C60 20 55 10 50 10 Z" fill={color} />
-          <circle cx="50" cy="40" r="4" fill="white" stroke="black" strokeWidth="2" />
+          <circle cx="50" cy="40" r="5" fill="white" stroke="black" strokeWidth="3" />
         </g>
       </svg>
     </motion.div>
@@ -658,36 +639,30 @@ syncGameState(updatedPlayers, currentIndex, steps);
     ownerColor={tileOwner?.color || 'transparent'} 
   />
   
-  {/* AREA TOKEN: Corretta senza il doppio << */}
-  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-    <div className="flex -space-x-4 items-center justify-center">
-      {playersHere.map(p => (
-        <motion.div
-          key={p.id}
-          layoutId={`player-rocket-${p.id}`}
-          transition={{ 
-            type: "spring", 
-            stiffness: 70, 
-            damping: 15,
-            mass: 1 
-          }}
-          className="relative"
-        >
-          <RocketToken 
-            color={p.color} 
-            valuation={calculateValuation(p)} 
-            isMoving={isRolling && p.id === currentPlayer.id}
-            rotation={getRocketRotation(p.position)}
-          />
-        </motion.div>
-      ))}
-    </div>
-  </div>
+ {/* AREA TOKEN: Posizionamento in basso a sinistra (ex area "asset") */}
+<div className="absolute bottom-1 left-1 flex items-center gap-1 z-30 pointer-events-none p-1">
+  {playersHere.map(p => (
+    <motion.div
+      key={p.id}
+      layoutId={`player-rocket-${p.id}`}
+      transition={{ 
+        type: "spring", 
+        stiffness: 90, // Un po' più scattante per le icone piccole
+        damping: 15,
+        mass: 0.8 
+      }}
+      className="relative"
+    >
+      <RocketToken 
+        color={p.color} 
+        valuation={calculateValuation(p)} 
+        isMoving={isRolling && p.id === currentPlayer.id}
+        // Consiglio: rotation={0} per tenerli dritti ora che sono piccoli e d'angolo
+        rotation={getRocketRotation(p.position)} 
+      />
+    </motion.div>
+  ))}
 </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* --- DASHBOARD LATERALE --- */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
