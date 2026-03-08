@@ -11,6 +11,42 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Award, Skull, Home, ArrowRight, Zap, TrendingUp, Users, DollarSign, BarChart3, PieChart, Activity, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false }) => {
+  const getTrailLevel = (val: number) => {
+    if (val <= 500000) return 1;
+    if (val <= 1000000) return 2;
+    if (val <= 2500000) return 3;
+    if (val <= 5000000) return 4;
+    return 5;
+  };
+  const level = getTrailLevel(valuation);
+  return (
+    <div className={`w-8 h-8 flex items-center justify-center transition-all duration-300 ${isMoving ? 'scale-125' : 'scale-100'}`}>
+      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-45" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={color} />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* Scia Evolutiva */}
+        {level >= 1 && <path d="M50 70 Q50 90 50 95" stroke={`url(#grad-${color})`} strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.8" />}
+        {level >= 3 && <g><path d="M42 72 L42 90" stroke={color} strokeWidth="2" opacity="0.6" /><path d="M58 72 L58 90" stroke={color} strokeWidth="2" opacity="0.6" /></g>}
+        {level >= 5 && <circle cx="50" cy="85" r="10" fill={color} opacity="0.2"><animate attributeName="r" values="8;12;8" dur="0.5s" repeatCount="indefinite" /></circle>}
+        
+        {/* Corpo Razzo */}
+        <g stroke="black" strokeWidth="3" strokeLinejoin="round">
+          <path d="M35 65 L25 75 L35 75 Z" fill={color} />
+          <path d="M65 65 L75 75 L65 75 Z" fill={color} />
+          <path d="M50 15 C40 15 35 40 35 60 L65 60 C65 40 60 15 50 15 Z" fill="white" />
+          <path d="M50 15 C45 15 40 25 40 30 L60 30 C60 25 55 15 50 15 Z" fill={color} />
+          <circle cx="50" cy="45" r="4" fill="white" stroke="black" strokeWidth="2" />
+        </g>
+      </svg>
+    </div>
+  );
+};
+
 export default function GameBoard({ 
   roomCode, 
   localPlayerName, 
@@ -579,9 +615,24 @@ syncGameState(updatedPlayers, currentIndex, steps);
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
                 <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
-                <div className="absolute bottom-1 left-1 flex gap-0.5 z-30">
-                  {playersHere.map(p => <div key={p.id} className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: p.color }} />)}
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+  <div className="flex gap-[-10px] items-center justify-center">
+    {playersHere.map(p => (
+      <motion.div
+        key={p.id}
+        initial={{ scale: 0, rotate: -45 }}
+        animate={{ scale: 1, rotate: -45 }}
+        className="relative"
+      >
+        <RocketToken 
+          color={p.color} 
+          valuation={calculateValuation(p)} 
+          isMoving={isRolling && p.id === currentPlayer.id}
+        />
+      </motion.div>
+    ))}
+  </div>
+</div>
               </div>
             );
           })}
@@ -602,10 +653,14 @@ syncGameState(updatedPlayers, currentIndex, steps);
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-                  <span className={`font-bold text-xs uppercase ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>{p.name} {isMe && "(TU)"}</span>
-                </div>
+                <div className="flex items-center gap-3">
+  <div className="w-6 h-6 flex-shrink-0">
+     <RocketToken color={p.color} valuation={calculateValuation(p)} />
+  </div>
+  <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
+    {p.name} {isMe && "(TU)"}
+  </span>
+</div>
                 {!p.isBankrupt && <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>}
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
