@@ -599,57 +599,52 @@ syncGameState(updatedPlayers, currentIndex, steps);
         )}
       </AnimatePresence>
 
-      {/* --- TABELLONE --- */}
-<div className="relative w-full lg:w-[750px] aspect-square bg-slate-900 p-2 border border-blue-500/20 rounded-[2rem] shadow-2xl overflow-hidden self-center">
-  {/* Centro rimpicciolito per dare respiro alle caselle */}
-  <div className="absolute inset-[28%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] z-20 p-4 text-center shadow-inner">
-    <div className="absolute top-3 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
-    
-    <div className="flex items-center gap-2 mb-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-      <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-      <span className="text-white font-black text-[8px] uppercase tracking-widest font-mono">
-        {currentPlayer.name === localPlayerName ? "TUO TURNO" : `TURNO: ${currentPlayer.name}`}
-      </span>
-    </div>
+    {/* --- TABELLONE --- */}
+      <div className="relative w-full lg:w-[750px] aspect-square bg-slate-900 p-2 border border-blue-500/20 rounded-[2rem] shadow-2xl overflow-hidden self-center">
+        {/* Centro rimpicciolito per dare respiro alle caselle */}
+        <div className="absolute inset-[28%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] z-20 p-4 text-center shadow-inner">
+          <div className="absolute top-3 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+          
+          <div className="flex items-center gap-2 mb-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
+            <span className="text-white font-black text-[8px] uppercase tracking-widest font-mono">
+              {currentPlayer.name === localPlayerName ? "TUO TURNO" : `TURNO: ${currentPlayer.name}`}
+            </span>
+          </div>
 
-    {/* Dado più compatto */}
-    <div className={`w-12 h-12 mb-2 flex items-center justify-center rounded-xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-xl font-black font-mono shadow-lg`}>
-      {diceValue || '?'}
-    </div>
+          <div className={`w-12 h-12 mb-2 flex items-center justify-center rounded-xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-xl font-black font-mono shadow-lg`}>
+            {diceValue || '?'}
+          </div>
 
-    <div className="text-xl font-black text-white italic mb-0 tracking-tighter font-mono">
-      €{(Number(valuation) || 0).toLocaleString()}
-    </div>
-    <span className="text-blue-400 font-mono text-[6px] uppercase tracking-widest opacity-60 mb-4 block">Valuation</span>
-    
-    <div className="flex flex-col gap-2 w-full items-center">
-      {!hasMovedThisTurn ? (
-        <button 
-          onClick={handleDiceRoll} 
-          disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
-          className={`px-6 py-2 font-black rounded-lg text-white text-[9px] font-mono transition-all w-3/4
-            ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
-        >
-          {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "..." : (currentPlayer.name === localPlayerName ? "LANCIA" : "ATTENDI"))}
-        </button>
-      ) : (
-        !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
-          <button 
-            onClick={handlePassTurn}
-            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 font-black rounded-lg text-white text-[9px] font-mono flex items-center justify-center gap-2 shadow-lg animate-bounce w-3/4"
-          >
-            PASSA <ArrowRight size={12} />
-          </button>
-        )
-      )}
-    </div>
-  </div>
+          <div className="text-xl font-black text-white italic mb-0 tracking-tighter font-mono">
+            €{(Number(valuation) || 0).toLocaleString()}
+          </div>
+          <span className="text-blue-400 font-mono text-[6px] uppercase tracking-widest opacity-60 mb-4 block">Valuation</span>
+          
+          <div className="flex flex-col gap-2 w-full items-center">
+            {!hasMovedThisTurn ? (
+              <button 
+                onClick={handleDiceRoll} 
+                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+                className={`px-6 py-2 font-black rounded-lg text-white text-[9px] font-mono transition-all w-3/4
+                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+              >
+                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "..." : (currentPlayer.name === localPlayerName ? "LANCIA" : "ATTENDI"))}
+              </button>
+            ) : (
+              !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
+                <button 
+                  onClick={handlePassTurn}
+                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 font-black rounded-lg text-white text-[9px] font-mono flex items-center justify-center gap-2 shadow-lg animate-bounce w-3/4"
+                >
+                  PASSA <ArrowRight size={12} />
+                </button>
+              )
+            )}
+          </div>
+        </div>
 
-  {/* Grid con celle più grandi */}
-  <div className="grid grid-cols-8 grid-rows-8 gap-0.5 h-full w-full font-mono">
-    {TILES.map((tile) => {
-      // ... (tieni la tua logica di row/col esistente)
-
+        {/* Grid corretta (senza duplicati) */}
         <div className="grid grid-cols-8 grid-rows-8 gap-0.5 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
@@ -657,44 +652,38 @@ syncGameState(updatedPlayers, currentIndex, steps);
             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
             else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
             else { col = 1; row = 8 - (tile.id - 21); }
+            
             const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
             const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
+            
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
-  {/* Casella base */}
-  <Tile 
-    {...tile} 
-    isActive={playersHere.length > 0} 
-    ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
-    ownerColor={tileOwner?.color || 'transparent'} 
-  />
-  
-  {/* AREA TOKEN: Corretta senza il doppio << */}
-  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-    <div className="flex -space-x-4 items-center justify-center">
-      {playersHere.map(p => (
-        <motion.div
-          key={p.id}
-          layoutId={`player-rocket-${p.id}`}
-          transition={{ 
-            type: "spring", 
-            stiffness: 70, 
-            damping: 15,
-            mass: 1 
-          }}
-          className="relative"
-        >
-          <RocketToken 
-            color={p.color} 
-            valuation={calculateValuation(p)} 
-            isMoving={isRolling && p.id === currentPlayer.id}
-            rotation={getRocketRotation(p.position)}
-          />
-        </motion.div>
-      ))}
-    </div>
-  </div>
-</div>
+                <Tile 
+                  {...tile} 
+                  isActive={playersHere.length > 0} 
+                  ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
+                  ownerColor={tileOwner?.color || 'transparent'} 
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                  <div className="flex -space-x-4 items-center justify-center">
+                    {playersHere.map(p => (
+                      <motion.div
+                        key={p.id}
+                        layoutId={`player-rocket-${p.id}`}
+                        transition={{ type: "spring", stiffness: 70, damping: 15, mass: 1 }}
+                        className="relative"
+                      >
+                        <RocketToken 
+                          color={p.color} 
+                          valuation={calculateValuation(p)} 
+                          isMoving={isRolling && p.id === currentPlayer.id}
+                          rotation={getRocketRotation(p.position)}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -704,35 +693,32 @@ syncGameState(updatedPlayers, currentIndex, steps);
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
-  if (!p) return null;
-  const isTurn = p.id === currentPlayer.id;
-  const isMe = p.name === localPlayerName;
-  const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
-  const pVal = calculateValuation(p) || 0;
-  const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
-  const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+          if (!p) return null;
+          const isTurn = p.id === currentPlayer.id;
+          const isMe = p.name === localPlayerName;
+          const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
+          const pVal = calculateValuation(p) || 0;
+          const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
+          const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
 
-  return (
-    <div key={p.id} className={`relative p-3 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/10 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
+          return (
+            <div key={p.id} className={`relative p-3 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/10 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
+              <div className="absolute top-2 right-2 w-8 h-8 opacity-30 pointer-events-none">
+                <RocketToken color={p.color} valuation={pVal} rotation={0} />
+              </div>
+              {/* ... (resto del contenuto della card che hai già) */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                <span className={`font-black text-[10px] uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
+                  {p.name} {isMe && "(TU)"}
+                </span>
+              </div>
+              {/* Chiudi correttamente i div della card */}
+            </div>
+          );
+        })}
+      </div>
       
-      {/* Razzo posizionato come watermark in alto a destra */}
-      <div className="absolute top-2 right-2 w-8 h-8 opacity-30 pointer-events-none">
-        <RocketToken color={p.color} valuation={pVal} rotation={0} />
-      </div>
-
-      {/* Header Giocatore */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
-        <span className={`font-black text-[10px] uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
-          {p.name} {isMe && "(TU)"}
-        </span>
-        {!p.isBankrupt && (
-          <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">
-            {Number(p.equity || 0).toFixed(1)}% EQ
-          </span>
-        )}
-      </div>
-
       {/* Griglia Dati Operativi */}
       <div className="grid grid-cols-3 gap-1 mb-3">
         <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
