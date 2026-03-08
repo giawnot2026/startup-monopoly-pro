@@ -658,28 +658,27 @@ syncGameState(updatedPlayers, currentIndex, steps);
     ownerColor={tileOwner?.color || 'transparent'} 
   />
   
-  {/* AREA TOKEN: Corretta senza il doppio << */}
-  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-    <div className="flex -space-x-4 items-center justify-center">
-      {playersHere.map(p => (
-        <motion.div
-          key={p.id}
-          layoutId={`player-rocket-${p.id}`}
-          transition={{ 
-            type: "spring", 
-            stiffness: 70, 
-            damping: 15,
-            mass: 1 
-          }}
-          className="relative"
-        >
-          <RocketToken 
-            color={p.color} 
-            valuation={calculateValuation(p)} 
-            isMoving={isRolling && p.id === currentPlayer.id}
-            rotation={getRocketRotation(p.position)}
-          />
-        </motion.div>
+  {/* AREA TOKEN: Posizionamento nell'angolo in basso a sinistra (ex area "ASSET") */}
+<div className="absolute bottom-1 left-1 flex items-center -space-x-2 z-30 pointer-events-none">
+  {playersHere.map(p => (
+    <motion.div
+      key={p.id}
+      layoutId={`player-rocket-${p.id}`}
+      transition={{ 
+        type: "spring", 
+        stiffness: 70, 
+        damping: 15,
+        mass: 1 
+      }}
+      className="relative scale-75 origin-bottom-left" // Rimpicciolisce il razzo e lo ancora all'angolo
+    >
+      <RocketToken 
+        color={p.color} 
+        valuation={calculateValuation(p)} 
+        isMoving={isRolling && p.id === currentPlayer.id}
+        rotation={getRocketRotation(p.position)}
+      />
+    </motion.div>
       ))}
     </div>
   </div>
