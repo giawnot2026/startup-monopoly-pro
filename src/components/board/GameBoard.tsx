@@ -600,93 +600,94 @@ syncGameState(updatedPlayers, currentIndex, steps);
         )}
       </AnimatePresence>
 
-     {/* --- CONTENITORE PRINCIPALE --- */}
-<div className="relative w-full lg:flex-1 h-[85vh] bg-slate-900/50 backdrop-blur-sm border border-white/5 rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col">
-  
-  {/* Centro Minimalista e Integrato */}
-  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-    <div className="w-[40%] aspect-square flex flex-col items-center justify-center pointer-events-auto bg-slate-950/80 border border-white/10 rounded-[2rem] backdrop-blur-md shadow-2xl">
-      <div className="text-[10px] text-blue-500/50 font-mono tracking-[0.4em] mb-4">ROOM: {roomCode}</div>
-      
-      {/* Turno e Dado in un unico blocco elegante */}
-      <div className="flex flex-col items-center gap-4">
-        <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-          <motion.div 
-            animate={{ scale: [1, 1.2, 1] }} 
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="w-2 h-2 rounded-full" 
-            style={{ backgroundColor: currentPlayer.color }} 
-          />
-          <span className="text-white font-bold text-xs tracking-widest">{currentPlayer.name === localPlayerName ? "TUO TURNO" : currentPlayer.name}</span>
-        </div>
-
-        <div className="text-6xl font-black text-white font-mono">{diceValue || '?'}</div>
-        
-        <div className="flex flex-col items-center">
-          <div className="text-3xl font-black text-emerald-400 font-mono italic">€{(Number(valuation) || 0).toLocaleString()}</div>
-          <div className="text-[8px] text-slate-500 tracking-[0.2em] uppercase mt-1">Valuation</div>
-        </div>
-
-        {!hasMovedThisTurn ? (
-          <button 
-            onClick={handleDiceRoll} 
-            disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.name !== localPlayerName} 
-            className="mt-4 px-12 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {isRolling ? "LANCIO..." : "LANCIA DADI"}
-          </button>
-        ) : (
-          !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
-            <button onClick={handlePassTurn} className="mt-4 px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl shadow-lg animate-pulse">
-              PASSA TURNO
-            </button>
-          )
-        )}
-      </div>
-    </div>
-  </div>
-
-  {/* La Grid: Bilanciata per caselle quadrate */}
-  <div 
-    className="grid h-full w-full p-2 gap-1.5"
-    style={{ 
-      gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr 1fr 1.4fr",
-      gridTemplateRows: "1.4fr 1fr 1fr 1fr 1fr 1fr 1fr 1.4fr"
-    }}
-  >
-    {TILES.map((tile) => {
-      let row, col;
-      if (tile.id <= 7) { row = 1; col = tile.id + 1; }
-      else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
-      else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
-      else { col = 1; row = 8 - (tile.id - 21); }
-
-      const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
-      const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
-
-      return (
-        <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative w-full h-full group">
-          <Tile 
-            {...tile} 
-            isActive={playersHere.length > 0} 
-            ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
-            ownerColor={tileOwner?.color || 'transparent'} 
-          />
-          {/* Razzi sovrapposti in modo pulito */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-            <div className="flex -space-x-3">
-              {playersHere.map(p => (
-                <motion.div key={p.id} layoutId={`rocket-${p.id}`} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]">
-                  <RocketToken color={p.color} valuation={calculateValuation(p)} rotation={getRocketRotation(p.position)} />
-                </motion.div>
-              ))}
-            </div>
+      {/* --- TABELLONE --- */}
+      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
+          <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+          <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
+            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+              {currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`}
+            </span>
+          </div>
+          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
+            {diceValue || '?'}
+          </div>
+          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
+          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
+          
+          <div className="flex flex-col gap-3 w-full items-center">
+            {!hasMovedThisTurn ? (
+              <button 
+                onClick={handleDiceRoll} 
+                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+                className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
+                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
+              >
+                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
+              </button>
+            ) : (
+              !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
+                <button 
+                  onClick={handlePassTurn}
+                  className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
+                >
+                  PASSA TURNO <ArrowRight size={14} />
+                </button>
+              )
+            )}
           </div>
         </div>
-      );
-    })}
+
+        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
+          {TILES.map((tile) => {
+            let row, col;
+            if (tile.id <= 7) { row = 1; col = tile.id + 1; }
+            else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
+            else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
+            else { col = 1; row = 8 - (tile.id - 21); }
+            const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
+            const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
+            return (
+              <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
+  {/* Casella base */}
+  <Tile 
+    {...tile} 
+    isActive={playersHere.length > 0} 
+    ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
+    ownerColor={tileOwner?.color || 'transparent'} 
+  />
+  
+  {/* AREA TOKEN: Corretta senza il doppio << */}
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+    <div className="flex -space-x-4 items-center justify-center">
+      {playersHere.map(p => (
+        <motion.div
+          key={p.id}
+          layoutId={`player-rocket-${p.id}`}
+          transition={{ 
+            type: "spring", 
+            stiffness: 70, 
+            damping: 15,
+            mass: 1 
+          }}
+          className="relative"
+        >
+          <RocketToken 
+            color={p.color} 
+            valuation={calculateValuation(p)} 
+            isMoving={isRolling && p.id === currentPlayer.id}
+            rotation={getRocketRotation(p.position)}
+          />
+        </motion.div>
+      ))}
+    </div>
   </div>
 </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* --- DASHBOARD LATERALE --- */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
