@@ -91,12 +91,26 @@ export default function Home() {
 
   // Una volta effettuato l'accesso alla stanza, carichiamo il GameBoard
   return (
-    <main className="min-h-screen bg-slate-950 py-10 flex items-center justify-center">
-      <GameBoard 
-        roomCode={gameData.roomCode} 
-        localPlayerName={gameData.playerName}
-        victoryTarget={gameData.victoryTarget} 
-      />
-    </main>
+    <div className="min-h-screen bg-[#1e293b] relative overflow-hidden text-slate-100 p-6 font-sans">
+      
+      {/* Effetto gradiente radiale per dare luce al centro */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(51,65,85,0.5)_0%,_rgba(15,23,42,0.8)_100%)] pointer-events-none" />
+
+      {/* Blob decorativi: Colori pastello molto sfumati per il tocco "giovane" */}
+      <div className="absolute top-[10%] left-[20%] w-[400px] h-[400px] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[10%] right-[20%] w-[400px] h-[400px] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
+
+      {/* Griglia tecnica chiara quasi invisibile */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:40px_40px]" />
+
+      {/* Contenuto del Gioco */}
+      <main className="relative z-10 flex items-center justify-center min-h-[90vh]">
+        <GameBoard 
+          roomCode={gameData.roomCode} 
+          localPlayerName={gameData.playerName}
+          victoryTarget={gameData.victoryTarget} 
+        />
+      </main>
+    </div>
   );
 }
