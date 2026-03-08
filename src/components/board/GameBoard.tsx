@@ -703,8 +703,9 @@ syncGameState(updatedPlayers, currentIndex, steps);
           return (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-  <div className="w-6 h-6 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                {/* MINI RAZZO DASHBOARD: Versione ultra-compatta (scale-50) */}
+            <div className="w-6 h-6 flex items-center justify-center scale-[0.55] origin-center"
      <RocketToken color={p.color} valuation={calculateValuation(p)} />
   </div>
   <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
