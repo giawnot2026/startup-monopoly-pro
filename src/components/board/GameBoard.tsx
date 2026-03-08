@@ -753,15 +753,16 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   </button>
                 )}
 
-                {/* Tasto RIMUOVI INATTIVO: Visibile solo all'Host (players[0]) sulle card degli altri quando è il loro turno */}
-                {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
+             {/* Tasto RIMUOVI INATTIVO: Ripristinato e Corretto */}
+                {/* Rimosso isTurn per permettere la rimozione anche se il gioco è bloccato tra un turno e l'altro */}
+                {players[0]?.name === localPlayerName && !isMe && !p.isBankrupt && (
                   <button 
                     onClick={() => {
-                      if(confirm(`Rimuovere ${p.name} per inattività?`)) {
+                      if(window.confirm(`Rimuovere ${p.name} per inattività?`)) {
                         handleRemovePlayer(p.id);
                       }
                     }}
-                    className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase animate-pulse hover:animate-none transition-all"
+                    className="w-full py-2 mt-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm animate-pulse hover:animate-none"
                   >
                     Rimuovi Inattivo
                   </button>
