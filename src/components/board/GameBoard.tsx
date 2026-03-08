@@ -601,34 +601,46 @@ syncGameState(updatedPlayers, currentIndex, steps);
       </AnimatePresence>
 
       {/* --- TABELLONE --- */}
-<div className="relative w-full lg:w-[750px] aspect-square bg-slate-900 p-1 border border-blue-500/20 rounded-[1.5rem] shadow-2xl overflow-hidden self-center">
-  
-  {/* Centro rimpicciolito (inset aumentato dal 28% al 38%) per dare spazio alle caselle */}
-  <div className="absolute inset-[38%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/5 rounded-[1.5rem] z-20 p-2 text-center shadow-inner pointer-events-none">
-    <div className="text-[6px] text-slate-600 font-mono uppercase tracking-widest mb-1">Room: {roomCode}</div>
-    
-    {/* Info Turno super compatto */}
-    <div className="flex items-center gap-1 mb-1 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-      <div className="w-1 h-1 rounded-full" style={{ backgroundColor: currentPlayer.color }} />
-      <span className="text-white font-black text-[7px] uppercase font-mono">
-        {currentPlayer.name === localPlayerName ? "TU" : currentPlayer.name}
-      </span>
-    </div>
+      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
+          <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+          <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
+            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+              {currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`}
+            </span>
+          </div>
+          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
+            {diceValue || '?'}
+          </div>
+          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
+          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
+          
+          <div className="flex flex-col gap-3 w-full items-center">
+            {!hasMovedThisTurn ? (
+              <button 
+                onClick={handleDiceRoll} 
+                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+                className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
+                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
+              >
+                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
+              </button>
+            ) : (
+              !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
+                <button 
+                  onClick={handlePassTurn}
+                  className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
+                >
+                  PASSA TURNO <ArrowRight size={14} />
+                </button>
+              )
+            )}
+          </div>
+        </div>
 
-    {/* Dado */}
-    <div className="w-8 h-8 flex items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-white text-sm font-black font-mono shadow-lg mb-1">
-      {diceValue || '?'}
-    </div>
-
-    {/* Valuation al centro */}
-    <div className="text-sm font-black text-white italic tracking-tighter font-mono leading-none">
-      €{(Number(valuation) || 0).toLocaleString()}
-    </div>
-  </div>
-
-  {/* Grid: rimosso il gap eccessivo e usato h-full */}
-  <div className="grid grid-cols-8 grid-rows-8 gap-px h-full w-full font-mono">
-    {TILES.map((tile) => {
+        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
+          {TILES.map((tile) => {
             let row, col;
             if (tile.id <= 7) { row = 1; col = tile.id + 1; }
             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
