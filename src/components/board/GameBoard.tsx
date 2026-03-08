@@ -705,7 +705,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                 {/* MINI RAZZO DASHBOARD: Versione ultra-compatta (scale-50) */}
-            <div className="w-6 h-6 flex items-center justify-center scale-[0.55] origin-center">
+            <div className="w-6 h-6 flex items-center justify-center scale-[0.85] origin-center">
      <RocketToken color={p.color} valuation={calculateValuation(p)} />
   </div>
   <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
