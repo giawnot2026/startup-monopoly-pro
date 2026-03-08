@@ -696,8 +696,8 @@ syncGameState(updatedPlayers, currentIndex, steps);
           const isTurn = p.id === currentPlayer.id;
           const isMe = p.name === localPlayerName;
           
-          // CORREZIONE: Definiamo l'Host in modo sicuro
-          const isHost = players[0]?.id === players.find(pl => pl?.name === localPlayerName)?.id;
+          // Definiamo l'Host (il primo della lista è il creatore)
+          const isHost = players[0]?.name === localPlayerName;
 
           const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
           const pVal = calculateValuation(p) || 0;
@@ -708,8 +708,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
             <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  {/* MINI RAZZO: Aggiunto scale per proporzione */}
-                  <div className="w-6 h-6 flex-shrink-0 scale-75">
+                  <div className="w-6 h-6 flex-shrink-0 scale-[0.65] origin-center">
                     <RocketToken color={p.color} valuation={pVal} rotation={0} />
                   </div>
                   <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
@@ -744,30 +743,38 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
                 </div>
 
+                {/* --- SEZIONE TASTI DINAMICA --- */}
                 <div className="mt-3 flex flex-col gap-2">
-                  {/* Tasto ABBANDONA */}
-                  {isMe && !p.isBankrupt && (
+                  
+                  {/* 1. PASSA TURNO: Solo per ME, se è il mio turno e ho già mosso */}
+                  {isMe && isTurn && hasMovedThisTurn && !modalConfig.isOpen && (
                     <button 
-                      onClick={() => {
-                        if(confirm("Sei sicuro di voler abbandonare? La tua startup fallirà.")) {
-                          handleRemovePlayer(p.id);
-                        }
-                      }}
-                      className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
+                      onClick={handlePassTurn}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[8px] font-black uppercase shadow-lg animate-pulse flex items-center justify-center gap-2"
                     >
-                      Abbandona Partita
+                      Concludi Turno <ArrowRight size={12} />
                     </button>
                   )}
 
-                  {/* Tasto RIMUOVI INATTIVO: Logica riparata */}
+                  {/* 2. ABBANDONA: Sempre per ME */}
+                  {isMe && !p.isBankrupt && (
+                    <button 
+                      onClick={() => {
+                        if(confirm("Vuoi abbandonare la partita?")) handleRemovePlayer(p.id);
+                      }}
+                      className="w-full py-2 bg-white/5 hover:bg-rose-950/30 border border-white/10 text-slate-400 hover:text-rose-400 rounded-xl text-[8px] font-black uppercase transition-all"
+                    >
+                      Abbandona
+                    </button>
+                  )}
+
+                  {/* 3. RIMUOVI INATTIVO: Solo per Host su ALTRI giocatori */}
                   {isHost && !isMe && !p.isBankrupt && (
                     <button 
                       onClick={() => {
-                        if(confirm(`Rimuovere ${p.name} per inattività?`)) {
-                          handleRemovePlayer(p.id);
-                        }
+                        if(confirm(`Rimuovere ${p.name}?`)) handleRemovePlayer(p.id);
                       }}
-                      className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
+                      className="w-full py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all"
                     >
                       Rimuovi Inattivo
                     </button>
