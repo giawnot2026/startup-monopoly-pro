@@ -719,15 +719,15 @@ syncGameState(updatedPlayers, currentIndex, steps);
               </div>
 
               <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                <div className="bg-black/30 p-2 rounded-lg text-center">
+                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
                   <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(p.cash).toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center">
+                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
                   <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
-                <div className="bg-black/30 p-2 rounded-lg text-center">
+                <div className="bg-black/30 p-2 rounded-lg text-center border border-white/5">
                   <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
                   <span className="text-rose-400 font-black">€{totalDebt.toLocaleString()}</span>
                 </div>
@@ -746,11 +746,11 @@ syncGameState(updatedPlayers, currentIndex, steps);
                 {/* --- SEZIONE TASTI DINAMICA --- */}
                 <div className="mt-3 flex flex-col gap-2">
                   
-                  {/* 1. PASSA TURNO: Solo per ME, se è il mio turno e ho già mosso */}
-                  {isMe && isTurn && hasMovedThisTurn && !modalConfig.isOpen && (
+                  {/* 1. PASSA TURNO: Logica Rinforzata */}
+                  {isMe && isTurn && !isRolling && !modalConfig.isOpen && (
                     <button 
                       onClick={handlePassTurn}
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[8px] font-black uppercase shadow-lg animate-pulse flex items-center justify-center gap-2"
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[8px] font-black uppercase shadow-lg animate-pulse flex items-center justify-center gap-2 border border-emerald-400/30"
                     >
                       Concludi Turno <ArrowRight size={12} />
                     </button>
@@ -760,7 +760,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   {isMe && !p.isBankrupt && (
                     <button 
                       onClick={() => {
-                        if(confirm("Vuoi abbandonare la partita?")) handleRemovePlayer(p.id);
+                        if(window.confirm("Vuoi abbandonare la partita?")) handleRemovePlayer(p.id);
                       }}
                       className="w-full py-2 bg-white/5 hover:bg-rose-950/30 border border-white/10 text-slate-400 hover:text-rose-400 rounded-xl text-[8px] font-black uppercase transition-all"
                     >
@@ -772,7 +772,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   {isHost && !isMe && !p.isBankrupt && (
                     <button 
                       onClick={() => {
-                        if(confirm(`Rimuovere ${p.name}?`)) handleRemovePlayer(p.id);
+                        if(window.confirm(`Rimuovere ${p.name}?`)) handleRemovePlayer(p.id);
                       }}
                       className="w-full py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all"
                     >
