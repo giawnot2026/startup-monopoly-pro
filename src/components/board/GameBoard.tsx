@@ -650,33 +650,38 @@ syncGameState(updatedPlayers, currentIndex, steps);
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
   {/* Casella base */}
-  <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
+  <Tile 
+    {...tile} 
+    isActive={playersHere.length > 0} 
+    ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
+    ownerColor={tileOwner?.color || 'transparent'} 
+  />
   
-  {/* AREA TOKEN: Posizionata sotto il titolo della casella */}
-  <<div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-  <div className="flex -space-x-4 items-center justify-center">
-    {playersHere.map(p => (
-      <motion.div
-        key={p.id}
-        layoutId={`player-rocket-${p.id}`} // Animazione di scivolamento tra caselle
-        transition={{ 
-          type: "spring", 
-          stiffness: 70, 
-          damping: 15,
-          mass: 1 
-        }}
-        className="relative"
-      >
-        <RocketToken 
-          color={p.color} 
-          valuation={calculateValuation(p)} 
-          isMoving={isRolling && p.id === currentPlayer.id}
-          rotation={getRocketRotation(p.position)}
-        />
-      </motion.div>
-    ))}
+  {/* AREA TOKEN: Corretta senza il doppio << */}
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+    <div className="flex -space-x-4 items-center justify-center">
+      {playersHere.map(p => (
+        <motion.div
+          key={p.id}
+          layoutId={`player-rocket-${p.id}`}
+          transition={{ 
+            type: "spring", 
+            stiffness: 70, 
+            damping: 15,
+            mass: 1 
+          }}
+          className="relative"
+        >
+          <RocketToken 
+            color={p.color} 
+            valuation={calculateValuation(p)} 
+            isMoving={isRolling && p.id === currentPlayer.id}
+            rotation={getRocketRotation(p.position)}
+          />
+        </motion.div>
+      ))}
+    </div>
   </div>
-</div>
 </div>
             );
           })}
