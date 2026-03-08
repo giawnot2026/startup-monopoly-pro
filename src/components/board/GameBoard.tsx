@@ -1,3 +1,4 @@
+Gameboard:
 'use client'
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useGameLogic } from '@/hooks/useGameLogic';
@@ -30,10 +31,10 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotat
 
   return (
     <motion.div 
-  animate={{ rotate: rotation }} 
-  transition={{ type: "spring", stiffness: 60 }}
-  className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center" // <-- Più piccolo
->
+      animate={{ rotate: rotation }} 
+      transition={{ type: "spring", stiffness: 60 }}
+      className="relative w-10 h-10 flex items-center justify-center"
+    >
       <svg viewBox="0 0 100 100" className="w-full h-full" style={{ overflow: 'visible' }}>
         <defs>
           <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -599,91 +600,90 @@ syncGameState(updatedPlayers, currentIndex, steps);
         )}
       </AnimatePresence>
 
-    {/* --- TABELLONE --- */}
-      <div className="relative w-full lg:w-[750px] aspect-square bg-slate-900 p-2 border border-blue-500/20 rounded-[2rem] shadow-2xl overflow-hidden self-center">
-        {/* Centro rimpicciolito per dare respiro alle caselle */}
-        <div className="absolute inset-[28%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] z-20 p-4 text-center shadow-inner">
-          <div className="absolute top-3 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
-          
-          <div className="flex items-center gap-2 mb-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-            <span className="text-white font-black text-[8px] uppercase tracking-widest font-mono">
-              {currentPlayer.name === localPlayerName ? "TUO TURNO" : `TURNO: ${currentPlayer.name}`}
+      {/* --- TABELLONE --- */}
+      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
+          <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+          <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
+            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+              {currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`}
             </span>
           </div>
-
-          <div className={`w-12 h-12 mb-2 flex items-center justify-center rounded-xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-xl font-black font-mono shadow-lg`}>
+          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
-
-          <div className="text-xl font-black text-white italic mb-0 tracking-tighter font-mono">
-            €{(Number(valuation) || 0).toLocaleString()}
-          </div>
-          <span className="text-blue-400 font-mono text-[6px] uppercase tracking-widest opacity-60 mb-4 block">Valuation</span>
+          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
+          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
           
-          <div className="flex flex-col gap-2 w-full items-center">
+          <div className="flex flex-col gap-3 w-full items-center">
             {!hasMovedThisTurn ? (
               <button 
                 onClick={handleDiceRoll} 
                 disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
-                className={`px-6 py-2 font-black rounded-lg text-white text-[9px] font-mono transition-all w-3/4
-                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
+                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
               >
-                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "..." : (currentPlayer.name === localPlayerName ? "LANCIA" : "ATTENDI"))}
+                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
               </button>
             ) : (
               !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
                 <button 
                   onClick={handlePassTurn}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 font-black rounded-lg text-white text-[9px] font-mono flex items-center justify-center gap-2 shadow-lg animate-bounce w-3/4"
+                  className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
                 >
-                  PASSA <ArrowRight size={12} />
+                  PASSA TURNO <ArrowRight size={14} />
                 </button>
               )
             )}
           </div>
         </div>
 
-        {/* Grid corretta (senza duplicati) */}
-        <div className="grid grid-cols-8 grid-rows-8 gap-0.5 h-full w-full font-mono">
+        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
           {TILES.map((tile) => {
             let row, col;
             if (tile.id <= 7) { row = 1; col = tile.id + 1; }
             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
             else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
             else { col = 1; row = 8 - (tile.id - 21); }
-            
             const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
             const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
-            
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
-                <Tile 
-                  {...tile} 
-                  isActive={playersHere.length > 0} 
-                  ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
-                  ownerColor={tileOwner?.color || 'transparent'} 
-                />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                  <div className="flex -space-x-4 items-center justify-center">
-                    {playersHere.map(p => (
-                      <motion.div
-                        key={p.id}
-                        layoutId={`player-rocket-${p.id}`}
-                        transition={{ type: "spring", stiffness: 70, damping: 15, mass: 1 }}
-                        className="relative"
-                      >
-                        <RocketToken 
-                          color={p.color} 
-                          valuation={calculateValuation(p)} 
-                          isMoving={isRolling && p.id === currentPlayer.id}
-                          rotation={getRocketRotation(p.position)}
-                        />
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+  {/* Casella base */}
+  <Tile 
+    {...tile} 
+    isActive={playersHere.length > 0} 
+    ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
+    ownerColor={tileOwner?.color || 'transparent'} 
+  />
+  
+  {/* AREA TOKEN: Corretta senza il doppio << */}
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+    <div className="flex -space-x-4 items-center justify-center">
+      {playersHere.map(p => (
+        <motion.div
+          key={p.id}
+          layoutId={`player-rocket-${p.id}`}
+          transition={{ 
+            type: "spring", 
+            stiffness: 70, 
+            damping: 15,
+            mass: 1 
+          }}
+          className="relative"
+        >
+          <RocketToken 
+            color={p.color} 
+            valuation={calculateValuation(p)} 
+            isMoving={isRolling && p.id === currentPlayer.id}
+            rotation={getRocketRotation(p.position)}
+          />
+        </motion.div>
+      ))}
+    </div>
+  </div>
+</div>
             );
           })}
         </div>
@@ -691,10 +691,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
 
       {/* --- DASHBOARD LATERALE --- */}
       <div className="w-full lg:w-[350px] space-y-3 font-mono">
-        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">
-          Dashboard {localPlayerName}
-        </h3>
-        
+        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-2 px-2 italic">Dashboard {localPlayerName}</h3>
         {players.map((p) => {
           if (!p) return null;
           const isTurn = p.id === currentPlayer.id;
@@ -703,90 +700,82 @@ syncGameState(updatedPlayers, currentIndex, steps);
           const pVal = calculateValuation(p) || 0;
           const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
           const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-
           return (
-            <div key={p.id} className={`relative p-3 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/10 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
-              
-              {/* Razzo Watermark */}
-              <div className="absolute top-2 right-2 w-8 h-8 opacity-30 pointer-events-none">
-                <RocketToken color={p.color} valuation={pVal} rotation={0} />
+            <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+  <div className="w-6 h-6 flex-shrink-0">
+     <RocketToken color={p.color} valuation={calculateValuation(p)} />
+  </div>
+  <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
+    {p.name} {isMe && "(TU)"}
+  </span>
+</div>
+                {!p.isBankrupt && <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>}
               </div>
-
-              {/* Header Giocatore */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
-                <span className={`font-black text-[10px] uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
-                  {p.name} {isMe && "(TU)"}
-                </span>
-                {!p.isBankrupt && (
-                  <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">
-                    {Number(p.equity || 0).toFixed(1)}% EQ
-                  </span>
-                )}
-              </div>
-
-              {/* Griglia Dati Operativi (DENTRO il loop) */}
-              <div className="grid grid-cols-3 gap-1 mb-3">
-                <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
-                  <span className="text-slate-500 block text-[5px] uppercase font-black">Cash</span>
-                  <span className={`text-[9px] font-black font-mono ${p.cash < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                    €{Math.floor(p.cash).toLocaleString()}
-                  </span>
+              <div className="grid grid-cols-3 gap-1.5 text-[9px]">
+                <div className="bg-black/30 p-2 rounded-lg text-center">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
+                  <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(p.cash).toLocaleString()}</span>
                 </div>
-                <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
-                  <span className="text-slate-500 block text-[5px] uppercase font-black">EBITDA</span>
-                  <span className={`text-[9px] font-black font-mono ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    €{currentEbitda.toLocaleString()}
-                  </span>
+                <div className="bg-black/30 p-2 rounded-lg text-center">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
+                  <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
                 </div>
-                <div className="bg-black/40 p-1.5 rounded-lg border border-white/5 text-center">
-                  <span className="text-slate-500 block text-[5px] uppercase font-black">Debiti</span>
-                  <span className="text-rose-400 text-[9px] font-black font-mono">
-                    €{totalDebt.toLocaleString()}
-                  </span>
+                <div className="bg-black/30 p-2 rounded-lg text-center">
+                  <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
+                  <span className="text-rose-400 font-black">€{totalDebt.toLocaleString()}</span>
                 </div>
               </div>
-
-              {/* Valutazioni e Progress (DENTRO il loop) */}
-              <div className="space-y-1.5 border-t border-white/5 pt-2">
-                <div className="flex justify-between items-center text-[7px] font-black">
-                  <span className="text-slate-500 uppercase tracking-tighter">Exit Goal Progress</span>
-                  <span className="text-white">€{founderPart.toLocaleString()} / €{victoryTarget.toLocaleString()}</span>
+              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 uppercase font-black text-[7px]">Company Val.</span>
+                  <span className="text-white font-black text-[10px]">€{pVal.toLocaleString()}</span>
                 </div>
-                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((founderPart / victoryTarget) * 100, 100)}%` }}
-                    className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                  />
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
+                  <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
                 </div>
-              </div>
-
-              {/* Tasti Azione (DENTRO il loop) */}
-              <div className="mt-3 flex gap-2">
+               {/* --- INIZIO TASTI AZIONE RIMOZIONE AGGIORNATI --- */}
+              <div className="mt-3 flex flex-col gap-2">
+                
+                {/* Tasto ABBANDONA: Visibile sempre all'utente sulla propria card */}
                 {isMe && !p.isBankrupt && (
                   <button 
-                    onClick={() => confirm("Abbandonare?") && handleRemovePlayer(p.id)}
-                    className="flex-1 py-1.5 bg-orange-600/10 hover:bg-orange-600 border border-orange-500/30 text-orange-500 hover:text-white rounded-lg text-[7px] font-black uppercase transition-all"
+                    onClick={() => {
+                      if(confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
+                        handleRemovePlayer(p.id);
+                      }
+                    }}
+                    className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
                   >
-                    Abbandona
+                    Abbandona Partita
                   </button>
                 )}
+
+                {/* Tasto RIMUOVI INATTIVO: Visibile solo all'Host (players[0]) sulle card degli altri quando è il loro turno */}
                 {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
                   <button 
-                    onClick={() => confirm(`Rimuovere ${p.name}?`) && handleRemovePlayer(p.id)}
-                    className="flex-1 py-1.5 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-lg text-[7px] font-black uppercase animate-pulse"
+                    onClick={() => {
+                      if(confirm(`Rimuovere ${p.name} per inattività?`)) {
+                        handleRemovePlayer(p.id);
+                      }
+                    }}
+                    className="w-full py-2 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/50 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase animate-pulse hover:animate-none transition-all"
                   >
-                    Rimuovi
+                    Rimuovi Inattivo
                   </button>
                 )}
               </div>
-            </div> // Fine card
+              {/* --- FINE TASTI AZIONE RIMOZIONE --- */}
+              </div>
+            </div>
           );
         })}
-      </div> {/* Fine colonna dashboard */}
-
+      </div>
+      
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
+
       {/* --- BANCAROTTA --- */}
       <AnimatePresence>
         {eliminatedPlayerName && (
@@ -813,3 +802,5 @@ syncGameState(updatedPlayers, currentIndex, steps);
     </div>
   );
 }
+
+
