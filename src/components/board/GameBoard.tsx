@@ -758,28 +758,27 @@ syncGameState(updatedPlayers, currentIndex, steps);
         </div>
       </div>
 
-      {/* Tasti Azione compatti */}
-      <div className="mt-3 flex gap-2">
-        {isMe && !p.isBankrupt && (
-          <button 
-            onClick={() => confirm("Abbandonare la partita?") && handleRemovePlayer(p.id)}
-            className="flex-1 py-1.5 bg-orange-600/10 hover:bg-orange-600 border border-orange-500/30 text-orange-500 hover:text-white rounded-lg text-[7px] font-black uppercase transition-all"
-          >
-            Abbandona
-          </button>
-        )}
-        {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
-          <button 
-            onClick={() => confirm(`Rimuovere ${p.name}?`) && handleRemovePlayer(p.id)}
-            className="flex-1 py-1.5 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-lg text-[7px] font-black uppercase animate-pulse"
-          >
-            Rimuovi Inattivo
-          </button>
+      {/* --- TASTI AZIONE --- */}
+              <div className="mt-3 flex gap-2">
+                {isMe && !p.isBankrupt && (
+                  <button 
+                    onClick={() => confirm("Abbandonare?") && handleRemovePlayer(p.id)}
+                    className="flex-1 py-1.5 bg-orange-600/10 hover:bg-orange-600 border border-orange-500/30 text-orange-500 hover:text-white rounded-lg text-[7px] font-black uppercase transition-all"
+                  >
+                    Abbandona
+                  </button>
                 )}
-              </div>
-              {/* --- FINE TASTI AZIONE RIMOZIONE --- */}
-              </div>
-            </div>
+                {players[0]?.name === localPlayerName && !isMe && isTurn && !p.isBankrupt && (
+                  <button 
+                    onClick={() => confirm(`Rimuovere ${p.name}?`) && handleRemovePlayer(p.id)}
+                    className="flex-1 py-1.5 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-lg text-[7px] font-black uppercase animate-pulse"
+                  >
+                    Rimuovi
+                  </button>
+                )}
+              </div> {/* Fine Tasti Azione */}
+
+            </div> // Fine Card Giocatore (corrisponde al div con key={p.id})
           );
         })}
       </div>
