@@ -600,72 +600,77 @@ syncGameState(updatedPlayers, currentIndex, steps);
         )}
       </AnimatePresence>
 
-      {/* --- TABELLONE --- */}
-      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-2 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden self-center">
+     {/* --- NUOVO TABELLONE UX MONOLITE --- */}
+      {/* max-h-[90vh] e h-screen assicurano che il tabellone sia il più grande possibile senza scrollare */}
+      <div className="relative w-full lg:flex-1 h-screen max-h-[90vh] bg-slate-900 border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden self-center flex flex-col">
         
-        {/* Centro rimpicciolito (inset al 35%) per lasciare spazio alle caselle che si ingrandiscono */}
-        <div className="absolute inset-[35%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] z-20 p-4 text-center">
-          <div className="absolute top-3 text-[6px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
-          
-          <div className="flex items-center gap-2 mb-2 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-            <span className="text-white font-black text-[8px] uppercase tracking-widest font-mono">
-              {currentPlayer.name === localPlayerName ? "TU" : currentPlayer.name}
-            </span>
-          </div>
+        {/* Nuovo Centro integrato (meno "fluttuante", più solido) */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
+          <div className="w-[45%] aspect-square bg-slate-950 border border-white/10 rounded-[2.5rem] p-6 text-center shadow-inner flex flex-col items-center justify-center pointer-events-auto">
+            <div className="text-[7px] text-slate-700 font-mono uppercase tracking-[0.3em] mb-3">Room: {roomCode}</div>
+            
+            <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentPlayer.color }} />
+              <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+                {currentPlayer.name === localPlayerName ? "TUO TURNO" : currentPlayer.name}
+              </span>
+            </div>
 
-          <div className={`w-12 h-12 mb-2 flex items-center justify-center rounded-xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-xl font-black font-mono`}>
-            {diceValue || '?'}
-          </div>
+            <div className={`w-14 h-14 mb-4 flex items-center justify-center rounded-xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono shadow-lg`}>
+              {diceValue || '?'}
+            </div>
 
-          <div className="text-xl font-black text-white italic tracking-tighter font-mono">
-            €{(Number(valuation) || 0).toLocaleString()}
-          </div>
-          <span className="text-blue-400 font-mono text-[6px] uppercase tracking-widest opacity-60 mb-4 block">Valuation</span>
-          
-          <div className="flex flex-col gap-2 w-full items-center">
-            {!hasMovedThisTurn ? (
-              <button 
-                onClick={handleDiceRoll} 
-                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
-                className={`px-6 py-2 font-black rounded-lg text-white text-[9px] font-mono transition-all
-                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
-              >
-                {isRolling ? "..." : "LANCIA"}
-              </button>
-            ) : (
-              !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
+            <div className="text-2xl font-black text-white italic mb-0 tracking-tighter font-mono leading-none">
+              €{(Number(valuation) || 0).toLocaleString()}
+            </div>
+            <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
+            
+            {/* Tasti azione centrali rimangono grandi e usabili */}
+            <div className="flex flex-col gap-3 w-full items-center">
+              {!hasMovedThisTurn ? (
                 <button 
-                  onClick={handlePassTurn}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 font-black rounded-lg text-white text-[9px] font-mono flex items-center gap-2 animate-bounce"
+                  onClick={handleDiceRoll} 
+                  disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+                  className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all w-3/4
+                    ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
                 >
-                  PASSA <ArrowRight size={12} />
+                  {isRolling ? "..." : (currentPlayer.name === localPlayerName ? "LANCIA DADI" : "ATTENDI")}
                 </button>
-              )
-            )}
+              ) : (
+                !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
+                  <button 
+                    onClick={handlePassTurn}
+                    className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 animate-bounce w-3/4"
+                  >
+                    PASSA <ArrowRight size={14} />
+                  </button>
+                )
+              )}
+            </div>
           </div>
         </div>
 
-        {/* --- GRID MODIFICATA --- */}
+        {/* --- GRID ADATTIVA ESTESA --- */}
+        {/* Rimosso grid-cols-8. Usiamo una Grid CSS custom che si estende e adatta gli spazi */}
         <div 
-          className="grid h-full w-full font-mono gap-1"
+          className="grid flex-1 h-full w-full font-mono gap-0.5 p-1"
           style={{ 
-            // Qui diamo più "peso" (2fr) alla prima e all'ultima riga/colonna
-            gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr",
-            gridTemplateRows: "2fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr"
+            // Definiamo caselle molto ampie sui bordi (2fr) e un centro più stretto
+            gridTemplateColumns: "2.2fr 1fr 1fr 1fr 1fr 1fr 1fr 2.2fr",
+            gridTemplateRows: "2.2fr 1fr 1fr 1fr 1fr 1fr 1fr 2.2fr"
           }}
         >
           {TILES.map((tile) => {
-            let row, col;
-            if (tile.id <= 7) { row = 1; col = tile.id + 1; }
-            else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
-            else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
-            else { col = 1; row = 8 - (tile.id - 21); }
-            
-            const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
-            const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
-            
-            return (
+             // ... tieni la tua logica row/col, playersHere, tileOwner invariata
+             let row, col;
+             if (tile.id <= 7) { row = 1; col = tile.id + 1; }
+             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
+             else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
+             else { col = 1; row = 8 - (tile.id - 21); }
+             const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
+             const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
+
+             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
                 <Tile 
                   {...tile} 
@@ -674,20 +679,12 @@ syncGameState(updatedPlayers, currentIndex, steps);
                   ownerColor={tileOwner?.color || 'transparent'} 
                 />
                 
+                {/* Posizionamento Razzi adattato per caselle grandi */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                  <div className="flex -space-x-4 items-center justify-center">
+                  <div className="flex -space-x-3 items-center justify-center">
                     {playersHere.map(p => (
-                      <motion.div
-                        key={p.id}
-                        layoutId={`player-rocket-${p.id}`}
-                        className="relative"
-                      >
-                        <RocketToken 
-                          color={p.color} 
-                          valuation={calculateValuation(p)} 
-                          isMoving={isRolling && p.id === currentPlayer.id}
-                          rotation={getRocketRotation(p.position)}
-                        />
+                      <motion.div key={p.id} layoutId={`player-rocket-${p.id}`} className="relative scale-110">
+                        <RocketToken color={p.color} valuation={calculateValuation(p)} rotation={getRocketRotation(p.position)} />
                       </motion.div>
                     ))}
                   </div>
