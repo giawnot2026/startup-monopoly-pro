@@ -88,7 +88,10 @@ export default function Tile({ id, name, type, style, isActive = false, ownerBad
       style={{ ...style, backgroundColor: cat.bg, borderColor: cat.border }}
       whileHover={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.08)' }}
       className={`relative p-2 flex flex-col justify-between border transition-all h-full w-full overflow-hidden group
-        ${isActive ? 'ring-2 ring-inset ring-white/40 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : ''}
+        /* NUOVO STILE: Vetro più chiaro e riflessi definiti */
+        bg-white/5 backdrop-blur-md border-white/10 hover:border-white/20
+        ${isActive ? 'ring-2 ring-inset ring-white/50 shadow-xl' : ''}
+        rounded-2xl
       `}
     >
       <div className="flex justify-between items-start z-10">
