@@ -11,7 +11,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Award, Skull, Home, ArrowRight, Zap, TrendingUp, Users, DollarSign, BarChart3, PieChart, Activity, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false }) => {
+const getRocketRotation = (tileId) => {
+  if (tileId >= 0 && tileId <= 7) return 90;   // Ore 3 (Destra)
+  if (tileId >= 8 && tileId <= 14) return 180; // Ore 6 (Giù)
+  if (tileId >= 15 && tileId <= 21) return 270; // Ore 9 (Sinistra)
+  return 0;                                    // Ore 12 (Su)
+};
+
+const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotation = 0 }) => {
   const getTrailLevel = (val) => {
     if (val <= 500000) return 1;
     if (val <= 1000000) return 2;
@@ -22,32 +29,57 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false }) => 
   const level = getTrailLevel(valuation);
 
   return (
-    <div className={`transition-all duration-500 ${isMoving ? 'scale-125 brightness-110' : 'scale-100'}`}>
-      <svg viewBox="0 0 100 100" className="w-8 h-8 transform rotate-45" style={{ overflow: 'visible' }}>
+    <motion.div 
+      animate={{ rotate: rotation }} 
+      transition={{ type: "spring", stiffness: 60 }}
+      className="relative w-10 h-10 flex items-center justify-center"
+    >
+      <svg viewBox="0 0 100 100" className="w-full h-full" style={{ overflow: 'visible' }}>
         <defs>
-          <linearGradient id={`grad-${color}`} x1="0%" y1="100%" x2="0%" y2="0%">
+          <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor={color} />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
           </linearGradient>
         </defs>
-        
-        {/* Scia Evolutiva - Ora punta verso il basso-sinistra rispetto al razzo */}
-        <g transform="translate(0, 10)">
-          {level >= 1 && <path d="M50 70 Q50 95 50 100" stroke={`url(#grad-${color})`} strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.8" />}
-          {level >= 3 && <g opacity="0.6"><path d="M40 75 L35 95" stroke={color} strokeWidth="3" /><path d="M60 75 L65 95" stroke={color} strokeWidth="3" /></g>}
-          {level >= 5 && <circle cx="50" cy="85" r="12" fill={color} opacity="0.3"><animate attributeName="r" values="10;15;10" dur="0.4s" repeatCount="indefinite" /></circle>}
-        </g>
 
-        {/* Corpo Razzo (Design Identico) */}
+        {/* SCIA DINAMICA (Sotto il razzo) */}
+        <motion.g 
+          animate={isMoving ? { opacity: [0.4, 1, 0.4], y: [0, 5, 0] } : {}} 
+          transition={{ repeat: Infinity, duration: 0.2 }}
+        >
+          {/* Base Scia */}
+          <path 
+            d={isMoving ? "M40 70 L50 110 L60 70" : "M45 70 L50 85 L55 70"} 
+            fill={`url(#grad-${color})`} 
+            opacity={level >= 2 ? 0.7 : 0.4} 
+          />
+          
+          {/* Livelli avanzati: Scie extra durante il movimento */}
+          {level >= 3 && (
+            <g opacity={isMoving ? 1 : 0.5}>
+              <path d="M35 70 L30 100" stroke={color} strokeWidth="2" strokeDasharray="4 2" />
+              <path d="M65 70 L70 100" stroke={color} strokeWidth="2" strokeDasharray="4 2" />
+            </g>
+          )}
+
+          {/* Livello 5: Bagliore di spinta massima */}
+          {level >= 5 && isMoving && (
+            <circle cx="50" cy="80" r="15" fill={color} opacity="0.2">
+              <animate attributeName="r" values="10;20;10" dur="0.3s" repeatCount="indefinite" />
+            </circle>
+          )}
+        </motion.g>
+
+        {/* CORPO RAZZO */}
         <g stroke="black" strokeWidth="3" strokeLinejoin="round">
-          <path d="M35 65 L25 78 L35 75 Z" fill={color} />
-          <path d="M65 65 L75 78 L65 75 Z" fill={color} />
+          <path d="M35 65 L25 78 L35 75 Z" fill={color} /> {/* Pinna SX */}
+          <path d="M65 65 L75 78 L65 75 Z" fill={color} /> {/* Pinna DX */}
           <path d="M50 10 C40 10 35 35 35 60 L65 60 C65 35 60 10 50 10 Z" fill="white" />
           <path d="M50 10 C45 10 40 20 40 25 L60 25 C60 20 55 10 50 10 Z" fill={color} />
           <circle cx="50" cy="40" r="4" fill="white" stroke="black" strokeWidth="2" />
         </g>
       </svg>
-    </div>
+    </motion.div>
   );
 };
 export default function GameBoard({ 
@@ -621,23 +653,28 @@ syncGameState(updatedPlayers, currentIndex, steps);
   <Tile {...tile} isActive={playersHere.length > 0} ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} ownerColor={tileOwner?.color || 'transparent'} />
   
   {/* AREA TOKEN: Posizionata sotto il titolo della casella */}
-  <div className="absolute inset-0 flex items-end justify-center pb-2 pointer-events-none z-30">
-    <div className="flex -space-x-3 items-center justify-center">
-      {playersHere.map(p => (
-        <motion.div
-          key={p.id}
-          layoutId={`player-${p.id}`} // Questo abilita il movimento fluido tra caselle
-          transition={{ type: "spring", stiffness: 100, damping: 20 }}
-          className="relative"
-        >
-          <RocketToken 
-            color={p.color} 
-            valuation={calculateValuation(p)} 
-            isMoving={isRolling && p.id === currentPlayer.id}
-          />
-        </motion.div>
-      ))}
-    </div>
+  <<div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+  <div className="flex -space-x-4 items-center justify-center">
+    {playersHere.map(p => (
+      <motion.div
+        key={p.id}
+        layoutId={`player-rocket-${p.id}`} // Animazione di scivolamento tra caselle
+        transition={{ 
+          type: "spring", 
+          stiffness: 70, 
+          damping: 15,
+          mass: 1 
+        }}
+        className="relative"
+      >
+        <RocketToken 
+          color={p.color} 
+          valuation={calculateValuation(p)} 
+          isMoving={isRolling && p.id === currentPlayer.id}
+          rotation={getRocketRotation(p.position)}
+        />
+      </motion.div>
+    ))}
   </div>
 </div>
             );
