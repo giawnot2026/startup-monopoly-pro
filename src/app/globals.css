@@ -13,3 +13,15 @@ body {
   min-height: 100-vh;
   margin: 0;
 }
+/* Aggiungi questo al tuo file CSS globale o modulo */
+.rocket-moving {
+  filter: drop-shadow(0 0 8px var(--player-color));
+  transform: scale(1.1) rotate(-45deg);
+  transition: transform 0.3s ease-out;
+}
+
+@keyframes thrust-pulse {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(2px); }
+  100% { transform: translateY(0px); }
+}
