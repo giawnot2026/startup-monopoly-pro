@@ -605,7 +605,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
       </AnimatePresence>
 
       {/* --- TABELLONE --- */}
-      <div className="relative w-full lg:w-[800px] aspect-square bg-white/5 backdrop-blur-md p-4 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
+      <div className="relative w-full lg:w-[800px] aspect-square bg-transparent p-4 rounded-[3rem] overflow-hidden">
         <div className="absolute inset-[26%] flex flex-col items-center justify-center bg-slate-800/40 backdrop-blur-2xl border border-white/20 rounded-[3.5rem] z-20 p-6 text-center shadow-inner">
           <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
