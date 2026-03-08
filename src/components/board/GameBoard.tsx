@@ -549,7 +549,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-slate-950 font-sans text-white relative">
+  <div className="flex flex-col lg:flex-row gap-6 p-4 max-w-[1600px] mx-auto min-h-screen items-start bg-transparent font-sans text-white relative">
       
       {/* --- VITTORIA MODAL (INTEGRALE) --- */}
       <AnimatePresence>
@@ -601,8 +601,8 @@ syncGameState(updatedPlayers, currentIndex, steps);
       </AnimatePresence>
 
       {/* --- TABELLONE --- */}
-      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
-        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
+      <div className="relative w-full lg:w-[800px] aspect-square bg-white/5 backdrop-blur-md p-4 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
+        <div className="absolute inset-[26%] flex flex-col items-center justify-center bg-slate-800/40 backdrop-blur-2xl border border-white/20 rounded-[3.5rem] z-20 p-6 text-center shadow-inner">
           <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
