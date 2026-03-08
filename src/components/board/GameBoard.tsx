@@ -601,89 +601,98 @@ syncGameState(updatedPlayers, currentIndex, steps);
       </AnimatePresence>
 
       {/* --- TABELLONE --- */}
-      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-4 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
-        <div className="absolute inset-[25%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[3rem] z-20 p-6 text-center">
-          <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
-          <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
-              {currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`}
+      <div className="relative w-full lg:w-[800px] aspect-square bg-slate-900 p-2 border border-blue-500/20 rounded-[2.5rem] shadow-2xl overflow-hidden self-center">
+        
+        {/* Centro rimpicciolito (inset al 35%) per lasciare spazio alle caselle che si ingrandiscono */}
+        <div className="absolute inset-[35%] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] z-20 p-4 text-center">
+          <div className="absolute top-3 text-[6px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+          
+          <div className="flex items-center gap-2 mb-2 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
+            <span className="text-white font-black text-[8px] uppercase tracking-widest font-mono">
+              {currentPlayer.name === localPlayerName ? "TU" : currentPlayer.name}
             </span>
           </div>
-          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
+
+          <div className={`w-12 h-12 mb-2 flex items-center justify-center rounded-xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
-          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
-          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
+
+          <div className="text-xl font-black text-white italic tracking-tighter font-mono">
+            €{(Number(valuation) || 0).toLocaleString()}
+          </div>
+          <span className="text-blue-400 font-mono text-[6px] uppercase tracking-widest opacity-60 mb-4 block">Valuation</span>
           
-          <div className="flex flex-col gap-3 w-full items-center">
+          <div className="flex flex-col gap-2 w-full items-center">
             {!hasMovedThisTurn ? (
               <button 
                 onClick={handleDiceRoll} 
                 disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
-                className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
-                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
+                className={`px-6 py-2 font-black rounded-lg text-white text-[9px] font-mono transition-all
+                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
               >
-                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
+                {isRolling ? "..." : "LANCIA"}
               </button>
             ) : (
               !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
                 <button 
                   onClick={handlePassTurn}
-                  className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
+                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 font-black rounded-lg text-white text-[9px] font-mono flex items-center gap-2 animate-bounce"
                 >
-                  PASSA TURNO <ArrowRight size={14} />
+                  PASSA <ArrowRight size={12} />
                 </button>
               )
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
+        {/* --- GRID MODIFICATA --- */}
+        <div 
+          className="grid h-full w-full font-mono gap-1"
+          style={{ 
+            // Qui diamo più "peso" (2fr) alla prima e all'ultima riga/colonna
+            gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr",
+            gridTemplateRows: "2fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr"
+          }}
+        >
           {TILES.map((tile) => {
             let row, col;
             if (tile.id <= 7) { row = 1; col = tile.id + 1; }
             else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
             else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
             else { col = 1; row = 8 - (tile.id - 21); }
+            
             const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
             const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
+            
             return (
               <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
-  {/* Casella base */}
-  <Tile 
-    {...tile} 
-    isActive={playersHere.length > 0} 
-    ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
-    ownerColor={tileOwner?.color || 'transparent'} 
-  />
-  
-  {/* AREA TOKEN: Corretta senza il doppio << */}
-  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-    <div className="flex -space-x-4 items-center justify-center">
-      {playersHere.map(p => (
-        <motion.div
-          key={p.id}
-          layoutId={`player-rocket-${p.id}`}
-          transition={{ 
-            type: "spring", 
-            stiffness: 70, 
-            damping: 15,
-            mass: 1 
-          }}
-          className="relative"
-        >
-          <RocketToken 
-            color={p.color} 
-            valuation={calculateValuation(p)} 
-            isMoving={isRolling && p.id === currentPlayer.id}
-            rotation={getRocketRotation(p.position)}
-          />
-        </motion.div>
-      ))}
-    </div>
-  </div>
-</div>
+                <Tile 
+                  {...tile} 
+                  isActive={playersHere.length > 0} 
+                  ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
+                  ownerColor={tileOwner?.color || 'transparent'} 
+                />
+                
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                  <div className="flex -space-x-4 items-center justify-center">
+                    {playersHere.map(p => (
+                      <motion.div
+                        key={p.id}
+                        layoutId={`player-rocket-${p.id}`}
+                        className="relative"
+                      >
+                        <RocketToken 
+                          color={p.color} 
+                          valuation={calculateValuation(p)} 
+                          isMoving={isRolling && p.id === currentPlayer.id}
+                          rotation={getRocketRotation(p.position)}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
