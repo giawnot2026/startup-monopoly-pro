@@ -29,7 +29,7 @@ const RocketToken = ({ color = "#ff0000", valuation = 0, isMoving = false, rotat
   const level = getTrailLevel(valuation);
 
   return (
-    motion.div 
+    <motion.div 
   animate={{ rotate: rotation }} 
   transition={{ type: "spring", stiffness: 60 }}
   className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center" // <-- Più piccolo
