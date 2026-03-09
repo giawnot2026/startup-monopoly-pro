@@ -667,10 +667,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           });
         }
         break;
-
-  return (
-    <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-slate-950 font-sans text-white relative overflow-x-hidden">
-      default:
+       default:
   const currentVal = calculateValuation(currentPlayer);
   // Prendiamo un'offerta casuale
   const offer = { ...FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)] };
@@ -711,7 +708,22 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   break;
     }
   };
-
+if (!players || players.length === 0 || !currentPlayer) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-950 flex-col gap-6">
+        <div className="relative w-20 h-20">
+          <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full" />
+          <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase animate-pulse">
+            Sincronizzazione Startup
+          </p>
+        </div>
+      </div>
+    );
+  }
+  // ------------------------------------
 
   return (
     <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-transparent font-sans text-white relative overflow-x-hidden">   
