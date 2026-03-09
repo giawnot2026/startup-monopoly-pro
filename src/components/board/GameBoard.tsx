@@ -241,7 +241,7 @@ export default function GameBoard({
       });
     };
     // Aggiunto currentPlayerIndex tra le dipendenze per garantire confronti precisi
-  }, [roomCode, localPlayerName, currentPlayerIndex, setPlayers, setCurrentPlayerIndex]);
+  }, [roomCode, localPlayerName, setPlayers, setCurrentPlayerIndex]);
 
 // --- RESET AUTOMATICO DEL MOVIMENTO ---
   // Questo effetto "osserva" l'indice del giocatore di turno.
@@ -697,8 +697,8 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     }
   };
 
-  if (!players || players.length === 0 || !currentPlayer || !players[currentPlayerIndex]) {
-    return (
+if (!players || players.length === 0 || !currentPlayer || players[currentPlayerIndex] === undefined) {
+  return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
         Sincronizzazione Startup...
       </div>
