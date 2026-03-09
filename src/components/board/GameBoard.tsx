@@ -711,9 +711,9 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     }
 };
 
-const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined)
+const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined && players[currentPlayerIndex])
     ? players[currentPlayerIndex]
-    : (players && players.length > 0 ? players[0] : null);
+    : { name: localPlayerName, cash: 0, mrr: 0, position: 0, assets: [], debts: [], equity: 100 };
 
 // --- CARICAMENTO ---
 if (!players || players.length === 0) {
