@@ -12,6 +12,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Award, Skull, Home, ArrowRight, Zap, TrendingUp, Users, DollarSign, BarChart3, PieChart, Activity, Target } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+// --- CONFIGURAZIONE VISIVA DOMINI ---
+const CATEGORY_COLORS: Record<string, string> = {
+  PRODUCT: '#ef4444',    // Rosso
+  FOUNDATION: '#3b82f6', // Blu
+  MARKET: '#f59e0b',     // Giallo/Arancio
+  EXPANSION: '#8b5cf6',  // Viola
+  FINANCE: '#10b981'     // Verde
+};
+
+const DominionIcon = ({ grade, color }: { grade: string, color: string }) => {
+  const baseClass = "drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] animate-pulse";
+  if (grade === 'bronze') return (
+    <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[10px] ${baseClass}`}
+         style={{ borderBottomColor: color }} />
+  );
+  if (grade === 'silver') return (
+    <div className={`w-2.5 h-2.5 ${baseClass}`} style={{ backgroundColor: color }} />
+  );
+  return (
+    <div className={`w-3 h-3 rounded-full border-2 border-white/50 ${baseClass}`}
+         style={{ backgroundColor: color, boxShadow: `0 0 15px ${color}` }} />
+  );
+};
+
 const getRocketRotation = (tileId) => {
   if (tileId >= 0 && tileId <= 7) return 90;   // Ore 3 (Destra)
   if (tileId >= 8 && tileId <= 14) return 180; // Ore 6 (Giù)
@@ -320,6 +344,26 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
 
   const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   const categoryTiles = TILES.filter(t => t.category === category && t.badges);
+  const getPlayerDominions = useCallback((player: any) => {
+  const categories = Array.from(new Set(TILES.filter(t => t.badges).map(t => t.category)));
+  
+  return categories.map(cat => {
+    const tilesInCategory = TILES.filter(t => t.category === cat && t.badges);
+    const ownedAssets = player.assets.filter((a: any) => 
+      tilesInCategory.some(t => t.id === a.tileId)
+    );
+
+    // Deve avere TUTTI i badge della categoria
+    if (ownedAssets.length !== tilesInCategory.length) return null;
+
+    const levels = ownedAssets.map((a: any) => a.level);
+    if (levels.every((l: any) => l === 'gold')) return { cat, grade: 'gold' };
+    if (levels.every((l: any) => l === 'silver' || l === 'gold')) return { cat, grade: 'silver' };
+    if (levels.every((l: any) => l === 'bronze' || l === 'silver' || l === 'gold')) return { cat, grade: 'bronze' };
+    
+    return null;
+  }).filter(Boolean) as { cat: string, grade: string }[];
+}, []);
   if (categoryTiles.length === 0) return 1;
 
   const ownedInCategory = owner.assets.filter((asset: any) => 
