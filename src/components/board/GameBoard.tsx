@@ -710,11 +710,12 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   });
   break;
     }
-  };
-  const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined) 
+const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined) 
     ? players[currentPlayerIndex] 
-    : null;
-if (!players || players.length === 0) {
+    : (players && players.length > 0 ? players[0] : null);
+
+  // --- CARICAMENTO ---
+  if (!players || players.length === 0) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-950 flex-col gap-6">
         <div className="relative w-20 h-20">
@@ -727,12 +728,6 @@ if (!players || players.length === 0) {
       </div>
     );
   }
-
-  // Se i player sono arrivati ma currentPlayerIndex è rotto, lo resettiamo a 0
-  const activePlayer = (players && currentPlayerIndex !== undefined) 
-    ? players[currentPlayerIndex] 
-    : (players ? players[0] : null);
-  // ------------------------------------
 
   return (
     <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-transparent font-sans text-white relative overflow-x-hidden">   
