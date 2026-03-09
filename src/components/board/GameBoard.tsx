@@ -388,31 +388,39 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
 
 
   const handleDiceRoll = () => {
-    if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
-    if (modalConfig.isOpen || isRolling || hasMovedThisTurn) return;
-    if (modalConfig.isOpen || isRolling || isLocalUpdate.current || currentPlayer.isBankrupt || hasMovedThisTurn) return;
+  if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
+  if (modalConfig.isOpen || isRolling || hasMovedThisTurn || isLocalUpdate.current) return;
 
-    setIsRolling(true);
-    let counter = 0;
-    const shuffleInterval = setInterval(() => {
-      setDiceValue(Math.floor(Math.random() * 6) + 1);
-      if (++counter >= 12) {
-        clearInterval(shuffleInterval);
-        const steps = Math.floor(Math.random() * 6) + 1;
-        setDiceValue(steps);
+  setIsRolling(true);
+  let counter = 0;
+  const shuffleInterval = setInterval(() => {
+    setDiceValue(Math.floor(Math.random() * 6) + 1);
+    if (++counter >= 12) {
+      clearInterval(shuffleInterval);
+      const steps = Math.floor(Math.random() * 6) + 1;
+      setDiceValue(steps);
+      
+      setTimeout(() => {
+        // 1. Otteniamo i dati aggiornati (MRR già ricalcolato dall'hook)
+        const { tile, updatedPlayers } = movePlayer(steps);
         
-        setTimeout(() => {
-          const { tile, updatedPlayers } = movePlayer(steps);
-          setIsRolling(false);
-          setHasMovedThisTurn(true);
-          setPlayers([...updatedPlayers]);
-          const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
-syncGameState(updatedPlayers, currentIndex, steps);
-          processTile(tile, updatedPlayers);
-        }, 600);
-      }
-    }, 60);
-  };
+        setIsRolling(false);
+        setHasMovedThisTurn(true);
+        
+        // 2. Aggiorniamo lo stato locale
+        setPlayers(updatedPlayers);
+        
+        const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
+        
+        // 3. Sincronizziamo SUBITO con i dati 'updatedPlayers' freschi
+        syncGameState(updatedPlayers, currentIndex, steps);
+        
+        // 4. Passiamo i dati freschi a processTile
+        processTile(tile, updatedPlayers);
+      }, 600);
+    }
+  }, 60);
+};
 
 
   
@@ -519,17 +527,21 @@ syncGameState(updatedPlayers, currentIndex, steps);
           }, 
           actionLabel: "Paga Royalty", 
           onAction: async () => {
-  // 1. Non ricalcolare nulla! Gli 'updatedPlayers' (con MRR già modificato) 
-  // sono già nello stato grazie a 'setPlayers' chiamato in handleDiceRoll.
-  
-  // 2. Sincronizziamo semplicemente lo stato attuale con Supabase
-  await syncGameState(players, currentPlayerIndex);
-  
-  // 3. Chiudiamo il modale
-  handleCloseModal();
+  try {
+    // 1. Usa currentPlayers (i dati freschi passati alla funzione processTile)
+    // invece di 'players' (che è lo stato asincrono di React)
+    const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
+    
+    // 2. Sincronizziamo i dati che hanno già l'MRR aggiornato dall'hook
+    await syncGameState(currentPlayers, currentIndex);
+    
+    // 3. Chiudiamo il modale
+    handleCloseModal();
+  } catch (err) {
+    console.error("Errore durante il sync della royalty:", err);
+    handleCloseModal();
+  }
 }
-        });
-      }
       else {
         const badgesInfo = {
           currentLevel: currentLevel,
@@ -577,17 +589,22 @@ syncGameState(updatedPlayers, currentIndex, steps);
           impact: { details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()}` },
           actionLabel: "Paga",
           onAction: async () => {
-  // 1. Non ricalcolare nulla! Gli 'updatedPlayers' (con MRR già modificato) 
-  // sono già nello stato grazie a 'setPlayers' chiamato in handleDiceRoll.
-  
-  // 2. Sincronizziamo semplicemente lo stato attuale con Supabase
-  await syncGameState(players, currentPlayerIndex);
-  
-  // 3. Chiudiamo il modale
-  handleCloseModal();
+  try {
+    // 1. Usa currentPlayers (i dati freschi passati alla funzione processTile)
+    // invece di 'players' (che è lo stato asincrono di React)
+    const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
+    
+    // 2. Sincronizziamo i dati che hanno già l'MRR aggiornato dall'hook
+    await syncGameState(currentPlayers, currentIndex);
+    
+    // 3. Chiudiamo il modale
+    handleCloseModal();
+  } catch (err) {
+    console.error("Errore durante il sync della royalty:", err);
+    handleCloseModal();
+  }
 }
-        });
-      } else if (tile.badges) {
+            else if (tile.badges) {
         const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
         const currentLevel = myAsset ? myAsset.level : 'none';
         const badgesInfo = {
@@ -689,11 +706,13 @@ syncGameState(updatedPlayers, currentIndex, steps);
     }
   };
 
-  if (!players || players.length === 0 || !currentPlayer) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
-        Inizializzazione startup...
-      </div>
+ if (!players || players.length === 0 || !currentPlayer || !players[currentPlayerIndex]) {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
+      Sincronizzazione Startup...
+    </div>
+  );
+}
     );
   }
 
