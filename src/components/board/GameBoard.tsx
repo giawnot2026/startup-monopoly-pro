@@ -342,28 +342,6 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
   }
 }, [players, currentPlayer, syncGameState, localPlayerName]);
 
-  const getCategoryMultiplier = useCallback((owner: any, category: string) => {
-  const categoryTiles = TILES.filter(t => t.category === category && t.badges);
-  const getPlayerDominions = useCallback((player: any) => {
-  const categories = Array.from(new Set(TILES.filter(t => t.badges).map(t => t.category)));
-  
-  return categories.map(cat => {
-    const tilesInCategory = TILES.filter(t => t.category === cat && t.badges);
-    const ownedAssets = player.assets.filter((a: any) => 
-      tilesInCategory.some(t => t.id === a.tileId)
-    );
-
-    // Deve avere TUTTI i badge della categoria
-    if (ownedAssets.length !== tilesInCategory.length) return null;
-
-    const levels = ownedAssets.map((a: any) => a.level);
-    if (levels.every((l: any) => l === 'gold')) return { cat, grade: 'gold' };
-    if (levels.every((l: any) => l === 'silver' || l === 'gold')) return { cat, grade: 'silver' };
-    if (levels.every((l: any) => l === 'bronze' || l === 'silver' || l === 'gold')) return { cat, grade: 'bronze' };
-    
-    return null;
-  }).filter(Boolean) as { cat: string, grade: string }[];
-}, []);
   if (categoryTiles.length === 0) return 1;
 
   const ownedInCategory = owner.assets.filter((asset: any) => 
@@ -379,6 +357,50 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
   
   return 1;
 }, []);
+
+// --- LOGICA DOMINI E MOLTIPLICATORI ---
+const getPlayerDominions = useCallback((player: any) => {
+  if (!player || !player.assets) return [];
+  const categories = Array.from(new Set(TILES.filter(t => t.badges).map(t => t.category)));
+  
+  return categories.map(cat => {
+    const tilesInCategory = TILES.filter(t => t.category === cat && t.badges);
+    const ownedAssets = player.assets.filter((a: any) => 
+      tilesInCategory.some(t => Number(t.id) === Number(a.tileId))
+    );
+
+    if (ownedAssets.length !== tilesInCategory.length) return null;
+
+    const levels = ownedAssets.map((a: any) => a.level);
+    if (levels.every((l: any) => l === 'gold')) return { cat, grade: 'gold' };
+    if (levels.every((l: any) => l === 'silver' || l === 'gold')) return { cat, grade: 'silver' };
+    if (levels.every((l: any) => l === 'bronze' || l === 'silver' || l === 'gold')) return { cat, grade: 'bronze' };
+    
+    return null;
+  }).filter(Boolean) as { cat: string, grade: string }[];
+}, []);
+
+const getCategoryMultiplier = useCallback((owner: any, category: string) => {
+  if (!owner || !owner.assets) return 1;
+  const categoryTiles = TILES.filter(t => t.category === category && t.badges);
+  if (categoryTiles.length === 0) return 1;
+
+  const ownedInCategory = owner.assets.filter((asset: any) => 
+    categoryTiles.some(t => Number(t.id) === Number(asset.tileId))
+  );
+
+  if (ownedInCategory.length !== categoryTiles.length) return 1;
+
+  const levels = ownedInCategory.map((a: any) => a.level);
+  if (levels.every((l: string) => l === 'gold')) return 5;
+  if (levels.every((l: string) => l === 'silver' || l === 'gold')) return 3;
+  if (levels.every((l: string) => l === 'bronze' || l === 'silver' || l === 'gold')) return 2;
+  
+  return 1;
+}, []);
+
+// --- FINE LOGICA DOMINI ---
+
 
   const handleDiceRoll = () => {
     if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
@@ -485,7 +507,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
     }
 
     if (tile.type === 'asset') {
-      const owner = currentPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
+      const owner = currentPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => Number(a.tileId) === Number(tile.id)));
       const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
       const currentLevel = myAsset ? myAsset.level : 'none';
       const revMod = tile.revenueModifier || 0;
