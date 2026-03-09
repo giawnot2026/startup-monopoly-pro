@@ -708,21 +708,22 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   break;
     }
   };
-if (!players || players.length === 0 || !currentPlayer) {
+if (!players || players.length === 0) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-950 flex-col gap-6">
         <div className="relative w-20 h-20">
           <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full" />
           <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase animate-pulse">
-            Sincronizzazione Startup
-          </p>
-        </div>
+        <p className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase animate-pulse">
+          Sincronizzazione Startup...
+        </p>
       </div>
     );
   }
+
+  // Se i player sono arrivati ma currentPlayerIndex è rotto, lo resettiamo a 0
+  const activePlayer = currentPlayer || players[0]; 
   // ------------------------------------
 
   return (
