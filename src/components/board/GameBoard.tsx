@@ -635,6 +635,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     }
    };
   const handleCornerTile = (tile: any) => {
+    if (!currentPlayer) return;
     switch (tile.id) {
       case 0:
         const totalDebtAmount = (currentPlayer.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
@@ -839,7 +840,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       <div className="flex-1 space-y-3 font-mono h-[calc(100vh-40px)] overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-4 px-2 italic">Dashboard {localPlayerName}</h3>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 auto-rows-max">
-            {players?.map((p) => {
+            {players?.filter(p => p !== null).map((p) => {
             if (!p) return null;
             const isTurn = p.id === currentPlayer.id;
             const isMe = p.name === localPlayerName;
