@@ -150,7 +150,7 @@ export default function GameBoard({
     return {
       ...state,
       currentPlayerIndex: Number(state.currentPlayerIndex),
-      players: state.players.map((p: any) => ({
+      players: state.players?.map((p: any) => ({
         ...p,
         position: Number(p.position) || 0,
         cash: Number(p.cash),
@@ -315,7 +315,7 @@ export default function GameBoard({
   // --- FUNZIONE AGGIUNTA PER RIMOZIONE/ABBANDONO ---
 const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
   // 1. Creiamo il nuovo stato dei giocatori: chi viene rimosso va in bancarotta
-  const updatedPlayers = players.map(p => 
+  const updatedPlayers = players?.map(p => 
     p.id === playerToRemoveId 
       ? { ...p, isBankrupt: true, cash: 0, mrr: 0, assets: [], debts: [] } 
       : p
@@ -839,7 +839,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       <div className="flex-1 space-y-3 font-mono h-[calc(100vh-40px)] overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-4 px-2 italic">Dashboard {localPlayerName}</h3>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 auto-rows-max">
-            {players.map((p) => {
+            {players?.map((p) => {
             if (!p) return null;
             const isTurn = p.id === currentPlayer.id;
             const isMe = p.name === localPlayerName;
