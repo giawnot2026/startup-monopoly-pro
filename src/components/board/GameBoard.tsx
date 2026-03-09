@@ -502,8 +502,6 @@ syncGameState(updatedPlayers, currentIndex, steps);
       if (owner) {
         const asset = owner.assets.find(a => a.tileId === tile.id);
         const level = asset?.level || 'none';
-        
-        // CALCOLO MOLTIPLICATORE
         const multiplier = getCategoryMultiplier(owner, tile.category);
         const baseToll = Number(tile.badges?.[level]?.toll) || 0;
         const finalToll = baseToll * multiplier;
@@ -520,7 +518,18 @@ syncGameState(updatedPlayers, currentIndex, steps);
             details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()} ${multiplier > 1 ? `(Settore Completo x${multiplier}!)` : ''}` 
           }, 
           actionLabel: "Paga Royalty", 
-          onAction: handleCloseModal
+          onAction: async () => {
+            // TRASFERIMENTO ROYALTY
+            const updatedPlayers = currentPlayers.map(p => {
+              if (p.id === currentPlayer.id) return { ...p, cash: p.cash - finalToll };
+              if (p.id === owner.id) return { ...p, cash: p.cash + finalToll };
+              return p;
+            });
+            setPlayers(updatedPlayers);
+            const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
+            await syncGameState(updatedPlayers, currentIndex);
+            handleCloseModal();
+          }
         });
       }
       else {
@@ -537,7 +546,7 @@ syncGameState(updatedPlayers, currentIndex, steps);
 
         setModalConfig({
           isOpen: true, type: 'success', title: tile.name,
-          description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty (MRR) dai competitor.",
+          description: tile.badgeCta || "Sblocca i Badge per riscuotere royalty dai competitor.",
           insight: tile.insight, badges: badgesInfo,
           impact: { details: `${immediateImpact} | ${nextLevelIndex < 3 ? `Royalty futura: €${nextLevelToll.toLocaleString()}` : "Livello Massimo"}` },
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
@@ -553,8 +562,6 @@ syncGameState(updatedPlayers, currentIndex, steps);
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
       const immediateImpact = `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}`;
-      
-      // Se vuoi che anche le TAX paghino royalties a un eventuale proprietario:
       const owner = currentPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
 
       if (owner && tile.badges) {
@@ -571,13 +578,22 @@ syncGameState(updatedPlayers, currentIndex, steps);
           insight: tile.insight,
           impact: { details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()}` },
           actionLabel: "Paga",
-          onAction: handleCloseModal
+          onAction: async () => {
+            // TRASFERIMENTO ROYALTY TAX
+            const updatedPlayers = currentPlayers.map(p => {
+              if (p.id === currentPlayer.id) return { ...p, cash: p.cash - finalToll };
+              if (p.id === owner.id) return { ...p, cash: p.cash + finalToll };
+              return p;
+            });
+            setPlayers(updatedPlayers);
+            const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
+            await syncGameState(updatedPlayers, currentIndex);
+            handleCloseModal();
+          }
         });
-      // Se la casella TAX ha dei badge (come Costi Prototipo), gestiamoli
       } else if (tile.badges) {
         const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
         const currentLevel = myAsset ? myAsset.level : 'none';
-        
         const badgesInfo = {
           currentLevel: currentLevel,
           bronze: { ...tile.badges.bronze, owned: ['bronze', 'silver', 'gold'].includes(currentLevel) },
@@ -587,10 +603,10 @@ syncGameState(updatedPlayers, currentIndex, steps);
 
         setModalConfig({
           isOpen: true,
-          type: 'danger', // Manteniamo il rosso per le caselle Tax
+          type: 'danger',
           title: tile.name,
           description: tile.badgeCta || "Variazione dei flussi operativi.",
-          insight: tile.insight, // <--- ORA L'INSIGHT VERRÀ PASSATO
+          insight: tile.insight,
           badges: badgesInfo,
           impact: { details: immediateImpact },
           actionLabel: currentLevel === 'gold' ? "Massimo Livello" : "Sblocca Efficienza",
@@ -599,13 +615,12 @@ syncGameState(updatedPlayers, currentIndex, steps);
           onClose: handleCloseModal
         });
       } else {
-        // Comportamento standard per caselle TAX senza badge
         setModalConfig({
           isOpen: true, 
           type: 'danger', 
           title: tile.name, 
           description: "Variazione automatica dei flussi operativi.",
-          insight: tile.insight, // <--- AGGIUNTO ANCHE QUI
+          insight: tile.insight,
           impact: { details: immediateImpact },
           actionLabel: "Ricevuto", 
           onAction: handleCloseModal 
