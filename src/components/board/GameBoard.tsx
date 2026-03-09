@@ -951,5 +951,5 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     </div>
   );
   };
-
+export default GameBoard;
 
