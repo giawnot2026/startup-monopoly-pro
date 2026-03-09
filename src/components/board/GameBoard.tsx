@@ -699,7 +699,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
 
 if (!players || players.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
+      <div className="flex items-center justify-center min-h-screen bg-slate-900 text-emerald-500 font-mono animate-pulse">
         Inizializzazione Giocatori...
       </div>
     );
