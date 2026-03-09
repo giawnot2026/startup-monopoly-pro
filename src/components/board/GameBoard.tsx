@@ -187,13 +187,16 @@ export default function GameBoard({
         .eq('room_code', roomCode)
         .maybeSingle();
 
+      if (error) console.error("Errore caricamento DB:", error);
+
       const initialState = sanitizeGameState(data?.game_state);
-      if (initialState) {
-        setPlayers(initialState.players);
-        setCurrentPlayerIndex(initialState.currentPlayerIndex);
-        if (initialState.lastDiceValue) setDiceValue(initialState.lastDiceValue);
-        lastSyncRef.current = JSON.stringify(initialState);
-      }
+      if (initialState && initialState.players) {
+    console.log("Dati caricati! Giocatori trovati:", initialState.players.length);
+    setPlayers(initialState.players);
+    setCurrentPlayerIndex(initialState.currentPlayerIndex || 0);
+  } else {
+    console.log("Nessun dato trovato per la stanza:", roomCode);
+  }
 
       // Sottoscrizione ai cambiamenti in tempo reale
       const channel = supabase
