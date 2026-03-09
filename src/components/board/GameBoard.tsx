@@ -356,7 +356,6 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
   if (levels.every((l: string) => l === 'bronze' || l === 'silver' || l === 'gold')) return 2;
   
   return 1;
-}, []);
 
 // --- LOGICA DOMINI E MOLTIPLICATORI ---
 const getPlayerDominions = useCallback((player: any) => {
