@@ -45,7 +45,7 @@ const getCategoryStyle = (name: string) => {
   const n = name.toLowerCase();
   
   // 1. FONDAZIONE (Cyan Elettrico)
-  if (n.includes("start") || n.includes("test di mercato") || n.includes("hiring team") || n.includes("pitch incubatori")) {
+  if (n.includes("start") || n.includes("test di mercato") || n.includes("hiring team") || n.includes("spin-off") || n.includes("pitch incubatori")) {
     return { color: "#00E5FF", glow: "rgba(0, 229, 255, 0.4)" };
   }
   // 2. PRODOTTO (Verde Smeraldo Neon)
@@ -57,11 +57,11 @@ const getCategoryStyle = (name: string) => {
     return { color: "#FFD600", glow: "rgba(255, 214, 0, 0.4)" };
   }
   // 4. ESPANSIONE (Arancione Fuoco)
-  if (n.includes("canali") || n.includes("partnership") || n.includes("globale") || n.includes("competitor")) {
+  if (n.includes("canali") || n.includes("partnership") || n.includes("globale") || n.includes("acquisizione") || n.includes("competitor")) {
     return { color: "#FF6D00", glow: "rgba(255, 109, 0, 0.4)" };
   }
   // 5. FINANCE (Viola Ametista Intenso)
-  if (n.includes("round") || n.includes("seed") || n.includes("series") || n.includes("spin-off") || n.includes("acquisizione") || n.includes("exit")) {
+  if (n.includes("round") || n.includes("seed") || n.includes("series") || n.includes("exit")) {
     return { color: "#D500F9", glow: "rgba(213, 0, 249, 0.4)" };
   }
   // 6. RISCHIO (Rosso Saturato)
