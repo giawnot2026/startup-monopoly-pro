@@ -633,7 +633,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       }
       return;
     }
-   }
+   };
   const handleCornerTile = (tile: any) => {
     switch (tile.id) {
       case 0:
