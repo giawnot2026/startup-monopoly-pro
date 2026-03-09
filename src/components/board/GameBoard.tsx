@@ -786,15 +786,15 @@ if (!players || players.length === 0) {
         <div className="absolute inset-[26%] flex flex-col items-center justify-center bg-slate-800/40 backdrop-blur-2xl border border-white/20 rounded-[3.5rem] z-20 p-6 text-center shadow-inner">
           <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
-            <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
-    {/* Se currentPlayer è null, non crashare: mostra uno stato neutro */}
-    {!currentPlayer 
-        ? "INIZIALIZZAZIONE..." 
-        : (currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`)
+  {/* Usiamo activePlayer per evitare il crash se currentPlayer è nullo */}
+  <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activePlayer?.color || '#3b82f6' }} />
+  <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+    {!activePlayer 
+      ? "CARICAMENTO..." 
+      : (activePlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${activePlayer.name}`)
     }
-</span>
-          </div>
+  </span>
+</div>
           <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
           </div>
