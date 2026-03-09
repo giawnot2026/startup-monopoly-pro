@@ -724,6 +724,10 @@ if (!players || players.length === 0) {
 
   // Se i player sono arrivati ma currentPlayerIndex è rotto, lo resettiamo a 0
   const activePlayer = currentPlayer || players[0]; 
+  // 3. Se currentPlayerIndex è ancora undefined, forziamolo a 0 per sbloccare il rendering
+  if (currentPlayerIndex === undefined || currentPlayerIndex === null) {
+    setCurrentPlayerIndex(0);
+  }
   // ------------------------------------
 
   return (
