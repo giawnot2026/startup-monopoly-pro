@@ -342,20 +342,6 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
   }
 }, [players, currentPlayer, syncGameState, localPlayerName]);
 
-  if (categoryTiles.length === 0) return 1;
-
-  const ownedInCategory = owner.assets.filter((asset: any) => 
-    categoryTiles.some(t => t.id === asset.tileId)
-  );
-
-  if (ownedInCategory.length !== categoryTiles.length) return 1;
-
-  const levels = ownedInCategory.map((a: any) => a.level);
-  if (levels.every((l: string) => l === 'gold')) return 5;
-  if (levels.every((l: string) => l === 'silver' || l === 'gold')) return 3;
-  if (levels.every((l: string) => l === 'bronze' || l === 'silver' || l === 'gold')) return 2;
-  
-  return 1;
 
 // --- LOGICA DOMINI E MOLTIPLICATORI ---
 const getPlayerDominions = useCallback((player: any) => {
