@@ -527,22 +527,16 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           }, 
           actionLabel: "Paga Royalty", 
           onAction: async () => {
-  try {
-    // 1. Usa currentPlayers (i dati freschi passati alla funzione processTile)
-    // invece di 'players' (che è lo stato asincrono di React)
-    const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
-    
-    // 2. Sincronizziamo i dati che hanno già l'MRR aggiornato dall'hook
-    await syncGameState(currentPlayers, currentIndex);
-    
-    // 3. Chiudiamo il modale
-    handleCloseModal();
-  } catch (err) {
-    console.error("Errore durante il sync della royalty:", err);
-    handleCloseModal();
-  }
-}
-            }); // <-- Questa chiude setModalConfig
+            try {
+              const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
+              await syncGameState(currentPlayers, currentIndex);
+              handleCloseModal();
+            } catch (err) {
+              console.error("Errore durante il sync della royalty:", err);
+              handleCloseModal();
+            }
+          }
+        }); 
       }
       else {
         const badgesInfo = {
@@ -591,24 +585,18 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           impact: { details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()}` },
           actionLabel: "Paga",
           onAction: async () => {
-  try {
-    // 1. Usa currentPlayers (i dati freschi passati alla funzione processTile)
-    // invece di 'players' (che è lo stato asincrono di React)
-    const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
-    
-    // 2. Sincronizziamo i dati che hanno già l'MRR aggiornato dall'hook
-    await syncGameState(currentPlayers, currentIndex);
-    
-    // 3. Chiudiamo il modale
-    handleCloseModal();
-  } catch (err) {
-    console.error("Errore durante il sync della royalty:", err);
-    handleCloseModal();
-  }
-}
-            }); // <-- Questa chiude setModalConfig
+            try {
+              const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
+              await syncGameState(currentPlayers, currentIndex);
+              handleCloseModal();
+            } catch (err) {
+              console.error("Errore durante il sync della royalty:", err);
+              handleCloseModal();
+            }
+          }
+        });
       }
-            else if (tile.badges) {
+      else if (tile.badges) {
         const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
         const currentLevel = myAsset ? myAsset.level : 'none';
         const badgesInfo = {
@@ -645,8 +633,6 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       }
       return;
     }
-  };
-
   const handleCornerTile = (tile: any) => {
     switch (tile.id) {
       case 0:
