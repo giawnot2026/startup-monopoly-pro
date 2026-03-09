@@ -723,7 +723,7 @@ if (!players || players.length === 0) {
   }
 
   // Se i player sono arrivati ma currentPlayerIndex è rotto, lo resettiamo a 0
-  cconst activePlayer = (players && currentPlayerIndex !== undefined) 
+  const activePlayer = (players && currentPlayerIndex !== undefined) 
     ? players[currentPlayerIndex] 
     : (players ? players[0] : null);
   // ------------------------------------
