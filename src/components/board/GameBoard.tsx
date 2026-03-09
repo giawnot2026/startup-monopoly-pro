@@ -542,6 +542,8 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     handleCloseModal();
   }
 }
+            }); // <-- Questa chiude setModalConfig
+      }
       else {
         const badgesInfo = {
           currentLevel: currentLevel,
@@ -604,6 +606,8 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     handleCloseModal();
   }
 }
+            }); // <-- Questa chiude setModalConfig
+      }
             else if (tile.badges) {
         const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
         const currentLevel = myAsset ? myAsset.level : 'none';
