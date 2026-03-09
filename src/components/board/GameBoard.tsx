@@ -118,17 +118,13 @@ export default function GameBoard({
 }) {
   
   const { 
-  players, currentPlayer, currentPlayerIndex, // <--- AGGIUNTO!
+  players, currentPlayer,
   valuation, 
   movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
   gameWinner, attemptExit, calculateValuation,
   eliminatedPlayerName, setEliminatedPlayerName,
   setPlayers, setCurrentPlayerIndex 
 } = useGameLogic([], victoryTarget);
-
-const activePlayer = (players && players.length > 0 && players[currentPlayerIndex]) 
-    ? players[currentPlayerIndex] 
-    : { name: localPlayerName, cash: 0, mrr: 0, position: 0, assets: [], debts: [], equity: 100 };
   
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
