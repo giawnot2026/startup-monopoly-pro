@@ -730,6 +730,7 @@ if (!players || players.length === 0) {
   }
   // ------------------------------------
 
+  const activePlayer = players[currentPlayerIndex] || players[0];
   return (
     <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-transparent font-sans text-white relative overflow-x-hidden">   
       {/* --- VITTORIA MODAL (INTEGRALE) --- */}
