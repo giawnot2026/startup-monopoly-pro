@@ -126,6 +126,10 @@ export default function GameBoard({
   setPlayers, setCurrentPlayerIndex 
 } = useGameLogic([], victoryTarget);
 
+const activePlayer = (players && players.length > 0 && players[currentPlayerIndex]) 
+    ? players[currentPlayerIndex] 
+    : { name: localPlayerName, cash: 0, mrr: 0, position: 0, assets: [], debts: [], equity: 100 };
+  
   const [modalConfig, setModalConfig] = useState<any>({ isOpen: false });
   const [isRolling, setIsRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
