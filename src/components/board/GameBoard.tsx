@@ -757,8 +757,12 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
             <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
-              {currentPlayer?.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer?.name}`}
-            </span>
+    {/* Se currentPlayer è null, non crashare: mostra uno stato neutro */}
+    {!currentPlayer 
+        ? "INIZIALIZZAZIONE..." 
+        : (currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`)
+    }
+</span>
           </div>
           <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
             {diceValue || '?'}
