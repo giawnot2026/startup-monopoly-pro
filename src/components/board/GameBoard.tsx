@@ -648,7 +648,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       return;
     }
    };
-  const handleCornerTile = (tile: any) => {
+ const handleCornerTile = (tile: any) => {
     if (!currentPlayer) return;
     switch (tile.id) {
         case 0:
@@ -975,3 +975,4 @@ return (
         </div>
     </div>
 );
+}; // <--- QUESTA È LA PARENTESI CHE MANCAVA!
