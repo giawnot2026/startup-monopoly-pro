@@ -702,8 +702,6 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       Sincronizzazione Startup...
     </div>
   );
-}
-    );
   }
 
   return (
