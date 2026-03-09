@@ -181,22 +181,25 @@ export default function GameBoard({
 
     const fetchAndSubscribe = async () => {
       // Fetch iniziale per allineare lo stato al caricamento
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('multiplayer_games')
         .select('game_state')
         .eq('room_code', roomCode)
         .maybeSingle();
 
       if (error) console.error("Errore caricamento DB:", error);
-
-      const initialState = sanitizeGameState(data?.game_state);
-      if (initialState && initialState.players) {
-    console.log("Dati caricati! Giocatori trovati:", initialState.players.length);
-    setPlayers(initialState.players);
-    setCurrentPlayerIndex(initialState.currentPlayerIndex || 0);
-  } else {
-    console.log("Nessun dato trovato per la stanza:", roomCode);
-  }
+      return;
+      }
+if (data?.game_state) {
+        const initialState = sanitizeGameState(data.game_state);
+        if (initialState && initialState.players) {
+          console.log("Dati caricati! Giocatori trovati:", initialState.players.length);
+          setPlayers(initialState.players);
+          setCurrentPlayerIndex(initialState.currentPlayerIndex || 0);
+        }
+      } else {
+        console.log("Nessun dato trovato per la stanza:", roomCode);
+      }
 
       // Sottoscrizione ai cambiamenti in tempo reale
       const channel = supabase
