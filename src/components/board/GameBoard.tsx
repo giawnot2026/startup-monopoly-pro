@@ -118,7 +118,7 @@ export default function GameBoard({
 }) {
   
   const { 
-  players, currentPlayer,
+  players, currentPlayer, currentPlayerIndex,
   valuation, 
   movePlayer, upgradeBadge, applyEvent, applyFunding, nextTurn,
   gameWinner, attemptExit, calculateValuation,
@@ -180,28 +180,25 @@ export default function GameBoard({
     if (!roomCode) return;
 
     const fetchAndSubscribe = async () => {
-      // Fetch iniziale per allineare lo stato al caricamento
+      // 1. Fetch iniziale
       const { data, error } = await supabase
         .from('multiplayer_games')
         .select('game_state')
         .eq('room_code', roomCode)
         .maybeSingle();
 
-      if (error) console.error("Errore caricamento DB:", error);
-      return;
-      }
-if (data?.game_state) {
+      if (error) {
+        console.error("Errore caricamento DB:", error);
+      } else if (data?.game_state) {
         const initialState = sanitizeGameState(data.game_state);
         if (initialState && initialState.players) {
-          console.log("Dati caricati! Giocatori trovati:", initialState.players.length);
           setPlayers(initialState.players);
           setCurrentPlayerIndex(initialState.currentPlayerIndex || 0);
+          lastSyncRef.current = JSON.stringify(initialState);
         }
-      } else {
-        console.log("Nessun dato trovato per la stanza:", roomCode);
-    
+      }
 
-      // Sottoscrizione ai cambiamenti in tempo reale
+      // 2. Sottoscrizione Realtime
       const channel = supabase
         .channel(`room-${roomCode}`)
         .on('postgres_changes', { 
@@ -211,30 +208,12 @@ if (data?.game_state) {
           filter: `room_code=eq.${roomCode}`
         }, (payload) => {
           const newState = sanitizeGameState(payload.new.game_state);
-          if (!newState) return;
+          if (!newState || !newState.players) return;
 
           const stateStr = JSON.stringify(newState);
-          // Se lo stato è identico all'ultimo processato, ignoriamo (evita loop)
           if (stateStr === lastSyncRef.current) return;
 
-          const lastState = lastSyncRef.current ? JSON.parse(lastSyncRef.current) : null;
-          const lastIndex = lastState ? lastState.currentPlayerIndex : null;
-
-          // LOGICA DI SBLOCCO DADI
-          // Il turno è cambiato se l'indice nel DB è diverso da quello che avevamo
-          const isTurnChange = lastIndex !== null && newState.currentPlayerIndex !== lastIndex;
-          
-          // Verifichiamo se il nuovo giocatore di turno è quello locale
-          const newCurrentPlayer = newState.players[newState.currentPlayerIndex];
-          const isMyTurnNow = newCurrentPlayer?.name === localPlayerName;
-
-          if (isTurnChange && isMyTurnNow) {
-            console.log("Turno cambiato: tocca a te. Sblocco dadi.");
-            setHasMovedThisTurn(false);
-            setIsRolling(false);
-          }
-
-          // Applichiamo gli aggiornamenti allo stato
+          // Aggiornamento atomico dello stato
           setPlayers(newState.players);
           setCurrentPlayerIndex(newState.currentPlayerIndex);
           
@@ -242,7 +221,6 @@ if (data?.game_state) {
             setDiceValue(newState.lastDiceValue);
           }
           
-          // Aggiorniamo il riferimento per il prossimo confronto
           lastSyncRef.current = stateStr;
         })
         .subscribe();
@@ -257,8 +235,7 @@ if (data?.game_state) {
         if (channel) supabase.removeChannel(channel);
       });
     };
-    // Aggiunto currentPlayerIndex tra le dipendenze per garantire confronti precisi
-  }, [roomCode, localPlayerName, setPlayers, setCurrentPlayerIndex]);
+  }, [roomCode, localPlayerName]); // Rimosse setPlayers/setCurrentPlayerIndex per stabilità
 
 // --- RESET AUTOMATICO DEL MOVIMENTO ---
   // Questo effetto "osserva" l'indice del giocatore di turno.
