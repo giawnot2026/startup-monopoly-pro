@@ -723,14 +723,11 @@ if (!players || players.length === 0) {
   }
 
   // Se i player sono arrivati ma currentPlayerIndex è rotto, lo resettiamo a 0
-  const activePlayer = currentPlayer || players[0]; 
-  // 3. Se currentPlayerIndex è ancora undefined, forziamolo a 0 per sbloccare il rendering
-  if (currentPlayerIndex === undefined || currentPlayerIndex === null) {
-    setCurrentPlayerIndex(0);
-  }
+  cconst activePlayer = (players && currentPlayerIndex !== undefined) 
+    ? players[currentPlayerIndex] 
+    : (players ? players[0] : null);
   // ------------------------------------
 
-  const activePlayer = players[currentPlayerIndex] || players[0];
   return (
     <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-transparent font-sans text-white relative overflow-x-hidden">   
       {/* --- VITTORIA MODAL (INTEGRALE) --- */}
