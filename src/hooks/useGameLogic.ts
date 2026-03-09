@@ -314,7 +314,7 @@ const getCategoryMultiplier = (owner: ExtendedPlayer, category: string) => {
   }, [currentPlayer, calculateValuation, victoryTarget]);
 
   return { 
-    players, currentPlayer, valuation, movePlayer, applyFunding, 
+    players, currentPlayer, currentPlayerIndex, valuation, movePlayer, applyFunding, 
     upgradeBadge, applyEvent, nextTurn, gameWinner, attemptExit, 
     calculateValuation, eliminatedPlayerName, setEliminatedPlayerName,
     setPlayers, setCurrentPlayerIndex, syncFromExternal
