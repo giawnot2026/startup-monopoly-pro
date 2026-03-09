@@ -467,12 +467,46 @@ syncGameState(updatedPlayers, currentIndex, steps);
     if (tile.type === 'tax') {
       const revMod = tile.revenueModifier || 0;
       const costMod = tile.costModifier || 0;
-      setModalConfig({
-        isOpen: true, type: 'danger', title: tile.name, 
-        description: "Variazione automatica dei flussi operativi.",
-        impact: { details: `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}` },
-        actionLabel: "Ricevuto", onAction: handleCloseModal 
-      });
+      const immediateImpact = `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}`;
+      
+      // Se la casella TAX ha dei badge (come Costi Prototipo), gestiamoli
+      if (tile.badges) {
+        const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
+        const currentLevel = myAsset ? myAsset.level : 'none';
+        
+        const badgesInfo = {
+          currentLevel: currentLevel,
+          bronze: { ...tile.badges.bronze, owned: ['bronze', 'silver', 'gold'].includes(currentLevel) },
+          silver: { ...tile.badges.silver, owned: ['silver', 'gold'].includes(currentLevel) },
+          gold: { ...tile.badges.gold, owned: currentLevel === 'gold' }
+        };
+
+        setModalConfig({
+          isOpen: true,
+          type: 'danger', // Manteniamo il rosso per le caselle Tax
+          title: tile.name,
+          description: tile.badgeCta || "Variazione dei flussi operativi.",
+          insight: tile.insight, // <--- ORA L'INSIGHT VERRÀ PASSATO
+          badges: badgesInfo,
+          impact: { details: immediateImpact },
+          actionLabel: currentLevel === 'gold' ? "Massimo Livello" : "Sblocca Efficienza",
+          secondaryActionLabel: "Ignora",
+          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
+          onClose: handleCloseModal
+        });
+      } else {
+        // Comportamento standard per caselle TAX senza badge
+        setModalConfig({
+          isOpen: true, 
+          type: 'danger', 
+          title: tile.name, 
+          description: "Variazione automatica dei flussi operativi.",
+          insight: tile.insight, // <--- AGGIUNTO ANCHE QUI
+          impact: { details: immediateImpact },
+          actionLabel: "Ricevuto", 
+          onAction: handleCloseModal 
+        });
+      }
       return;
     }
   };
