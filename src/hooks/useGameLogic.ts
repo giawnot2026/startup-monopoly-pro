@@ -121,6 +121,30 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
     console.log(`Turno passato da ${currentPlayerIndex} a ${nextIndex}. Tentativi salto: ${attempts}`);
   }, [players, currentPlayerIndex, checkGameStatus]);
 
+// Da inserire prima di const movePlayer = useCallback...
+const getCategoryMultiplier = (owner: ExtendedPlayer, category: string) => {
+  // Trova tutte le caselle della stessa categoria (escludendo quelle speciali)
+  const categoryTiles = TILES.filter(t => t.category === category && t.badges);
+  if (categoryTiles.length === 0) return 1;
+
+  // Filtra gli asset che il proprietario possiede in questa categoria
+  const ownedInCategory = owner.assets.filter(asset => 
+    categoryTiles.some(t => t.id === asset.tileId)
+  );
+
+  // Se non possiede l'intero set della categoria, il moltiplicatore è 1
+  if (ownedInCategory.length !== categoryTiles.length) return 1;
+
+  // Determina il livello minimo di badge nel set per assegnare il moltiplicatore
+  const levels = ownedInCategory.map(a => a.level);
+  
+  if (levels.every(l => l === 'gold')) return 5;
+  if (levels.every(l => l === 'silver' || l === 'gold')) return 3;
+  if (levels.every(l => l === 'bronze' || l === 'silver' || l === 'gold')) return 2;
+  
+  return 1;
+};
+  
   const movePlayer = useCallback((steps: number) => {
     if (!currentPlayer) return { tile: null, updatedPlayers: players };
     
@@ -135,6 +159,14 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
     if (owner && ownerAsset && tile.badges) {
       const level = ownerAsset.level as keyof typeof tile.badges;
       tollToPay = Number(tile.badges[level]?.toll) || 0;
+// MODIFICA CHIRURGICA: Calcolo moltiplicatore dinamico
+  const multiplier = getCategoryMultiplier(owner, tile.category);
+  tollToPay = baseToll * multiplier;
+  
+  // Opzionale: log per debuggare il vantaggio competitivo
+  if (multiplier > 1) {
+    console.log(`Vantaggio competitivo x${multiplier} applicato per la categoria ${tile.category}`);
+  }   
     }
 
     const newState = players.map((p, idx) => {
