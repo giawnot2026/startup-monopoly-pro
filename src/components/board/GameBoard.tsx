@@ -651,335 +651,327 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   const handleCornerTile = (tile: any) => {
     if (!currentPlayer) return;
     switch (tile.id) {
-      case 0:
-        const totalDebtAmount = (currentPlayer.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-        if (totalDebtAmount > 0) {
-          const totalCapital = (currentPlayer.debts || []).reduce((acc, d) => acc + Number(d.capitalInstallment), 0);
-          setModalConfig({
-            isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
-            description: `Rendicontazione annuale completata. Pagata quota capitale: €${totalCapital.toLocaleString()}`,
-            impact: { details: `Rata: -€${totalCapital.toLocaleString()} (Cash)` },
-            actionLabel: "Continua", onAction: handleCloseModal
-          });
-        } else {
-          setModalConfig({
-            isOpen: true, type: 'info', title: "Revisione dei Bilanci",
-            description: "L'anno fiscale si chiude in assenza di debiti finanziari.",
-            impact: { details: "Audit superato con successo" },
-            actionLabel: "Continua", onAction: handleCloseModal
-          });
-        }
-        break;
-       default:
-  const currentVal = calculateValuation(currentPlayer);
-  // Prendiamo un'offerta casuale
-  const offer = { ...FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)] };
-  
-  let details = "";
-  
-  if (offer.type === 'EQUITY') {
-    const cashAmount = (currentVal * 15) / 100;
-    details = `Iniezione Cash: €${cashAmount.toLocaleString()} | Cessione: 15% Equity`;
-  } 
-  else if (offer.type === 'BANK') {
-    // Coerente con useGameLogic: usiamo fixedAmount, interestRate e durationYears
-    const amount = Number(offer.fixedAmount) || 0;
-    const rate = (Number(offer.interestRate) * 100).toFixed(1);
-    const duration = offer.durationYears || 3;
-    const installment = amount / duration; // Calcolo locale per il modale
-    
-    details = `Prestito: €${amount.toLocaleString()} | Tasso: ${rate}% | Rata: €${installment.toLocaleString()} | Durata: ${duration} giri`;
-  } 
-  else if (offer.type === 'GRANT') {
-    details = `Capitale a fondo perduto: +€${(Number(offer.fixedAmount) || 25000).toLocaleString()}`;
-  }
+        case 0:
+            const totalDebtAmount = (currentPlayer.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+            if (totalDebtAmount > 0) {
+                const totalCapital = (currentPlayer.debts || []).reduce((acc, d) => acc + Number(d.capitalInstallment), 0);
+                setModalConfig({
+                    isOpen: true, type: 'info', title: "Chiusura Anno Fiscale",
+                    description: `Rendicontazione annuale completata. Pagata quota capitale: €${totalCapital.toLocaleString()}`,
+                    impact: { details: `Rata: -€${totalCapital.toLocaleString()} (Cash)` },
+                    actionLabel: "Continua", onAction: handleCloseModal
+                });
+            } else {
+                setModalConfig({
+                    isOpen: true, type: 'info', title: "Revisione dei Bilanci",
+                    description: "L'anno fiscale si chiude in assenza di debiti finanziari.",
+                    impact: { details: "Audit superato con successo" },
+                    actionLabel: "Continua", onAction: handleCloseModal
+                });
+            }
+            break;
+        default:
+            const currentVal = calculateValuation(currentPlayer);
+            const offer = { ...FUNDING_OFFERS[Math.floor(Math.random() * FUNDING_OFFERS.length)] };
+            let details = "";
 
-  setModalConfig({
-    isOpen: true, 
-    type: 'info', 
-    title: `Round: ${offer.investor}`, 
-    description: offer.description, 
-    impact: { details }, // Ora mostrerà correttamente i dati del prestito
-    actionLabel: "Accetta", 
-    secondaryActionLabel: "Rifiuta",
-    onAction: () => { 
-      applyFunding(offer); 
-      handleCloseModal(); 
-    },
-    onClose: handleCloseModal
-  });
-  break;
+            if (offer.type === 'EQUITY') {
+                const cashAmount = (currentVal * 15) / 100;
+                details = `Iniezione Cash: €${cashAmount.toLocaleString()} | Cessione: 15% Equity`;
+            }
+            else if (offer.type === 'BANK') {
+                const amount = Number(offer.fixedAmount) || 0;
+                const rate = (Number(offer.interestRate) * 100).toFixed(1);
+                const duration = offer.durationYears || 3;
+                const installment = amount / duration;
+                details = `Prestito: €${amount.toLocaleString()} | Tasso: ${rate}% | Rata: €${installment.toLocaleString()} | Durata: ${duration} giri`;
+            }
+            else if (offer.type === 'GRANT') {
+                details = `Capitale a fondo perduto: +€${(Number(offer.fixedAmount) || 25000).toLocaleString()}`;
+            }
+
+            setModalConfig({
+                isOpen: true,
+                type: 'info',
+                title: `Round: ${offer.investor}`,
+                description: offer.description,
+                impact: { details },
+                actionLabel: "Accetta",
+                secondaryActionLabel: "Rifiuta",
+                onAction: () => {
+                    applyFunding(offer);
+                    handleCloseModal();
+                },
+                onClose: handleCloseModal
+            });
+            break;
     }
-const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined) 
-    ? players[currentPlayerIndex] 
+};
+
+const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined)
+    ? players[currentPlayerIndex]
     : (players && players.length > 0 ? players[0] : null);
 
-  // --- CARICAMENTO ---
-  if (!players || players.length === 0) {
+// --- CARICAMENTO ---
+if (!players || players.length === 0) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-950 flex-col gap-6">
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full" />
-          <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex h-screen w-full items-center justify-center bg-slate-950 flex-col gap-6">
+            <div className="relative w-20 h-20">
+                <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full" />
+                <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+            <p className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase animate-pulse">
+                Sincronizzazione Startup...
+            </p>
         </div>
-        <p className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase animate-pulse">
-          Sincronizzazione Startup...
-        </p>
-      </div>
     );
-  }
+}
 
-  return (
-    <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-transparent font-sans text-white relative overflow-x-hidden">   
-      {/* --- VITTORIA MODAL (INTEGRALE) --- */}
-      <AnimatePresence>
-        {gameWinner && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="w-full max-w-6xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-6 md:p-10 shadow-2xl text-center relative">
-              <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <Trophy size={40} className="text-white" />
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter text-white mb-1">Vittoria Epica!</h2>
-              <div className="space-y-3 mb-10 mt-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                {[...players].sort((a, b) => {
-                  const valA = (calculateValuation(a) * (a.equity || 100)) / 100;
-                  const valB = (calculateValuation(b) * (b.equity || 100)) / 100;
-                  return valB - valA;
-                }).map((p, idx) => {
-                  const totalVal = calculateValuation(p);
-                  const founderIncasso = (totalVal * (p.equity || 100)) / 100;
-                  return (
-                    <motion.div key={p.id} className={`flex flex-col lg:flex-row items-center gap-4 p-5 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-white/5 border-white/10 opacity-70'}`}>
-                      <div className="flex items-center gap-4 min-w-[200px] w-full lg:w-1/4">
-                        <div className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">{idx + 1}</div>
-                        <div className="text-left overflow-hidden">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
-                            <span className="font-black text-white uppercase text-base truncate">{p.name}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
+return (
+    <div className="flex flex-row gap-6 p-4 w-full min-h-screen items-start bg-transparent font-sans text-white relative overflow-x-hidden">
+        {/* --- VITTORIA MODAL --- */}
+        <AnimatePresence>
+            {gameWinner && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
+                    <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="w-full max-w-6xl bg-slate-900 border border-blue-500/30 rounded-[3rem] p-6 md:p-10 shadow-2xl text-center relative">
+                        <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                            <Trophy size={40} className="text-white" />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
-                        <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
-                          <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Cash</span>
-                          <span className="text-white font-mono font-bold text-sm block truncate">€{Math.floor(Number(p.cash)).toLocaleString()}</span>
+                        <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter text-white mb-1">Vittoria Epica!</h2>
+                        <div className="space-y-3 mb-10 mt-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                            {[...players].sort((a, b) => {
+                                const valA = (calculateValuation(a) * (a.equity || 100)) / 100;
+                                const valB = (calculateValuation(b) * (b.equity || 100)) / 100;
+                                return valB - valA;
+                            }).map((p, idx) => {
+                                const totalVal = calculateValuation(p);
+                                const founderIncasso = (totalVal * (p.equity || 100)) / 100;
+                                return (
+                                    <motion.div key={p.id} className={`flex flex-col lg:flex-row items-center gap-4 p-5 rounded-[2rem] border ${p.id === gameWinner.id ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-white/5 border-white/10 opacity-70'}`}>
+                                        <div className="flex items-center gap-4 min-w-[200px] w-full lg:w-1/4">
+                                            <div className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-black text-white bg-slate-800 border border-white/10">{idx + 1}</div>
+                                            <div className="text-left overflow-hidden">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 flex-shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+                                                    <span className="font-black text-white uppercase text-base truncate">{p.name}</span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest block truncate">Quota: {p.equity?.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:flex-1">
+                                            <div className="text-center lg:text-right px-3 border-r border-white/5 overflow-hidden">
+                                                <span className="block text-[8px] text-slate-500 uppercase font-black mb-1">Cash</span>
+                                                <span className="text-white font-mono font-bold text-sm block truncate">€{Math.floor(Number(p.cash)).toLocaleString()}</span>
+                                            </div>
+                                            <div className="text-center lg:text-right px-3 overflow-hidden">
+                                                <span className="block text-[8px] text-blue-400 uppercase font-black italic mb-1">Net Founder Exit</span>
+                                                <span className="text-blue-400 font-mono font-black text-lg block truncate">€{Math.floor(founderIncasso).toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
                         </div>
-                        <div className="text-center lg:text-right px-3 overflow-hidden">
-                          <span className="block text-[8px] text-blue-400 uppercase font-black italic mb-1">Net Founder Exit</span>
-                          <span className="text-blue-400 font-mono font-black text-lg block truncate">€{Math.floor(founderIncasso).toLocaleString()}</span>
-                        </div>
-                      </div>
+                        <button onClick={() => window.location.reload()} className="px-10 py-4 bg-white text-slate-900 font-black uppercase rounded-2xl hover:bg-blue-400 hover:text-white transition-all shadow-xl text-sm">Nuova Scalata</button>
                     </motion.div>
-                  );
-                })}
-              </div>
-              <button onClick={() => window.location.reload()} className="px-10 py-4 bg-white text-slate-900 font-black uppercase rounded-2xl hover:bg-blue-400 hover:text-white transition-all shadow-xl text-sm">Nuova Scalata</button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* --- TABELLONE (Posizionato a sinistra) --- */}
-      <div className="relative flex-shrink-0 w-[800px] aspect-square bg-white/5 backdrop-blur-md p-4 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
-        <div className="absolute inset-[26%] flex flex-col items-center justify-center bg-slate-800/40 backdrop-blur-2xl border border-white/20 rounded-[3.5rem] z-20 p-6 text-center shadow-inner">
-          <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
-          <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-  {/* Usiamo activePlayer per evitare il crash se currentPlayer è nullo */}
-  <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activePlayer?.color || '#3b82f6' }} />
-  <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
-    {!activePlayer 
-      ? "CARICAMENTO..." 
-      : (activePlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${activePlayer.name}`)
-    }
-  </span>
-</div>
-          <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
-            {diceValue || '?'}
-          </div>
-          <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
-          <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
-          
-          <div className="flex flex-col gap-3 w-full items-center">
-            {!hasMovedThisTurn ? (
-              <button 
-                onClick={handleDiceRoll} 
-                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer?.name !== localPlayerName} 
-                className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
-                  ${currentPlayer?.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
-              >
-                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer?.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
-              </button>
-            ) : (
-              !modalConfig.isOpen && currentPlayer?.name === localPlayerName && (
-                <button 
-                  onClick={handlePassTurn}
-                  className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
-                >
-                  PASSA TURNO <ArrowRight size={14} />
-                </button>
-              )
+                </motion.div>
             )}
-          </div>
-        </div>
+        </AnimatePresence>
 
-        <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
-          {TILES.map((tile) => {
-            let row, col;
-            if (tile.id <= 7) { row = 1; col = tile.id + 1; }
-            else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
-            else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
-            else { col = 1; row = 8 - (tile.id - 21); }
-            const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
-            const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
-            return (
-              <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
-                <Tile 
-                  {...tile} 
-                  isActive={playersHere.length > 0} 
-                  ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'} 
-                  ownerColor={tileOwner?.color || 'transparent'} 
-                />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                  <div className="flex -space-x-4 items-center justify-center">
-                    {playersHere.map(p => (
-                      <motion.div
-                        key={p.id}
-                        layoutId={`player-rocket-${p.id}`}
-                        transition={{ 
-                          type: "spring", 
-                          stiffness: 70, 
-                          damping: 15,
-                          mass: 1 
-                        }}
-                        className="relative"
-                      >
-                        <RocketToken 
-                          color={p.color} 
-                          valuation={calculateValuation(p)} 
-                          isMoving={isRolling && p.id === currentPlayer.id}
-                          rotation={getRocketRotation(p.position)}
-                        />
-                      </motion.div>
-                    ))}
-                  </div>
+        {/* --- TABELLONE --- */}
+        <div className="relative flex-shrink-0 w-[800px] aspect-square bg-white/5 backdrop-blur-md p-4 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
+            <div className="absolute inset-[26%] flex flex-col items-center justify-center bg-slate-800/40 backdrop-blur-2xl border border-white/20 rounded-[3.5rem] z-20 p-6 text-center shadow-inner">
+                <div className="absolute top-4 text-[7px] text-slate-600 font-mono uppercase tracking-[0.3em]">Room: {roomCode}</div>
+                <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activePlayer?.color || '#3b82f6' }} />
+                    <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
+                        {!activePlayer
+                            ? "CARICAMENTO..."
+                            : (activePlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${activePlayer.name}`)
+                        }
+                    </span>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
+                    {diceValue || '?'}
+                </div>
+                <div className="text-2xl font-black text-white italic mb-1 tracking-tighter font-mono">€{(Number(valuation) || 0).toLocaleString()}</div>
+                <span className="text-blue-400 font-mono text-[7px] uppercase tracking-widest opacity-60 mb-6 block">Company Valuation</span>
 
-      {/* --- DASHBOARD LATERALE (Griglia dinamica) --- */}
-      <div className="flex-1 space-y-3 font-mono h-[calc(100vh-40px)] overflow-y-auto pr-2 custom-scrollbar">
-        <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-4 px-2 italic">Dashboard {localPlayerName}</h3>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 auto-rows-max">
-            {players?.filter(p => p !== null).map((p) => {
-            if (!p) return null;
-            const isTurn = p.id === currentPlayer.id;
-            const isMe = p.name === localPlayerName;
-            const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
-            const pVal = calculateValuation(p) || 0;
-            const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
-            const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-            return (
-                <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 flex items-center justify-center scale-[0.99] origin-center">
-                            <RocketToken color={p.color} valuation={calculateValuation(p)} />
+                <div className="flex flex-col gap-3 w-full items-center">
+                    {!hasMovedThisTurn ? (
+                        <button
+                            onClick={handleDiceRoll}
+                            disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer?.isBankrupt || currentPlayer?.name !== localPlayerName}
+                            className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
+                  ${currentPlayer?.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
+                        >
+                            {currentPlayer?.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer?.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
+                        </button>
+                    ) : (
+                        !modalConfig.isOpen && currentPlayer?.name === localPlayerName && (
+                            <button
+                                onClick={handlePassTurn}
+                                className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
+                            >
+                                PASSA TURNO <ArrowRight size={14} />
+                            </button>
+                        )
+                    )}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-8 grid-rows-8 gap-1 h-full w-full font-mono">
+                {TILES.map((tile) => {
+                    let row, col;
+                    if (tile.id <= 7) { row = 1; col = tile.id + 1; }
+                    else if (tile.id <= 14) { col = 8; row = tile.id - 6; }
+                    else if (tile.id <= 21) { row = 8; col = 8 - (tile.id - 14); }
+                    else { col = 1; row = 8 - (tile.id - 21); }
+                    const playersHere = players.filter(p => p && Number(p.position) === tile.id && !p.isBankrupt);
+                    const tileOwner = players.find(p => p && p.assets.some(a => a.tileId === tile.id));
+                    return (
+                        <div key={tile.id} style={{ gridRow: row, gridColumn: col }} className="relative h-full w-full">
+                            <Tile
+                                {...tile}
+                                isActive={playersHere.length > 0}
+                                ownerBadge={tileOwner?.assets.find(a => a.tileId === tile.id)?.level || 'none'}
+                                ownerColor={tileOwner?.color || 'transparent'}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                                <div className="flex -space-x-4 items-center justify-center">
+                                    {playersHere.map(p => (
+                                        <motion.div
+                                            key={p.id}
+                                            layoutId={`player-rocket-${p.id}`}
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 70,
+                                                damping: 15,
+                                                mass: 1
+                                            }}
+                                            className="relative"
+                                        >
+                                            <RocketToken
+                                                color={p.color}
+                                                valuation={calculateValuation(p)}
+                                                isMoving={isRolling && p.id === currentPlayer?.id}
+                                                rotation={getRocketRotation(p.position)}
+                                            />
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                        <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
-                            {p.name} {isMe && "(TU)"}
-                        </span>
-                    </div>
-                    {!p.isBankrupt && <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>}
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                    <div className="bg-black/30 p-2 rounded-lg text-center">
-                    <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
-                    <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(p.cash).toLocaleString()}</span>
-                    </div>
-                    <div className="bg-black/30 p-2 rounded-lg text-center">
-                    <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
-                    <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
-                    </div>
-                    <div className="bg-black/30 p-2 rounded-lg text-center">
-                    <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
-                    <span className="text-rose-400 font-black">€{totalDebt.toLocaleString()}</span>
-                    </div>
-                </div>
-                <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
-                    <div className="flex justify-between items-center">
-                    <span className="text-slate-500 uppercase font-black text-[7px]">Company Val.</span>
-                    <span className="text-white font-black text-[10px]">€{pVal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                    <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
-                    <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
-                    </div>
-                <div className="mt-3 flex flex-col gap-2">
-                    {isMe && !p.isBankrupt && (
-                    <button 
-                        onClick={() => {
-                        if(confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
-                            handleRemovePlayer(p.id);
-                        }
-                        }}
-                        className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
-                    >
-                        Abbandona Partita
-                    </button>
-                    )}
-
-                    {players[0]?.name === localPlayerName && !isMe && !p.isBankrupt && (
-                    <button 
-                        onClick={() => {
-                        if(window.confirm(`Rimuovere ${p.name} per inattività?`)) {
-                            handleRemovePlayer(p.id);
-                        }
-                        }}
-                        className="w-full py-2 mt-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm animate-pulse hover:animate-none"
-                    >
-                        Rimuovi Inattivo
-                    </button>
-                    )}
-                </div>
-                </div>
-                </div>
-            );
-            })}
+                    );
+                })}
+            </div>
         </div>
-      </div>
-      
-      <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
-    </div> // Chiude il div principale del return
-  ); // Chiude il return
-}; // CHIUDE LA FUNZIONE GAMEBOARD <--- CONTROLLA CHE CI SIA QUESTA!
 
-      {/* --- BANCAROTTA --- */}
-      <AnimatePresence>
-        {eliminatedPlayerName && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center shadow-2xl">
-              <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><Skull size={32} className="text-white" /></div>
-              <div className="text-red-500 text-5xl mb-2 font-black italic uppercase">Default</div>
-              <h2 className="text-xl text-white font-bold mb-3 uppercase tracking-widest">{eliminatedPlayerName} eliminato</h2>
-              <button onClick={() => setEliminatedPlayerName(null)} className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest transition-all text-[10px]">Continua Partita</button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* --- DASHBOARD LATERALE --- */}
+        <div className="flex-1 space-y-3 font-mono h-[calc(100vh-40px)] overflow-y-auto pr-2 custom-scrollbar">
+            <h3 className="text-blue-400 font-black tracking-widest uppercase text-[10px] mb-4 px-2 italic">Dashboard {localPlayerName}</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 auto-rows-max">
+                {players?.filter(p => p !== null).map((p) => {
+                    const isTurn = p.id === currentPlayer?.id;
+                    const isMe = p.name === localPlayerName;
+                    const currentEbitda = (Number(p.mrr) || 0) - (Number(p.monthlyCosts) || 0);
+                    const pVal = calculateValuation(p) || 0;
+                    const founderPart = (pVal * (Number(p.equity) || 100)) / 100;
+                    const totalDebt = (p.debts || []).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
+                    return (
+                        <div key={p.id} className={`p-4 rounded-2xl border transition-all duration-500 ${isTurn ? 'bg-blue-600/20 border-blue-500 shadow-lg' : 'bg-slate-900/50 border-white/5 opacity-80'} ${isMe ? 'ring-1 ring-white/20' : ''} ${p.isBankrupt ? 'grayscale opacity-50' : ''}`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 flex items-center justify-center scale-[0.99] origin-center">
+                                        <RocketToken color={p.color} valuation={calculateValuation(p)} />
+                                    </div>
+                                    <span className={`font-bold text-xs uppercase tracking-tight ${p.isBankrupt ? 'line-through text-rose-500' : 'text-white'}`}>
+                                        {p.name} {isMe && "(TU)"}
+                                    </span>
+                                </div>
+                                {!p.isBankrupt && <span className="text-[10px] font-black text-blue-400">{Number(p.equity || 0).toFixed(1)}% EQ</span>}
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5 text-[9px]">
+                                <div className="bg-black/30 p-2 rounded-lg text-center">
+                                    <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Cash</span>
+                                    <span className={`font-black ${p.cash < 0 ? 'text-rose-400' : 'text-white'}`}>€{Math.floor(p.cash).toLocaleString()}</span>
+                                </div>
+                                <div className="bg-black/30 p-2 rounded-lg text-center">
+                                    <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">EBITDA</span>
+                                    <span className={`font-black ${currentEbitda >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>€{currentEbitda.toLocaleString()}</span>
+                                </div>
+                                <div className="bg-black/30 p-2 rounded-lg text-center">
+                                    <span className="text-slate-500 block text-[6px] uppercase font-black mb-1">Debiti</span>
+                                    <span className="text-rose-400 font-black">€{totalDebt.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 uppercase font-black text-[7px]">Company Val.</span>
+                                    <span className="text-white font-black text-[10px]">€{pVal.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-blue-400 uppercase font-black text-[7px]">Founder Exit Val.</span>
+                                    <span className="text-blue-400 font-black text-xs italic">€{founderPart.toLocaleString()}</span>
+                                </div>
+                                <div className="mt-3 flex flex-col gap-2">
+                                    {isMe && !p.isBankrupt && (
+                                        <button
+                                            onClick={() => {
+                                                if (confirm("Sei sicuro di voler abbandonare la partita? La tua startup fallirà.")) {
+                                                    handleRemovePlayer(p.id);
+                                                }
+                                            }}
+                                            className="w-full py-2 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm"
+                                        >
+                                            Abbandona Partita
+                                        </button>
+                                    )}
 
-      <div className="fixed bottom-6 right-6 z-[100]">
-        <button onClick={() => window.location.href = '/'} className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-blue-500/50 p-2 pr-5 rounded-full transition-all">
-          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-colors"><Home size={18} className="text-white" /></div>
-          <div className="flex flex-col items-start">
-            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Exit to Home</span>
-            <span className="text-[7px] font-mono text-slate-500 uppercase tracking-widest">Abbandona Scalata</span>
-          </div>
-        </button>
-      </div>
+                                    {players[0]?.name === localPlayerName && !isMe && !p.isBankrupt && (
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Rimuovere ${p.name} per inattività?`)) {
+                                                    handleRemovePlayer(p.id);
+                                                }
+                                            }}
+                                            className="w-full py-2 mt-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/30 text-rose-500 hover:text-white rounded-xl text-[8px] font-black uppercase transition-all shadow-sm animate-pulse hover:animate-none"
+                                        >
+                                            Rimuovi Inattivo
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+
+        <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
+
+        {/* --- BANCAROTTA --- */}
+        <AnimatePresence>
+            {eliminatedPlayerName && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                    <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-red-950 border-2 border-red-500 p-8 rounded-[2.5rem] max-w-sm text-center shadow-2xl">
+                        <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><Skull size={32} className="text-white" /></div>
+                        <div className="text-red-500 text-5xl mb-2 font-black italic uppercase">Default</div>
+                        <h2 className="text-xl text-white font-bold mb-3 uppercase tracking-widest">{eliminatedPlayerName} eliminato</h2>
+                        <button onClick={() => setEliminatedPlayerName(null)} className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest transition-all text-[10px]">Continua Partita</button>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
+        <div className="fixed bottom-6 right-6 z-[100]">
+            <button onClick={() => window.location.href = '/'} className="group flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-blue-500/50 p-2 pr-5 rounded-full transition-all">
+                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-colors"><Home size={18} className="text-white" /></div>
+                <div className="flex flex-col items-start">
+                    <span className="text-[10px] font-black text-white uppercase tracking-tighter">Exit to Home</span>
+                    <span className="text-[7px] font-mono text-slate-500 uppercase tracking-widest">Abbandona Scalata</span>
+                </div>
+            </button>
+        </div>
     </div>
-  );
-};
+);
