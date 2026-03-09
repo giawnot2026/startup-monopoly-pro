@@ -519,17 +519,15 @@ syncGameState(updatedPlayers, currentIndex, steps);
           }, 
           actionLabel: "Paga Royalty", 
           onAction: async () => {
-            // TRASFERIMENTO ROYALTY
-            const updatedPlayers = currentPlayers.map(p => {
-              if (p.id === currentPlayer.id) return { ...p, cash: p.cash - finalToll };
-              if (p.id === owner.id) return { ...p, cash: p.cash + finalToll };
-              return p;
-            });
-            setPlayers(updatedPlayers);
-            const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
-            await syncGameState(updatedPlayers, currentIndex);
-            handleCloseModal();
-          }
+  // 1. Non ricalcolare nulla! Gli 'updatedPlayers' (con MRR già modificato) 
+  // sono già nello stato grazie a 'setPlayers' chiamato in handleDiceRoll.
+  
+  // 2. Sincronizziamo semplicemente lo stato attuale con Supabase
+  await syncGameState(players, currentPlayerIndex);
+  
+  // 3. Chiudiamo il modale
+  handleCloseModal();
+}
         });
       }
       else {
@@ -579,17 +577,15 @@ syncGameState(updatedPlayers, currentIndex, steps);
           impact: { details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()}` },
           actionLabel: "Paga",
           onAction: async () => {
-            // TRASFERIMENTO ROYALTY TAX
-            const updatedPlayers = currentPlayers.map(p => {
-              if (p.id === currentPlayer.id) return { ...p, cash: p.cash - finalToll };
-              if (p.id === owner.id) return { ...p, cash: p.cash + finalToll };
-              return p;
-            });
-            setPlayers(updatedPlayers);
-            const currentIndex = updatedPlayers.findIndex(p => p.id === currentPlayer.id);
-            await syncGameState(updatedPlayers, currentIndex);
-            handleCloseModal();
-          }
+  // 1. Non ricalcolare nulla! Gli 'updatedPlayers' (con MRR già modificato) 
+  // sono già nello stato grazie a 'setPlayers' chiamato in handleDiceRoll.
+  
+  // 2. Sincronizziamo semplicemente lo stato attuale con Supabase
+  await syncGameState(players, currentPlayerIndex);
+  
+  // 3. Chiudiamo il modale
+  handleCloseModal();
+}
         });
       } else if (tile.badges) {
         const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
