@@ -318,6 +318,24 @@ const handleRemovePlayer = useCallback(async (playerToRemoveId: number) => {
   }
 }, [players, currentPlayer, syncGameState, localPlayerName]);
 
+  const getCategoryMultiplier = useCallback((owner: any, category: string) => {
+  const categoryTiles = TILES.filter(t => t.category === category && t.badges);
+  if (categoryTiles.length === 0) return 1;
+
+  const ownedInCategory = owner.assets.filter((asset: any) => 
+    categoryTiles.some(t => t.id === asset.tileId)
+  );
+
+  if (ownedInCategory.length !== categoryTiles.length) return 1;
+
+  const levels = ownedInCategory.map((a: any) => a.level);
+  if (levels.every((l: string) => l === 'gold')) return 5;
+  if (levels.every((l: string) => l === 'silver' || l === 'gold')) return 3;
+  if (levels.every((l: string) => l === 'bronze' || l === 'silver' || l === 'gold')) return 2;
+  
+  return 1;
+}, []);
+
   const handleDiceRoll = () => {
     if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
     if (modalConfig.isOpen || isRolling || hasMovedThisTurn) return;
@@ -345,6 +363,8 @@ syncGameState(updatedPlayers, currentIndex, steps);
     }, 60);
   };
 
+
+  
   const processTile = (tile: any, currentPlayers: any[]) => {
     if (!tile) return;
     const corners = [0, 7, 14, 21];
@@ -429,16 +449,30 @@ syncGameState(updatedPlayers, currentIndex, steps);
       const immediateImpact = `Impatto Casella: MRR ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}`;
 
       if (owner) {
-        const level = owner.assets.find(a => a.tileId === tile.id)?.level || 'none';
-        const toll = Number(tile.badges?.[level]?.toll) || 0;
+        const asset = owner.assets.find(a => a.tileId === tile.id);
+        const level = asset?.level || 'none';
+        
+        // CALCOLO MOLTIPLICATORE
+        const multiplier = getCategoryMultiplier(owner, tile.category);
+        const baseToll = Number(tile.badges?.[level]?.toll) || 0;
+        const finalToll = baseToll * multiplier;
+
         setModalConfig({ 
-          isOpen: true, type: 'danger', title: "Tassa di Mercato", 
-          description: `Sei atterrato su un asset di ${owner.name}.`,
+          isOpen: true, 
+          type: 'danger', 
+          title: multiplier > 1 ? "⚠️ Dominio di Mercato" : "Tassa di Mercato", 
+          description: multiplier > 1 
+            ? `${owner.name} ha il monopolio nel settore ${tile.category}!` 
+            : `Sei atterrato su un asset di ${owner.name}.`,
           insight: tile.insight,
-          impact: { details: `${immediateImpact} | Royalty pagata (MRR): -€${toll.toLocaleString()}` }, 
-          actionLabel: "Prosegui", onAction: handleCloseModal
+          impact: { 
+            details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()} ${multiplier > 1 ? `(Settore Completo x${multiplier}!)` : ''}` 
+          }, 
+          actionLabel: "Paga Royalty", 
+          onAction: handleCloseModal
         });
-      } else {
+      }
+      else {
         const badgesInfo = {
           currentLevel: currentLevel,
           bronze: { ...tile.badges.bronze, owned: ['bronze', 'silver', 'gold'].includes(currentLevel) },
@@ -469,8 +503,27 @@ syncGameState(updatedPlayers, currentIndex, steps);
       const costMod = tile.costModifier || 0;
       const immediateImpact = `MRR: ${revMod >= 0 ? '+' : ''}${revMod.toLocaleString()} | Costi: ${costMod >= 0 ? '+' : ''}${costMod.toLocaleString()}`;
       
+      // Se vuoi che anche le TAX paghino royalties a un eventuale proprietario:
+      const owner = currentPlayers.find(p => p && !p.isBankrupt && p.id !== currentPlayer.id && p.assets.some(a => a.tileId === tile.id));
+
+      if (owner && tile.badges) {
+        const asset = owner.assets.find(a => a.tileId === tile.id);
+        const level = asset?.level || 'none';
+        const multiplier = getCategoryMultiplier(owner, tile.category);
+        const finalToll = (Number(tile.badges[level]?.toll) || 0) * multiplier;
+
+        setModalConfig({
+          isOpen: true,
+          type: 'danger',
+          title: "Costo di Settore",
+          description: `Questa infrastruttura è gestita da ${owner.name}.`,
+          insight: tile.insight,
+          impact: { details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()}` },
+          actionLabel: "Paga",
+          onAction: handleCloseModal
+        });
       // Se la casella TAX ha dei badge (come Costi Prototipo), gestiamoli
-      if (tile.badges) {
+      } else if (tile.badges) {
         const myAsset = currentPlayer.assets.find(a => a.tileId === tile.id);
         const currentLevel = myAsset ? myAsset.level : 'none';
         
