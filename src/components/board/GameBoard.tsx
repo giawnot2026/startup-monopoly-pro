@@ -136,7 +136,7 @@ export default function GameBoard({
   const lastSyncRef = useRef<string>("");
   const isLocalUpdate = useRef(false);
 
-  if (!players || players.length === 0 || currentPlayerIndex === undefined) {
+  if (!roomCode) {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-slate-950 text-blue-500 font-mono animate-pulse">
       <div className="text-center">
