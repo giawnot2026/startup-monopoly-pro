@@ -708,6 +708,9 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   break;
     }
   };
+  const activePlayer = (players && players.length > 0 && currentPlayerIndex !== undefined) 
+    ? players[currentPlayerIndex] 
+    : null;
 if (!players || players.length === 0) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-950 flex-col gap-6">
