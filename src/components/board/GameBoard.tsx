@@ -696,12 +696,12 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     }
   };
 
- if (!players || players.length === 0 || !currentPlayer || !players[currentPlayerIndex]) {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
-      Sincronizzazione Startup...
-    </div>
-  );
+  if (!players || players.length === 0 || !currentPlayer || !players[currentPlayerIndex]) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
+        Sincronizzazione Startup...
+      </div>
+    );
   }
 
   return (
@@ -950,6 +950,3 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       </div>
     </div>
   );
-  };
-export default GameBoard;
-
