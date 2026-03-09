@@ -156,17 +156,20 @@ const getCategoryMultiplier = (owner: ExtendedPlayer, category: string) => {
     const ownerAsset = owner?.assets.find(a => a.tileId === nextPos);
     let tollToPay = 0;
 
-    if (owner && ownerAsset && tile.badges) {
+      if (owner && ownerAsset && tile.badges) {
       const level = ownerAsset.level as keyof typeof tile.badges;
-      tollToPay = Number(tile.badges[level]?.toll) || 0;
-// MODIFICA CHIRURGICA: Calcolo moltiplicatore dinamico
-  const multiplier = getCategoryMultiplier(owner, tile.category);
-  tollToPay = baseToll * multiplier;
-  
-  // Opzionale: log per debuggare il vantaggio competitivo
-  if (multiplier > 1) {
-    console.log(`Vantaggio competitivo x${multiplier} applicato per la categoria ${tile.category}`);
-  }   
+      // 1. Prendiamo il pedaggio base
+      const baseToll = Number(tile.badges[level]?.toll) || 0;
+      
+      // 2. Calcoliamo il moltiplicatore di categoria
+      const multiplier = getCategoryMultiplier(owner, tile.category);
+      
+      // 3. Applichiamo il moltiplicatore al pedaggio finale
+      tollToPay = baseToll * multiplier;
+
+      if (multiplier > 1) {
+        console.log(`Vantaggio competitivo x${multiplier} applicato per la categoria ${tile.category}`);
+      }   
     }
 
     const newState = players.map((p, idx) => {
