@@ -953,6 +953,9 @@ const activePlayer = (players && players.length > 0 && currentPlayerIndex !== un
       </div>
       
       <ActionModal {...modalConfig} currentPlayerCash={currentPlayer?.cash || 0} />
+    </div> // Chiude il div principale del return
+  ); // Chiude il return
+}; // CHIUDE LA FUNZIONE GAMEBOARD <--- CONTROLLA CHE CI SIA QUESTA!
 
       {/* --- BANCAROTTA --- */}
       <AnimatePresence>
