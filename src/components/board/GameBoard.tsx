@@ -697,10 +697,10 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
     }
   };
 
-if (!players || players.length === 0 || currentPlayerIndex === undefined || players[currentPlayerIndex] === undefined) {
-  return (
+if (!players || players.length === 0) {
+    return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white font-mono uppercase tracking-widest">
-        Sincronizzazione Startup...
+        Inizializzazione Giocatori...
       </div>
     );
   }
