@@ -199,7 +199,7 @@ if (data?.game_state) {
         }
       } else {
         console.log("Nessun dato trovato per la stanza:", roomCode);
-      }
+    
 
       // Sottoscrizione ai cambiamenti in tempo reale
       const channel = supabase
