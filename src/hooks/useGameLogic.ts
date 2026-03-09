@@ -68,8 +68,10 @@ export const useGameLogic = (initialPlayers: InitialPlayer[], victoryTarget: num
     return !isNaN(total) ? total : 0;
   }, []);
 
-  const valuation = useMemo(() => calculateValuation(currentPlayer), [currentPlayer, calculateValuation]);
-
+const valuation = useMemo(() => {
+  if (!currentPlayer) return 0; // Se non c'è il giocatore, la valutazione è 0
+  return calculateValuation(currentPlayer);
+}, [currentPlayer, calculateValuation]);
   const checkGameStatus = useCallback((updatedPlayers: ExtendedPlayer[]) => {
     const activePlayers = updatedPlayers.filter(p => p && !p.isBankrupt);
     if (activePlayers.length === 1 && updatedPlayers.length > 1) {
