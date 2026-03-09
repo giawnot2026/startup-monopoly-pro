@@ -388,7 +388,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
 
 
   const handleDiceRoll = () => {
-  if (!currentPlayer || currentPlayer.name !== localPlayerName) return;
+  if (!currentPlayer || currentPlayer?.name !== localPlayerName) return;
   if (modalConfig.isOpen || isRolling || hasMovedThisTurn || isLocalUpdate.current) return;
 
   setIsRolling(true);
@@ -756,7 +756,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: currentPlayer.color }} />
             <span className="text-white font-black text-[9px] uppercase tracking-widest font-mono">
-              {currentPlayer.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer.name}`}
+              {currentPlayer?.name === localPlayerName ? "È IL TUO TURNO" : `TURNO DI ${currentPlayer?.name}`}
             </span>
           </div>
           <div className={`w-16 h-16 mb-4 flex items-center justify-center rounded-2xl border-2 transition-all ${isRolling ? 'scale-110 border-blue-500 rotate-12' : 'border-white/10'} bg-slate-800 text-white text-3xl font-black font-mono`}>
@@ -769,14 +769,14 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
             {!hasMovedThisTurn ? (
               <button 
                 onClick={handleDiceRoll} 
-                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer.name !== localPlayerName} 
+                disabled={isRolling || isLocalUpdate.current || modalConfig.isOpen || currentPlayer.isBankrupt || currentPlayer?.name !== localPlayerName} 
                 className={`px-10 py-3 font-black rounded-xl text-white text-[10px] font-mono transition-all
-                  ${currentPlayer.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
+                  ${currentPlayer?.name === localPlayerName ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'}`}
               >
-                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
+                {currentPlayer.isBankrupt ? "OUT" : (isRolling ? "Lancio..." : (currentPlayer?.name === localPlayerName ? "Lancia Dadi" : "Attendi..."))}
               </button>
             ) : (
-              !modalConfig.isOpen && currentPlayer.name === localPlayerName && (
+              !modalConfig.isOpen && currentPlayer?.name === localPlayerName && (
                 <button 
                   onClick={handlePassTurn}
                   className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 font-black rounded-xl text-white text-[10px] font-mono flex items-center gap-2 shadow-lg animate-bounce"
