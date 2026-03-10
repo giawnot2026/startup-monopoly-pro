@@ -176,12 +176,12 @@ const getCategoryMultiplier = (owner: ExtendedPlayer, category: string) => {
 
     const newState = players.map((p, idx) => {
       if (idx === currentPlayerIndex) {
-        let updatedMrr = Math.max(0, Number(p.mrr) - tollToPay);
+        let updatedMrr = Number(p.mrr)  || 0;
+        let newMonthlyCosts = (Number(p.monthlyCosts) || 0) + tollToPay;
         let updatedCash = Number(p.cash);
         let updatedLaps = Number(p.laps) || 0;
         let totalRepaidThisTurn = 0;
         let updatedDebts = [...p.debts];
-        let newMonthlyCosts = Number(p.monthlyCosts);
 
         if (nextPos < currentPos || (currentPos !== 0 && nextPos === 0)) {
           updatedLaps += 1;
