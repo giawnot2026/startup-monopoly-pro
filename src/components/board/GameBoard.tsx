@@ -605,10 +605,36 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           impact: { details: `${immediateImpact} | Royalty: -€${finalToll.toLocaleString()}` },
           actionLabel: "Paga",
           onAction: async () => {
-            try {
-              const currentIndex = currentPlayers.findIndex(p => p.id === currentPlayer.id);
-              await syncGameState(currentPlayers, currentIndex);
-              handleCloseModal();
+  try {
+    // 1. Creiamo il nuovo stato calcolando lo scambio
+    const updatedPlayersWithRoyalty = currentPlayers.map(p => {
+      // Chi atterra (tu) paga il pedaggio
+      if (p.id === currentPlayer.id) {
+        return { 
+          ...p, 
+          cash: Math.max(0, (Number(p.cash) || 0) - finalToll) 
+        };
+      }
+      // Il proprietario riceve il pedaggio come MRR (aumenta la sua valutazione)
+      if (p.id === owner.id) {
+        return { 
+          ...p, 
+          mrr: (Number(p.mrr) || 0) + finalToll 
+        };
+      }
+      return p;
+    });
+
+    // 2. Troviamo l'indice del giocatore attuale per il sync
+    const currentIndex = updatedPlayersWithRoyalty.findIndex(p => p.id === currentPlayer.id);
+    
+    // 3. Aggiorniamo lo stato locale dell'hook (importante per vedere subito i numeri cambiare)
+    setPlayers(updatedPlayersWithRoyalty);
+    
+    // 4. Sincronizziamo il database con i nuovi dati "bilanciati"
+    await syncGameState(updatedPlayersWithRoyalty, currentIndex);
+    
+    handleCloseModal();
             } catch (err) {
               console.error("Errore durante il sync della royalty:", err);
               handleCloseModal();
