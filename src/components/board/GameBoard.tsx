@@ -577,7 +577,13 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           impact: { details: `${immediateImpact} | ${nextLevelIndex < 3 ? `Royalty futura: €${nextLevelToll.toLocaleString()}` : "Livello Massimo"}` },
           actionLabel: nextLevelIndex > 2 ? "Massimo Livello" : `Acquista ${nextLevelLabel}`,
           secondaryActionLabel: nextLevelIndex <= 2 ? "Rifiuta" : null,
-          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
+          onAction: () => { applyEvent({
+    cashEffect: 0, // Il costo del badge è già gestito da upgradeBadge
+    revenueModifier: Number(tile.revenueModifier) || 0,
+    costModifier: Number(tile.costModifier) || 0,
+    title: tile.name,
+    description: "Attivazione asset operativo"
+  });upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
       }
@@ -662,7 +668,13 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
           impact: { details: immediateImpact },
           actionLabel: currentLevel === 'gold' ? "Massimo Livello" : "Sblocca Efficienza",
           secondaryActionLabel: "Ignora",
-          onAction: () => { upgradeBadge(tile.id); handleCloseModal(); },
+          onAction: () => { applyEvent({
+    cashEffect: 0, // Il costo del badge è già gestito da upgradeBadge
+    revenueModifier: Number(tile.revenueModifier) || 0,
+    costModifier: Number(tile.costModifier) || 0,
+    title: tile.name,
+    description: "Attivazione asset operativo"
+  });upgradeBadge(tile.id); handleCloseModal(); },
           onClose: handleCloseModal
         });
       } else {
