@@ -524,13 +524,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   try {
     // 1. Creiamo il nuovo stato calcolando lo scambio
     const updatedPlayersWithRoyalty = currentPlayers.map(p => {
-      // Chi atterra (tu) paga il pedaggio
-      if (p.id === currentPlayer.id) {
-        return { 
-          ...p, 
-          monthlyCosts: Math.max(0, (Number(p.monthlyCosts) || 0) + finalToll) 
-        };
-      }
+      
       // Il proprietario riceve il pedaggio come MRR (aumenta la sua valutazione)
       if (p.id === owner.id) {
         return { 
@@ -608,13 +602,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
   try {
     // 1. Creiamo il nuovo stato calcolando lo scambio
     const updatedPlayersWithRoyalty = currentPlayers.map(p => {
-      // Chi atterra (tu) paga il pedaggio
-      if (p.id === currentPlayer.id) {
-        return { 
-          ...p, 
-          monthlyCosts: Math.max(0, (Number(p.monthlyCost) || 0) + finalToll) 
-        };
-      }
+      
       // Il proprietario riceve il pedaggio come MRR (aumenta la sua valutazione)
       if (p.id === owner.id) {
         return { 
