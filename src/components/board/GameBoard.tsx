@@ -528,7 +528,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       if (p.id === currentPlayer.id) {
         return { 
           ...p, 
-          cash: Math.max(0, (Number(p.cash) || 0) - finalToll) 
+          monthlyCosts: Math.max(0, (Number(p.monthlyCosts) || 0) + finalToll) 
         };
       }
       // Il proprietario riceve il pedaggio come MRR (aumenta la sua valutazione)
@@ -612,7 +612,7 @@ const getCategoryMultiplier = useCallback((owner: any, category: string) => {
       if (p.id === currentPlayer.id) {
         return { 
           ...p, 
-          cash: Math.max(0, (Number(p.cash) || 0) - finalToll) 
+          monthlyCosts: Math.max(0, (Number(p.monthlyCostcash) || 0) + finalToll) 
         };
       }
       // Il proprietario riceve il pedaggio come MRR (aumenta la sua valutazione)
